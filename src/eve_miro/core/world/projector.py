@@ -78,6 +78,7 @@ def project_world_state(
     vessels = 0
     samples: list[dict] = []
     alerts: list[dict] = []
+    market_series: list[dict] = []
     graph = ProvenanceGraph()
 
     for event in chosen:
@@ -133,6 +134,22 @@ def project_world_state(
         elif event.event_type.startswith("vessel"):
             vessels += 1
             samples.append({"type": "vessel", "id": event.id})
+        elif event.event_type.startswith("market") or "price" in event.event_type:
+            # CoinGecko-like OBSERVED prices fold into WorldState.economy; never mixed with SIMULATED.
+            row = {
+                "id": event.id,
+                "time": event.temporal.effective_time.isoformat(),
+                "symbol": event.payload.get("symbol") or event.payload.get("id"),
+                "price": event.payload.get("price")
+                or event.payload.get("current_price")
+                or event.payload.get("usd"),
+                "currency": event.payload.get("currency")
+                or event.payload.get("vs_currency")
+                or event.payload.get("quote")
+                or ("usd" if event.payload.get("usd") is not None else None),
+                "kind": event.provenance.kind.value,
+            }
+            market_series.append(row)
         elif event.event_type.endswith("alert") or event.event_type.startswith("alert"):
             alerts.append({"id": event.id, "type": event.event_type, "payload": event.payload})
 
@@ -161,7 +178,18 @@ def project_world_state(
             bbox=(PHILIPPINES.min_lat, PHILIPPINES.max_lat, PHILIPPINES.min_lon, PHILIPPINES.max_lon),
         ),
         environment=Environment(weather=weather_out, seismic=seismic, hazards=quakes),
-        economy=Economy(),
+        economy=Economy(
+            indicators={
+                "market": {
+                    "latest": market_series[-1] if market_series else None,
+                    "series": market_series[-48:],
+                    "n": len(market_series),
+                    "kind": market_series[-1]["kind"] if market_series else None,
+                }
+            }
+            if market_series
+            else {}
+        ),
         infrastructure=Infrastructure(),
         mobility=Mobility(aircraft_count=aircraft, vessel_count=vessels, samples=samples[:20]),
         information=InformationLayer(alerts=alerts),

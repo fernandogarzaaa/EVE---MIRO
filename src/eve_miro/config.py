@@ -45,6 +45,7 @@ PROVIDER_INTERVALS: dict[str, timedelta] = {
     "celestrak": timedelta(hours=6),
     "coingecko": timedelta(minutes=5),
     "worldbank": timedelta(days=30),
+    "spaceweather": timedelta(minutes=5),
 }
 
 DEFAULT_POPULATION_TEST = 200

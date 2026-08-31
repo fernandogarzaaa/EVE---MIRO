@@ -24,11 +24,24 @@ class Persona(BaseModel):
     shelter_access: bool
     lat: float
     lon: float
+    role: str = "civilian"
     notes: str = "Synthetic statistical persona. Not a real person."
 
 
-def generate_population(n: int, rng: random.Random, *, lat: float = 14.5995, lon: float = 120.9842) -> list[Persona]:
+def generate_population(
+    n: int,
+    rng: random.Random,
+    *,
+    lat: float = 14.5995,
+    lon: float = 120.9842,
+    role: str = "civilian",
+) -> list[Persona]:
     people: list[Persona] = []
+    notes = (
+        "Synthetic statistical investor persona. Not a real person. Public rates only."
+        if role == "investor"
+        else "Synthetic statistical persona. Not a real person."
+    )
     for i in range(n):
         age = rng.choices(AGE_BANDS, weights=AGE_WEIGHTS, k=1)[0]
         people.append(
@@ -42,6 +55,8 @@ def generate_population(n: int, rng: random.Random, *, lat: float = 14.5995, lon
                 shelter_access=rng.random() < 0.55,
                 lat=lat + rng.uniform(-0.12, 0.12),
                 lon=lon + rng.uniform(-0.12, 0.12),
+                role=role,
+                notes=notes,
             )
         )
     return people

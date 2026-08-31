@@ -1,0 +1,21 @@
+# Typhoon Haiyan (Yolanda) landfall was 2013-11-08. A replay cutoff of
+# 2013-11-07T12:00:00Z must refuse any 2013-11-08 observation (no future leakage).
+name: haiyan_cutoff_example
+type: typhoon
+disclaimer: >-
+  SIMULATED. Synthetic statistical personas, not real people.
+  Cutoff-bounded historical replay example, not a reconstruction of Haiyan.
+initial_world:
+  source: world_state
+  timestamp: "2013-11-07T12:00:00Z"
+  region: philippines
+duration:
+  simulated_hours: 24
+agents:
+  population: 200
+conditions:
+  experience_engine: eve_stub
+  memory_budget: 4096
+interventions: []
+random_seed: 20131107
+information_cutoff: "2013-11-07T12:00:00Z"

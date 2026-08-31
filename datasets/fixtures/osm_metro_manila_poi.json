@@ -1,0 +1,135 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": 25389198,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.9965839,
+          14.5241939
+        ]
+      },
+      "properties": {
+        "name": "Protacio Hospital",
+        "amenity": "hospital",
+        "aeroway": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 255051235,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.9898193,
+          14.6122477
+        ]
+      },
+      "properties": {
+        "name": "UST Hospital Clinical Division",
+        "amenity": "hospital",
+        "aeroway": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 255059925,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.0397952,
+          14.721521
+        ]
+      },
+      "properties": {
+        "name": "Our Lady of Mercy Hospital",
+        "amenity": "hospital",
+        "aeroway": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 255060717,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.043441,
+          14.7303
+        ]
+      },
+      "properties": {
+        "name": "A. R. Bautista Children And General Hospital",
+        "amenity": "hospital",
+        "aeroway": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 255060785,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.9656248,
+          14.6931601
+        ]
+      },
+      "properties": {
+        "name": "St. John Hospital",
+        "amenity": "hospital",
+        "aeroway": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 255061867,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.070637,
+          14.7370013
+        ]
+      },
+      "properties": {
+        "name": "Casual General Hospital",
+        "amenity": "hospital",
+        "aeroway": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "airport:RPLL",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.0194,
+          14.5086
+        ]
+      },
+      "properties": {
+        "name": "Ninoy Aquino International Airport",
+        "aeroway": "aerodrome",
+        "iata": "MNL",
+        "icao": "RPLL"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "airport:RPLS",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.9038,
+          14.4953
+        ]
+      },
+      "properties": {
+        "name": "Danilo Atienza Air Base (Sangley Point)",
+        "aeroway": "aerodrome",
+        "iata": "SGL",
+        "icao": "RPLS"
+      }
+    }
+  ]
+}

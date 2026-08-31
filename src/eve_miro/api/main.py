@@ -19,7 +19,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from eve_miro import __version__
-from eve_miro.api.state import STATE, WorldRecord, reset_state
+from eve_miro.api.metrics_prom import inc_eval, inc_ingest, inc_sim_run
+from eve_miro.api.routes_extra import resolve_simulation_engine, router as extra_router
+from eve_miro.api import state as app_state
+from eve_miro.api.state import WorldRecord, reset_state
 from eve_miro.config import PHILIPPINES, PROVIDER_INTERVALS
 from eve_miro.core.evaluation.reality_check import Evaluation, reality_check, reliability_from_freshness
 from eve_miro.core.experience.engine import StubExperienceEngine
@@ -50,6 +53,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(extra_router)
 
 if STATIC.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC)), name="static")
@@ -101,9 +105,9 @@ class EvaluateBody(BaseModel):
 
 
 def _world_or_404(world_id: str) -> WorldRecord:
-    if world_id not in STATE.worlds:
+    if world_id not in app_state.STATE.worlds:
         raise HTTPException(404, f"world {world_id} not found")
-    return STATE.worlds[world_id]
+    return app_state.STATE.worlds[world_id]
 
 
 @app.get("/health")
@@ -118,7 +122,7 @@ async def health():
         "version": __version__,
         "providers": providers,
         "cadence": provider_cadence(),
-        "store": type(STATE.store).__name__,
+        "store": type(app_state.STATE.store).__name__,
     }
 
 
@@ -127,8 +131,8 @@ async def reliability(world_id: str | None = None):
     now = utcnow()
     freshness: dict[str, dict[str, Any]] = {}
     events = []
-    if world_id and world_id in STATE.worlds:
-        events = STATE.store.list(world_id)
+    if world_id and world_id in app_state.STATE.worlds:
+        events = app_state.STATE.store.list(world_id)
     by_src: dict[str, list] = {}
     for e in events:
         by_src.setdefault(e.source.provider, []).append(e)
@@ -136,15 +140,37 @@ async def reliability(world_id: str | None = None):
         rows = by_src.get(name, [])
         last = max((e.temporal.effective_time for e in rows), default=None)
         age = (now - last).total_seconds() if last else None
+        prov = all_providers()[name]
+        health = await prov.health()
         freshness[name] = {
             "event_count": len(rows),
             "last_effective_time": iso(last) if last else None,
             "age_seconds": age,
             "complete": len(rows) > 0,
+            "completeness": 1.0 if rows else 0.0,
+            "available": bool(health.available),
             "interval_seconds": PROVIDER_INTERVALS.get(name, timedelta(hours=24)).total_seconds(),
         }
     report = reliability_from_freshness(freshness)
-    return report.model_dump(mode="json")
+    payload = report.model_dump(mode="json")
+    payload["simulation_calibration"] = [
+        {
+            "id": e.id,
+            "world_id": e.world_id,
+            "simulation_id": e.simulation_id,
+            "metric_name": e.metric_name,
+            "mae": e.mae,
+            "rmse": e.rmse,
+            "n": e.calibration.n,
+            "reliability_note": e.calibration.reliability_note,
+            "domain_trusted": e.domain_trusted,
+            "predicted_kind": e.predicted_kind.value if hasattr(e.predicted_kind, "value") else e.predicted_kind,
+            "observed_kind": e.observed_kind.value if hasattr(e.observed_kind, "value") else e.observed_kind,
+        }
+        for e in app_state.STATE.evaluations.values()
+        if (not world_id or e.world_id == world_id)
+    ]
+    return payload
 
 
 @app.post("/worlds")
@@ -157,7 +183,7 @@ async def create_world(body: CreateWorldBody):
         information_cutoff=as_utc(body.information_cutoff) if body.information_cutoff else None,
         label=body.label,
     )
-    STATE.worlds[wid] = rec
+    app_state.STATE.worlds[wid] = rec
     return {"id": wid, "region": rec.region, "information_cutoff": iso(rec.information_cutoff) if rec.information_cutoff else None}
 
 
@@ -171,7 +197,7 @@ async def ingest(world_id: str, body: IngestBody):
     if body.events:
         events = [WorldEvent.model_validate(e) for e in body.events]
         accepted.extend(
-            STATE.store.append_many(world_id, events, channel=body.channel, information_cutoff=cutoff)
+            app_state.STATE.store.append_many(world_id, events, channel=body.channel, information_cutoff=cutoff)
         )
     if body.providers:
         window_raw = body.window or {
@@ -181,7 +207,7 @@ async def ingest(world_id: str, body: IngestBody):
         window = TimeWindow(start=window_raw["start"], end=window_raw["end"], region=rec.region)
         accepted.extend(
             await ingest_from_providers(
-                STATE.store,
+                app_state.STATE.store,
                 world_id,
                 body.providers,
                 window,
@@ -190,6 +216,7 @@ async def ingest(world_id: str, body: IngestBody):
             )
         )
     kinds = sorted({e.kind.value for e in accepted})
+    inc_ingest(len(accepted))
     return {
         "ingested": len(accepted),
         "ids": [e.id for e in accepted[:50]],
@@ -203,7 +230,7 @@ async def snapshot(world_id: str, at: str | None = None):
     rec = _world_or_404(world_id)
     when = as_utc(at) if at else utcnow()
     cutoff = rec.information_cutoff or when
-    events = STATE.store.list(world_id)
+    events = app_state.STATE.store.list(world_id)
     state = project_world_state(world_id, events, at=when, information_cutoff=cutoff, reject_leaks=False)
     return state.model_dump(mode="json")
 
@@ -216,7 +243,7 @@ async def get_state(world_id: str, at: str | None = None):
 @app.get("/worlds/{world_id}/events")
 async def list_events(world_id: str):
     _world_or_404(world_id)
-    events = STATE.store.list(world_id)
+    events = app_state.STATE.store.list(world_id)
     return {
         "n": len(events),
         "events": [
@@ -228,6 +255,9 @@ async def list_events(world_id: str):
                 "kind": e.kind.value,
                 "freshness": iso(e.temporal.effective_time),
                 "payload_keys": list(e.payload.keys()),
+                "location": (
+                    {"lat": e.location.lat, "lon": e.location.lon} if e.location else None
+                ),
             }
             for e in events
         ],
@@ -243,13 +273,13 @@ async def create_sim(body: CreateSimBody):
     if scenario and body.seed is not None:
         scenario.random_seed = body.seed
     cutoff = rec.information_cutoff or (scenario.cutoff if scenario else utcnow())
-    events = STATE.store.list(body.world_id)
+    events = app_state.STATE.store.list(body.world_id)
     world = project_world_state(body.world_id, events, at=cutoff, information_cutoff=cutoff)
     n = body.population or (scenario.population if scenario else 200)
-    engine = StubSimulationEngine(scenario)
+    engine = resolve_simulation_engine(scenario)
     sim = await engine.initialize(world, Population(synthetic_n=n))
-    STATE.simulations[sim.id] = sim
-    STATE.scenarios[sim.id] = {"engine": engine, "scenario": scenario}
+    app_state.STATE.simulations[sim.id] = sim
+    app_state.STATE.scenarios[sim.id] = {"engine": engine, "scenario": scenario}
     return {
         "id": sim.id,
         "status": sim.status,
@@ -263,7 +293,7 @@ async def create_sim(body: CreateSimBody):
 
 @app.get("/simulations/{sim_id}")
 async def get_sim(sim_id: str):
-    sim = STATE.simulations.get(sim_id)
+    sim = app_state.STATE.simulations.get(sim_id)
     if not sim:
         raise HTTPException(404, "simulation not found")
     return sim.model_dump(mode="json", exclude={"personas", "steps"}) | {
@@ -274,14 +304,14 @@ async def get_sim(sim_id: str):
 
 @app.post("/simulations/{sim_id}/run")
 async def run_sim(sim_id: str):
-    sim = STATE.simulations.get(sim_id)
+    sim = app_state.STATE.simulations.get(sim_id)
     if not sim:
         raise HTTPException(404, "simulation not found")
-    pack = STATE.scenarios.get(sim_id) or {}
-    engine: StubSimulationEngine = pack.get("engine") or StubSimulationEngine()
+    pack = app_state.STATE.scenarios.get(sim_id) or {}
+    engine: StubSimulationEngine = pack.get("engine") or resolve_simulation_engine()
     until = sim.origin + timedelta(hours=sim.hours)
     result = await engine.run(sim, until)
-    STATE.results[sim_id] = result
+    app_state.STATE.results[sim_id] = result
     # experiences
     from eve_miro.core.experience.candidates import Trajectory
 
@@ -289,9 +319,9 @@ async def run_sim(sim_id: str):
     traj = Trajectory(simulation_id=sim.id, actions=result.traces, predicted_series=result.predicted_series)
     for cand in await exp_engine.observe(traj):
         val = await exp_engine.validate(cand)
-        STATE.experiences[val.id] = val
+        app_state.STATE.experiences[val.id] = val
     # auto reality-check against observed weather in the world if present
-    events = STATE.store.list(sim.world_id, kinds=[ProvenanceKind.OBSERVED])
+    events = app_state.STATE.store.list(sim.world_id, kinds=[ProvenanceKind.OBSERVED])
     obs_w = []
     obs_t = []
     for e in events:
@@ -308,8 +338,10 @@ async def run_sim(sim_id: str):
         obs_times=obs_t,
         metric_name="wind_speed_10m",
     )
-    STATE.evaluations[ev.id] = ev
+    app_state.STATE.evaluations[ev.id] = ev
     result.summary["evaluation_id"] = ev.id
+    inc_sim_run()
+    inc_eval()
     return {
         "id": sim.id,
         "status": sim.status,
@@ -321,7 +353,7 @@ async def run_sim(sim_id: str):
 
 @app.post("/simulations/{sim_id}/pause")
 async def pause_sim(sim_id: str):
-    sim = STATE.simulations.get(sim_id)
+    sim = app_state.STATE.simulations.get(sim_id)
     if not sim:
         raise HTTPException(404, "simulation not found")
     sim.status = "paused"
@@ -330,7 +362,7 @@ async def pause_sim(sim_id: str):
 
 @app.post("/simulations/{sim_id}/resume")
 async def resume_sim(sim_id: str):
-    sim = STATE.simulations.get(sim_id)
+    sim = app_state.STATE.simulations.get(sim_id)
     if not sim:
         raise HTTPException(404, "simulation not found")
     sim.status = "running"
@@ -339,7 +371,7 @@ async def resume_sim(sim_id: str):
 
 @app.get("/simulations/{sim_id}/actions")
 async def sim_actions(sim_id: str, limit: int = 200):
-    result = STATE.results.get(sim_id)
+    result = app_state.STATE.results.get(sim_id)
     if not result:
         raise HTTPException(404, "run the simulation first")
     return {"n": len(result.traces), "actions": result.traces[:limit], "kind": "simulated"}
@@ -347,7 +379,7 @@ async def sim_actions(sim_id: str, limit: int = 200):
 
 @app.get("/simulations/{sim_id}/outcomes")
 async def sim_outcomes(sim_id: str):
-    result = STATE.results.get(sim_id)
+    result = app_state.STATE.results.get(sim_id)
     if not result:
         raise HTTPException(404, "run the simulation first")
     return {"summary": result.summary, "predicted_series": result.predicted_series, "kind": "simulated"}
@@ -356,14 +388,14 @@ async def sim_outcomes(sim_id: str):
 @app.get("/experiences")
 async def list_exp():
     return {
-        "n": len(STATE.experiences),
-        "experiences": [e.model_dump(mode="json") for e in STATE.experiences.values()],
+        "n": len(app_state.STATE.experiences),
+        "experiences": [e.model_dump(mode="json") for e in app_state.STATE.experiences.values()],
     }
 
 
 @app.get("/experiences/{exp_id}")
 async def get_exp(exp_id: str):
-    e = STATE.experiences.get(exp_id)
+    e = app_state.STATE.experiences.get(exp_id)
     if not e:
         raise HTTPException(404, "experience not found")
     return e.model_dump(mode="json")
@@ -371,39 +403,39 @@ async def get_exp(exp_id: str):
 
 @app.post("/experiences/{exp_id}/validate")
 async def validate_exp(exp_id: str):
-    e = STATE.experiences.get(exp_id)
+    e = app_state.STATE.experiences.get(exp_id)
     if not e:
         raise HTTPException(404, "experience not found")
     engine = StubExperienceEngine()
     val = await engine.validate(e.candidate)
-    STATE.experiences[val.id] = val
+    app_state.STATE.experiences[val.id] = val
     return val.model_dump(mode="json")
 
 
 @app.post("/scenarios")
 async def post_scenario(payload: dict[str, Any]):
     name = payload.get("name") or f"scenario_{uuid4().hex[:8]}"
-    STATE.scenarios[name] = payload
+    app_state.STATE.scenarios[name] = payload
     return {"id": name, "stored": True}
 
 
 @app.post("/scenarios/{scenario_id}/simulate")
 async def simulate_scenario(scenario_id: str, world_id: str | None = None):
-    if scenario_id == "typhoon_manila_001" or scenario_id not in STATE.worlds:
+    if scenario_id == "typhoon_manila_001" or scenario_id not in app_state.STATE.worlds:
         scenario = load_scenario(name="typhoon_manila_001")
     else:
         scenario = load_scenario(name=scenario_id)
-    wid = world_id or next(iter(STATE.worlds), None)
+    wid = world_id or next(iter(app_state.STATE.worlds), None)
     if not wid:
         rec = WorldRecord(id=f"world_{uuid4().hex[:10]}", created_at=utcnow(), information_cutoff=scenario.cutoff)
-        STATE.worlds[rec.id] = rec
+        app_state.STATE.worlds[rec.id] = rec
         wid = rec.id
-    events = STATE.store.list(wid)
+    events = app_state.STATE.store.list(wid)
     result, selected = await run_scenario(wid, events, scenario)
-    STATE.simulations[result.simulation.id] = result.simulation
-    STATE.results[result.simulation.id] = result
+    app_state.STATE.simulations[result.simulation.id] = result.simulation
+    app_state.STATE.results[result.simulation.id] = result
     for v in selected:
-        STATE.experiences[v.id] = v
+        app_state.STATE.experiences[v.id] = v
     return {
         "simulation_id": result.simulation.id,
         "summary": result.summary,
@@ -414,7 +446,7 @@ async def simulate_scenario(scenario_id: str, world_id: str | None = None):
 
 @app.get("/evaluations/{eval_id}")
 async def get_eval(eval_id: str):
-    e = STATE.evaluations.get(eval_id)
+    e = app_state.STATE.evaluations.get(eval_id)
     if not e:
         raise HTTPException(404, "evaluation not found")
     return e.model_dump(mode="json")
@@ -422,8 +454,8 @@ async def get_eval(eval_id: str):
 
 @app.post("/evaluations")
 async def post_eval(body: EvaluateBody):
-    sim = STATE.simulations.get(body.simulation_id)
-    result = STATE.results.get(body.simulation_id)
+    sim = app_state.STATE.simulations.get(body.simulation_id)
+    result = app_state.STATE.results.get(body.simulation_id)
     predicted = body.predicted
     if predicted is None and result:
         predicted = result.predicted_series.get(body.metric_name) or result.predicted_series.get("wind_speed_10m") or []
@@ -435,7 +467,8 @@ async def post_eval(body: EvaluateBody):
         observed=observed,
         metric_name=body.metric_name,
     )
-    STATE.evaluations[ev.id] = ev
+    app_state.STATE.evaluations[ev.id] = ev
+    inc_eval()
     return ev.model_dump(mode="json")
 
 

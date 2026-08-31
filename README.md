@@ -1,6 +1,6 @@
 # EVE-MIRO
 
-**Reality-Grounded Experiential Simulation.**
+**Reality-to-simulation feedback system.**
 
 A continuously evaluated synthetic-world platform that grounds multi-agent
 simulations in live and historical open data, models agent experience with EVE
@@ -9,6 +9,7 @@ simulations in live and historical open data, models agent experience with EVE
 This is **not** an AI dashboard and **not** a clone of SIGINT / God’s Eye View /
 AEGIS / H.O.T-EARTH / MiroFish. Adapters and core are first-party.
 **MiroFish and EVE are replaceable engine interfaces; v1 ships stubs.**
+Do not clone those repos into this tree.
 
 ## The loop
 
@@ -41,11 +42,26 @@ AEGIS / H.O.T-EARTH / MiroFish. Adapters and core are first-party.
             SIMULATED                SIMULATED                     vs OBSERVED
 ```
 
+Optional live engines (not vendored):
+
+| env | points at | used as |
+|---|---|---|
+| `MIROFISH_URL` | https://github.com/fernandogarzaaa/MiroFish | `SimulationEngine` adapter |
+| `EVE_URL` | https://github.com/fernandogarzaaa/experience-validation-engine | `ExperienceEngine` adapter |
+
+v1 ignores these unless core later exposes `get_simulation_engine()`; the
+API factory falls back to `StubSimulationEngine`.
+
 ## First domain
 
 Earth + mobility + weather + events, **Philippines** bbox roughly
 `4.2N–21.2N, 116.5E–127E`. Default scenario: Metro Manila typhoon
 `experiments/historical-replay/typhoon_manila_001.yaml`.
+
+## Second domain
+
+**Finance** (stub): CoinGecko-style public market ticks. Same provenance
+rules — public data only, no person tracking. Not the default Load demo.
 
 ## Provenance (mandatory, never mixed)
 
@@ -69,6 +85,7 @@ Historical replay refuses any event after the cutoff.
 - Synthetic agents are **statistical personas, never a named real person**.
 - No person tracking or profiling.
 - Counterfactuals are labeled **model-generated, not fact**.
+- The dashboard is a Reality Check, not an OSINT globe.
 
 ## How to run
 
@@ -85,14 +102,24 @@ FIXTURES=1 python3 -m uvicorn eve_miro.api.main:app --port 8000
 FastAPI app entry: `src/eve_miro/api/main.py` (`eve_miro.api.main:app`).
 Layout folder `apps/api` is a pointer — see that README.
 
+One-click demo (same as the dashboard **Load demo** button):
+
+```bash
+curl -s -X POST localhost:8000/demo -H 'content-type: application/json' -d '{}'
+```
+
 Optional stack (Postgres/PostGIS, Redis, MinIO, API):
 
 ```bash
 docker compose up --build
+docker compose --profile streaming up      # Redpanda
+docker compose --profile timeseries up     # same PostGIS postgres; Timescale is future
 ```
 
-No Kubernetes. Redpanda is commented in `docker-compose.yml`; v1 uses an
-in-process bus.
+No Kubernetes. Default `docker compose up` does **not** start Redpanda.
+Time series stay on PostGIS; do not swap that image for Timescale.
+
+MinIO bucket prefixes: `raw/` `normalized/` `derived/` `simulation/` `experiments/`.
 
 ### Provider cadence
 
@@ -107,20 +134,23 @@ Do not poll everything every second.
 | gdelt | 15 min | stub |
 | nasa / celestrak | 6 h | stub |
 | osm | 24 h | stub |
-| coingecko | 5 min | stub |
+| coingecko | 5 min | stub (finance domain) |
 | worldbank | 30 d | stub |
 
 Stubs report `health.available=false` unless `FIXTURES=1`.
 
 ## API
 
-`POST /worlds` · `POST /worlds/{id}/ingest` · `POST /worlds/{id}/snapshot?at=` ·
-`GET /worlds/{id}/state?at=` · `POST /simulations` · `POST /simulations/{id}/run` ·
-pause/resume · actions · outcomes · experiences · `POST /scenarios/{id}/simulate` ·
-`GET /evaluations/{id}` · `GET /health` · `GET /reliability`
+`GET /` dashboard · `GET /health` · `GET /reliability` · `GET /metrics` ·
+`POST /demo` · `POST/GET /worlds` · ingest · snapshot · state · events ·
+`POST/GET /simulations` · run · pause · resume · actions · outcomes ·
+`GET/POST /experiences` · validate · `POST /scenarios` ·
+`POST /scenarios/{id}/simulate` · `GET /evaluations/{id}` ·
+`GET /provenance/{id}` (event→source walk when a graph exists).
 
-The dashboard is a Reality Check page served by FastAPI. Every record is
-labeled **OBSERVED** or **SIMULATED** (and forecast/derived when applicable).
+The dashboard has five tabs that hit these routes: **World**, **Simulation**,
+**Experience**, **Reality Check**, **Reliability**. Every record is labeled
+**OBSERVED** or **SIMULATED** (and forecast/derived when applicable).
 
 ## Tests
 

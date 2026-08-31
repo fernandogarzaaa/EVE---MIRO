@@ -25,6 +25,7 @@ class QualityReport(BaseModel):
     rejected: list[QualityIssue] = Field(default_factory=list)
     duplicates: list[str] = Field(default_factory=list)
     conflicted: list[str] = Field(default_factory=list)
+    consensus: list[str] = Field(default_factory=list)
 
 
 def _in_range(event: WorldEvent) -> QualityIssue | None:
@@ -94,21 +95,40 @@ def _fingerprint(event: WorldEvent) -> str:
     return f"{event.source.provider}:{event.event_type}:{loc}:{t}"
 
 
+def _nearby_quakes(a: WorldEvent, b: WorldEvent) -> bool:
+    if a.location is None or b.location is None:
+        return False
+    dt = abs((a.temporal.effective_time - b.temporal.effective_time).total_seconds())
+    dlat = abs(a.location.lat - b.location.lat)
+    dlon = abs(a.location.lon - b.location.lon)
+    return dt <= 120 and dlat <= 0.15 and dlon <= 0.15
+
+
 def reconcile_earthquakes(events: list[WorldEvent]) -> list[WorldEvent]:
-    """If two earthquake magnitudes disagree beyond tolerance, mark both conflicted."""
+    """Magnitude consensus: agree → high-confidence observation; disagree → conflicted/uncertain."""
     quakes = [e for e in events if e.event_type.startswith("earthquake") and e.location]
     conflicted_ids: set[str] = set()
+    consensus_ids: set[str] = set()
+    consensus_mag: dict[str, float] = {}
     for i, a in enumerate(quakes):
         for b in quakes[i + 1 :]:
-            dt = abs((a.temporal.effective_time - b.temporal.effective_time).total_seconds())
-            dlat = abs(a.location.lat - b.location.lat)  # type: ignore[union-attr]
-            dlon = abs(a.location.lon - b.location.lon)  # type: ignore[union-attr]
-            if dt <= 120 and dlat <= 0.15 and dlon <= 0.15:
-                ma = a.payload.get("mag")
-                mb = b.payload.get("mag")
-                if ma is not None and mb is not None and abs(float(ma) - float(mb)) > MAG_TOLERANCE:
-                    conflicted_ids.add(a.id)
-                    conflicted_ids.add(b.id)
+            if not _nearby_quakes(a, b):
+                continue
+            ma = a.payload.get("mag")
+            mb = b.payload.get("mag")
+            if ma is None or mb is None:
+                continue
+            mean_mag = (float(ma) + float(mb)) / 2.0
+            if abs(float(ma) - float(mb)) > MAG_TOLERANCE:
+                conflicted_ids.add(a.id)
+                conflicted_ids.add(b.id)
+            else:
+                consensus_ids.add(a.id)
+                consensus_ids.add(b.id)
+                consensus_mag[a.id] = mean_mag
+                consensus_mag[b.id] = mean_mag
+    # Disagreement wins over agreement when the same event is in both sets.
+    consensus_ids -= conflicted_ids
     out: list[WorldEvent] = []
     for e in events:
         if e.id in conflicted_ids:
@@ -120,6 +140,20 @@ def reconcile_earthquakes(events: list[WorldEvent]) -> list[WorldEvent]:
                 }
             )
             out.append(e.model_copy(update={"provenance": prov, "payload": {**e.payload, "conflicted": True}}))
+        elif e.id in consensus_ids:
+            prov = e.provenance.model_copy(
+                update={
+                    "conflicted": False,
+                    "confidence": 0.95,
+                    "notes": "cross-source magnitude consensus; high confidence observation",
+                }
+            )
+            payload = {
+                **e.payload,
+                "consensus": True,
+                "consensus_mag": consensus_mag.get(e.id, e.payload.get("mag")),
+            }
+            out.append(e.model_copy(update={"provenance": prov, "payload": payload}))
         else:
             out.append(e)
     return out
@@ -157,6 +191,7 @@ def run_quality(
         kept.append(event)
     kept = reconcile_earthquakes(kept)
     report.conflicted = [e.id for e in kept if e.provenance.conflicted]
+    report.consensus = [e.id for e in kept if e.payload.get("consensus")]
     report.accepted = kept
     return report
 

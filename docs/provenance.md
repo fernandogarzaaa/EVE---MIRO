@@ -14,3 +14,8 @@ Tests fail if this is allowed.
 
 The provenance graph supports “why did the simulator predict this?” by walking
 `conclusion → experience → state → event → source`.
+
+`GET /provenance/{id}` traces a node (event id, or `event:{id}`) using the
+folded `WorldState.provenance_graph` when a world exists. Dashboard badges
+must match the stored kind — the UI is not allowed to relabel SIMULATED as
+OBSERVED.

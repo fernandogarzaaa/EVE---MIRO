@@ -35,3 +35,15 @@ predicted wind to observed wind when timestamps align.
 Labeled SIMULATED. Use them to measure prediction error against OBSERVED
 reality, then feed that error back into the experience engine. Do not
 publish them as observations.
+
+## Finance as a second world
+
+`market_ph_001` is the same product on `WorldState.economy`, not a separate
+simulator. Ingested CoinGecko-like `market.price` events are OBSERVED; agent
+reactions are SIMULATED statistical investor personas (not real people).
+
+## Engines
+
+v1 default engines are stubs. Set `MIROFISH_URL` or `EVE_URL`/`EVE_BIN` to
+attach replaceable adapters; neither repo is vendored. Failures fall back to
+the stub with provenance notes.

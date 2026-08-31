@@ -13,6 +13,11 @@ class Trajectory(BaseModel):
     simulation_id: str
     actions: list[dict[str, Any]] = Field(default_factory=list)
     predicted_series: dict[str, list[float]] = Field(default_factory=dict)
+    observed_series: dict[str, list[float]] = Field(default_factory=dict)
+    episode_id: str = "episode_81"
+    world_state_timestamp: str | None = None
+    event_ids: list[str] = Field(default_factory=list)
+    source_providers: list[str] = Field(default_factory=list)
 
 
 class ExperienceCandidate(BaseModel):

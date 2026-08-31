@@ -1,0 +1,23 @@
+name: market_ph_001
+type: market
+disclaimer: >-
+  SIMULATED. Synthetic statistical investor personas, not real people.
+  Reactions to ingested CoinGecko-like prices are scenario projections,
+  never a forecast of the market and never mixed with OBSERVED prices.
+initial_world:
+  source: world_state
+  timestamp: "2024-11-04T00:00:00Z"
+  region: philippines
+duration:
+  simulated_hours: 24
+agents:
+  population: 50
+conditions:
+  experience_engine: eve_stub
+  memory_budget: 4096
+  symbols:
+    - bitcoin
+    - usd-php
+interventions: []
+random_seed: 202411
+information_cutoff: "2024-11-04T00:00:00Z"

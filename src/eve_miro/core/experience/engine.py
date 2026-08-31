@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any, Protocol, runtime_checkable
 
 from eve_miro.core.experience.candidates import ExperienceCandidate, Trajectory
 from eve_miro.core.experience.counterfactual import Counterfactual
+from eve_miro.core.experience.layers import LAYER_NAMES, layers_from_candidates
 from eve_miro.core.experience.memory import select_by_budget
 from eve_miro.core.experience.transfer import evaluate_transfer
 from eve_miro.core.experience.validation import TransferResult, ValidatedExperience
 from eve_miro.core.world.events import ProvenanceKind
+from eve_miro.core.world.provenance import conclusion_graph
 
 
 @runtime_checkable
@@ -25,6 +28,20 @@ class ExperienceEngine(Protocol):
     async def evaluate_transfer(self, experience: ValidatedExperience, context: dict[str, Any]) -> TransferResult: ...
 
 
+def _env(name: str) -> str | None:
+    v = os.environ.get(name, "").strip()
+    return v or None
+
+
+def get_experience_engine() -> ExperienceEngine:
+    """Select EVE adapter when EVE_URL or EVE_BIN is set; otherwise the stub."""
+    if _env("EVE_URL") or _env("EVE_BIN"):
+        from eve_miro.core.experience.eve_adapter import EVEExperienceEngine
+
+        return EVEExperienceEngine()
+    return StubExperienceEngine()
+
+
 class StubExperienceEngine:
     """Deterministic stand-in for EVE. Not the real EVE model."""
 
@@ -38,13 +55,23 @@ class StubExperienceEngine:
         cong = [float(a.get("congestion") or 0) for a in actions]
         peak_c = max(cong) if cong else 0.0
         first_warn = min(warning_hours) if warning_hours else None
+        episode_id = trajectory.episode_id or "episode_81"
+        predicted = dict(trajectory.predicted_series)
+        observed = dict(trajectory.observed_series)
+        has_obs = any(observed.values())
         candidates = [
             ExperienceCandidate(
                 id=f"exp_agent_{trajectory.simulation_id}",
                 agent_id=stuck[0]["agent_id"] if stuck else (evac[0]["agent_id"] if evac else None),
-                episode_id="episode_81",
+                episode_id=episode_id,
                 layer="agent",
-                context={"high_traffic_density": peak_c > 0.35, "peak_congestion": peak_c},
+                context={
+                    "high_traffic_density": peak_c > 0.35,
+                    "peak_congestion": peak_c,
+                    "world_state_timestamp": trajectory.world_state_timestamp,
+                    "event_ids": list(trajectory.event_ids),
+                    "source_providers": list(trajectory.source_providers),
+                },
                 action="evacuate" if evac else "stay",
                 observation={"stuck_n": len(stuck), "evacuated_n": len(evac)},
                 outcome="congestion_blocked" if stuck else "evacuated",
@@ -52,21 +79,35 @@ class StubExperienceEngine:
             ),
             ExperienceCandidate(
                 id=f"exp_pop_{trajectory.simulation_id}",
-                episode_id="episode_81",
+                episode_id=episode_id,
                 layer="population",
-                context={"population_actions": len(actions)},
+                context={
+                    "population_actions": len(actions),
+                    "world_state_timestamp": trajectory.world_state_timestamp,
+                    "event_ids": list(trajectory.event_ids),
+                    "source_providers": list(trajectory.source_providers),
+                },
                 observation={"stuck_n": len(stuck), "evacuated_n": len(evac), "peak_congestion": peak_c},
                 outcome="population_mobility",
             ),
             ExperienceCandidate(
                 id=f"exp_simreality_{trajectory.simulation_id}",
-                episode_id="episode_81",
+                episode_id=episode_id,
                 layer="simulator_vs_reality",
-                context={"series": list(trajectory.predicted_series.keys())},
-                prediction={"wind_speed_10m": trajectory.predicted_series.get("wind_speed_10m", [])},
-                outcome="pending_reality_check",
+                context={
+                    "series": list(predicted.keys()),
+                    "world_state_timestamp": trajectory.world_state_timestamp,
+                    "event_ids": list(trajectory.event_ids),
+                    "source_providers": list(trajectory.source_providers),
+                },
+                prediction={"wind_speed_10m": predicted.get("wind_speed_10m", []), **{k: v for k, v in predicted.items()}},
+                observation=observed,
+                outcome="compared" if has_obs else "pending_reality_check",
             ),
         ]
+        # Explicit layer models are derived from the same three candidates.
+        _ = layers_from_candidates(candidates)
+        assert {c.layer for c in candidates} >= set(LAYER_NAMES)
         return candidates
 
     async def validate(self, experience: ExperienceCandidate) -> ValidatedExperience:
@@ -78,9 +119,22 @@ class StubExperienceEngine:
                 "experience": "evacuation warnings arriving after congestion begins are ineffective",
                 "conditions": ["high traffic density", "warning delay > 20 minutes"],
                 "confidence": 0.91,
-                "source": ["episode_81"],
+                "source": [experience.episode_id or "episode_81"],
                 "provenance_kind": ProvenanceKind.SIMULATED.value,
             }
+        event_ids = list((experience.context or {}).get("event_ids") or [])
+        source_providers = list((experience.context or {}).get("source_providers") or [])
+        world_state_timestamp = (experience.context or {}).get("world_state_timestamp")
+        graph = conclusion_graph(
+            experience.id,
+            label=f"validated:{experience.layer}",
+            experience_id=experience.id,
+            episode_id=experience.episode_id,
+            world_state_timestamp=world_state_timestamp,
+            event_ids=event_ids,
+            source_providers=source_providers,
+            kind=ProvenanceKind.SIMULATED,
+        )
         cfs = await self.generate_counterfactual(
             ValidatedExperience(
                 id=experience.id,
@@ -106,6 +160,11 @@ class StubExperienceEngine:
             applicability=["philippines", "typhoon", "metro_manila", "mobility"],
             artifact=artifact,
             layer=experience.layer,
+            episode_id=experience.episode_id,
+            world_state_timestamp=world_state_timestamp,
+            event_ids=event_ids,
+            source_providers=source_providers,
+            provenance_graph=graph,
         )
 
     async def select(self, experiences: list[ValidatedExperience], budget: int) -> list[ValidatedExperience]:

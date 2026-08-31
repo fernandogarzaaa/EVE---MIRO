@@ -1,0 +1,89 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.3517,
+          -8.3101
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1558059,
+        "episodeid": 1725109,
+        "name": "Earthquake in Indonesia",
+        "fromdate": "2026-08-14T21:58:21",
+        "todate": "2026-08-14T21:58:21",
+        "alertlevel": "Red",
+        "alertscore": 3,
+        "country": "Indonesia",
+        "iso3": "IDN",
+        "severitydata": {
+          "severity": 7.7,
+          "severitytext": "Magnitude 7.7M, Depth:10km",
+          "severityunit": "M"
+        },
+        "glide": ""
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          125.276,
+          5.1812
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1556215,
+        "episodeid": 1723078,
+        "name": "Earthquake in Philippines",
+        "fromdate": "2026-08-05T04:14:06",
+        "todate": "2026-08-05T04:14:06",
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "country": "Philippines",
+        "iso3": "PHL",
+        "severitydata": {
+          "severity": 6.3,
+          "severitytext": "Magnitude 6.3M, Depth:10km",
+          "severityunit": "M"
+        },
+        "glide": ""
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.685,
+          13.257
+        ]
+      },
+      "properties": {
+        "eventtype": "VO",
+        "eventid": 1000144,
+        "episodeid": 1,
+        "name": "Eruption  Mayon",
+        "fromdate": "2026-07-16T01:59:00",
+        "todate": "2026-07-16T01:59:00",
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "country": "Philippines",
+        "iso3": "PHL",
+        "severitydata": {
+          "severity": 0.0,
+          "severitytext": "",
+          "severityunit": ""
+        },
+        "glide": "VO-2026-000115-PHL"
+      }
+    }
+  ]
+}

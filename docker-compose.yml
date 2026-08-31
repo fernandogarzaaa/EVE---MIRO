@@ -1,5 +1,12 @@
 # EVE-MIRO local stack. No Kubernetes.
-# Redpanda is optional and commented out; the in-process bus is the default.
+# Default `docker compose up` starts postgres (PostGIS), redis, minio, api.
+# Optional:
+#   docker compose --profile streaming up     # Redpanda
+#   docker compose --profile timeseries up    # same PostGIS postgres; Timescale is future
+#
+# MinIO bucket (eve-miro) prefixes:
+#   raw/  normalized/  derived/  simulation/  experiments/
+
 services:
   postgres:
     image: postgis/postgis:16-3.4
@@ -43,7 +50,11 @@ services:
       DATABASE_URL: postgresql+psycopg://eve:eve@postgres:5432/eve_miro
       REDIS_URL: redis://redis:6379/0
       MINIO_ENDPOINT: minio:9000
+      MINIO_BUCKET: eve-miro
       FIXTURES: "1"
+      # Optional replaceable engines — not vendored, not cloned:
+      # MIROFISH_URL: https://github.com/fernandogarzaaa/MiroFish
+      # EVE_URL: https://github.com/fernandogarzaaa/experience-validation-engine
     ports:
       - "8000:8000"
     depends_on:
@@ -54,18 +65,38 @@ services:
       minio:
         condition: service_started
 
-# Optional streaming (not required to run):
-#  redpanda:
-#    image: docker.redpanda.com/redpandadata/redpanda:v24.2.7
-#    command:
-#      - redpanda start
-#      - --smp 1
-#      - --memory 512M
-#      - --overprovisioned
-#      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
-#      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
-#    ports:
-#      - "19092:19092"
+  # --profile streaming
+  redpanda:
+    profiles: ["streaming"]
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.7
+    command:
+      - redpanda
+      - start
+      - --smp
+      - "1"
+      - --memory
+      - 512M
+      - --overprovisioned
+      - --kafka-addr
+      - internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr
+      - internal://redpanda:9092,external://localhost:19092
+    ports:
+      - "19092:19092"
+      - "9644:9644"
+
+  # --profile timeseries
+  # Time series stay on the same PostGIS postgres service. Do not replace
+  # postgis/postgis:16-3.4 with Timescale — hypertables would fight geography.
+  # Timescale is a future option on a separate DSN, not this image.
+  timeseries:
+    profiles: ["timeseries"]
+    image: alpine:3.20
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["echo", "Timescale is future. Time series live on PostGIS postgres. Do not replace postgis/postgis:16-3.4."]
+    restart: "no"
 
 volumes:
   pgdata:

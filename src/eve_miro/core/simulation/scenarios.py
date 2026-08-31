@@ -21,6 +21,7 @@ class Intervention(BaseModel):
 
 class Scenario(BaseModel):
     name: str
+    type: str = "typhoon"
     initial_world: dict[str, Any]
     duration: dict[str, Any]
     agents: dict[str, Any]
@@ -29,6 +30,10 @@ class Scenario(BaseModel):
     random_seed: int = 48291
     information_cutoff: str
     path: str | None = None
+    disclaimer: str = (
+        "SIMULATED. Synthetic statistical personas, not real people. "
+        "Outputs are scenario projections under stated assumptions, never 'the future is'."
+    )
 
     @property
     def population(self) -> int:

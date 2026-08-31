@@ -93,3 +93,129 @@ def test_api_happy_path_create_ingest_snapshot_sim_evaluate():
     )
     assert bad.status_code == 400
     assert bad.json()["error"] == "provenance"
+
+def test_dashboard_and_extra_routes():
+    from eve_miro.api.metrics_prom import reset_metrics
+
+    reset_metrics()
+    client = TestClient(app)
+
+    dash = client.get("/")
+    assert dash.status_code == 200
+    html = dash.text
+    assert "Reliability" in html
+    assert "Load demo" in html
+    assert "World" in html
+
+    worlds0 = client.get("/worlds")
+    assert worlds0.status_code == 200
+    assert worlds0.json()["n"] == 0
+
+    demo = client.post("/demo", json={"id": "ph-demo", "population": 200})
+    assert demo.status_code == 200, demo.text
+    body = demo.json()
+    assert body["world_id"] == "ph-demo"
+    assert body["ingested"] > 0
+    assert body["simulation_id"]
+    assert body["evaluation_id"]
+    assert body["provenance_kind"] == "simulated"
+    assert "SIMULATED" in body["disclaimer"]
+    sid = body["simulation_id"]
+    eid = body["evaluation_id"]
+    wid = body["world_id"]
+
+    worlds = client.get("/worlds")
+    assert worlds.status_code == 200
+    assert worlds.json()["n"] >= 1
+    one = client.get(f"/worlds/{wid}")
+    assert one.status_code == 200
+    assert one.json()["id"] == wid
+
+    events = client.get(f"/worlds/{wid}/events")
+    assert events.status_code == 200
+    row = events.json()["events"][0]
+    assert "kind" in row
+    assert "location" in row
+
+    sims = client.get("/simulations")
+    assert sims.status_code == 200
+    assert sims.json()["n"] >= 1
+    assert sims.json()["kind"] == "simulated"
+
+    pause = client.post(f"/simulations/{sid}/pause")
+    assert pause.status_code == 200
+    assert pause.json()["status"] == "paused"
+    resume = client.post(f"/simulations/{sid}/resume")
+    assert resume.status_code == 200
+
+    actions = client.get(f"/simulations/{sid}/actions")
+    assert actions.status_code == 200
+    posted_act = client.post(
+        f"/simulations/{sid}/actions",
+        json={"type": "note", "payload": {"hello": "sim"}},
+    )
+    assert posted_act.status_code == 200
+    assert posted_act.json()["kind"] == "simulated"
+
+    outcomes = client.get(f"/simulations/{sid}/outcomes")
+    assert outcomes.status_code == 200
+    assert outcomes.json()["kind"] == "simulated"
+
+    evs = client.get("/evaluations")
+    assert evs.status_code == 200
+    assert evs.json()["n"] >= 1
+    ev = client.get(f"/evaluations/{eid}")
+    assert ev.status_code == 200
+    assert ev.json()["predicted_kind"] == "simulated"
+
+    rel = client.get(f"/reliability?world_id={wid}")
+    assert rel.status_code == 200
+    relj = rel.json()
+    assert "sources" in relj
+    assert "simulation_calibration" in relj
+    assert "openmeteo" in relj["sources"]
+    assert "available" in relj["sources"]["openmeteo"]
+
+    metrics_txt = client.get("/metrics")
+    assert metrics_txt.status_code == 200
+    assert "eve_miro_ingest_count" in metrics_txt.text
+    metrics_json = client.get("/metrics?format=json")
+    assert metrics_json.status_code == 200
+    mj = metrics_json.json()
+    assert mj["ingest_count"] >= 1
+    assert mj["sim_runs"] >= 1
+    assert mj["evals"] >= 1
+
+    exp_post = client.post(
+        "/experiences",
+        json={"layer": "agent", "episode_id": "test", "observation": {"stuck_n": 1}},
+    )
+    assert exp_post.status_code == 200, exp_post.text
+    exp_id = exp_post.json()["id"]
+    assert exp_post.json()["layer"] == "agent"
+    val = client.post(f"/experiences/{exp_id}/validate")
+    assert val.status_code == 200
+
+    sc = client.post("/scenarios", json={"name": "adhoc_test", "note": "x"})
+    assert sc.status_code == 200
+    sim_sc = client.post("/scenarios/typhoon_manila_001/simulate", params={"world_id": wid})
+    assert sim_sc.status_code == 200, sim_sc.text
+    assert sim_sc.json()["kind"] == "simulated"
+
+    # provenance: use first event id
+    first_id = events.json()["events"][0]["id"]
+    prov = client.get(f"/provenance/{first_id}", params={"world_id": wid})
+    assert prov.status_code == 200, prov.text
+    assert prov.json()["nodes"]
+
+
+def test_health_and_metrics_empty():
+    from eve_miro.api.metrics_prom import reset_metrics
+
+    reset_metrics()
+    client = TestClient(app)
+    h = client.get("/health")
+    assert h.status_code == 200
+    assert h.json()["status"] == "ok"
+    m = client.get("/metrics?format=json")
+    assert m.json()["ingest_count"] == 0

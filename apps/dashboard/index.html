@@ -3,46 +3,61 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>EVE-MIRO — Reality Check</title>
+  <title>EVE-MIRO — Reality → Simulation → Reality check</title>
   <style>
     :root { --bg:#0b1020; --card:#141a2e; --ink:#e8eefc; --muted:#93a0c2;
-            --obs:#3dd68c; --sim:#f5c542; --der:#6ea8ff; --fc:#ff8a5b; --bad:#ff5d73; }
+            --obs:#3dd68c; --sim:#f5c542; --der:#6ea8ff; --fc:#ff8a5b; --bad:#ff5d73;
+            --line:#243056; --btn:#1c2544; }
     * { box-sizing: border-box; }
     body { margin:0; font-family: ui-sans-serif, system-ui, sans-serif; background:var(--bg); color:var(--ink); }
-    header { padding:20px 28px; border-bottom:1px solid #243056; display:flex; justify-content:space-between; align-items:center; }
-    h1 { margin:0; font-size:20px; letter-spacing:.04em; }
-    h1 span { color:var(--sim); }
-    nav button { background:#1c2544; color:var(--ink); border:1px solid #334070; padding:8px 12px; margin-left:6px; border-radius:6px; cursor:pointer; }
+    header { padding:16px 24px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
+    h1 { margin:0; font-size:18px; letter-spacing:.04em; }
+    h1 span { color:var(--sim); font-weight:600; }
+    h2 { margin:0 0 8px; font-size:16px; }
+    nav button, .btn { background:var(--btn); color:var(--ink); border:1px solid #334070; padding:8px 12px; margin-left:4px; border-radius:6px; cursor:pointer; font-size:13px; }
     nav button.active { background:#2a3a6e; }
-    main { padding:24px 28px; display:grid; gap:16px; }
-    .card { background:var(--card); border:1px solid #243056; border-radius:12px; padding:16px 18px; }
+    .btn.primary { background:#2a3a6e; border-color:#f5c542; color:var(--sim); font-weight:700; }
+    .btn:disabled { opacity:.5; cursor:wait; }
+    main { padding:20px 24px; display:grid; gap:14px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
     .badge { display:inline-block; font-size:11px; font-weight:700; letter-spacing:.06em; padding:2px 8px; border-radius:999px; margin-right:6px; }
     .obs { background:#123b2a; color:var(--obs); border:1px solid #1f6a48; }
     .sim { background:#3b3110; color:var(--sim); border:1px solid #8a7018; }
     .der { background:#132544; color:var(--der); border:1px solid #2d5a9a; }
     .fc { background:#3a2216; color:var(--fc); border:1px solid #8a4a28; }
+    .bad { background:#3a1218; color:var(--bad); border:1px solid #8a2838; }
     table { width:100%; border-collapse:collapse; font-size:13px; }
-    th, td { text-align:left; padding:6px 8px; border-bottom:1px solid #243056; }
-    pre { white-space:pre-wrap; font-size:12px; color:#c9d4f0; }
+    th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+    pre { white-space:pre-wrap; font-size:12px; color:#c9d4f0; margin:8px 0 0; }
     .muted { color:var(--muted); font-size:13px; }
     .row { display:flex; gap:12px; flex-wrap:wrap; }
-    .kpi { flex:1; min-width:140px; }
-    .kpi b { display:block; font-size:22px; }
+    .kpi { flex:1; min-width:120px; background:#10162a; border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+    .kpi b { display:block; font-size:20px; }
     a { color:#9dc0ff; }
+    .warn { background:#3a1218; border:1px solid #8a2838; color:var(--bad); padding:10px 12px; border-radius:8px; font-weight:700; }
+    .ok { color:var(--obs); }
+    .map { width:100%; height:280px; background:#0a0e1c; border:1px solid var(--line); border-radius:8px; }
+    .disclaimer { border:1px dashed #8a7018; background:#1a1608; padding:10px 12px; border-radius:8px; margin:8px 0 12px; }
+    .status { font-size:12px; color:var(--muted); min-width:180px; text-align:right; }
+    .layer { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--der); }
   </style>
 </head>
 <body>
 <header>
   <div>
     <h1>EVE-MIRO <span>Reality → Simulation → Reality check</span></h1>
-    <div class="muted">Kinds are never mixed. Simulated output is not observation.</div>
+    <div class="muted">Reality-to-simulation feedback system. Kinds are never mixed. Not an OSINT globe.</div>
   </div>
-  <nav>
-    <button class="active" data-tab="world">World</button>
-    <button data-tab="sim">Simulation</button>
-    <button data-tab="exp">Experience</button>
-    <button data-tab="rc">Reality Check</button>
-  </nav>
+  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+    <button class="btn primary" id="btn-demo" onclick="loadDemo()">Load demo</button>
+    <nav>
+      <button class="active" data-tab="world">World</button>
+      <button data-tab="sim">Simulation</button>
+      <button data-tab="exp">Experience</button>
+      <button data-tab="rc">Reality Check</button>
+      <button data-tab="rel">Reliability</button>
+    </nav>
+  </div>
 </header>
 <main>
   <section class="card">
@@ -50,118 +65,314 @@
     <span class="badge der">DERIVED</span>
     <span class="badge fc">FORECAST</span>
     <span class="badge sim">SIMULATED</span>
-    <span class="muted"> — labels are mandatory on every record shown here.</span>
+    <span class="muted"> — labels are mandatory on every record. Simulated output is not observation.</span>
+    <div class="status" id="session-status" style="display:inline-block; margin-left:12px;"></div>
   </section>
 
   <section id="tab-world" class="card">
-    <h2>World</h2>
-    <p class="muted">Event list with source, freshness, provenance kind. First domain: Philippines / Metro Manila.</p>
+    <h2>World <span class="badge obs">OBSERVED</span> <span class="badge der">DERIVED</span></h2>
+    <p class="muted">First domain: Philippines / Metro Manila. Event table + provenance + a lat/lon plot of public sensors — not a surveillance globe.</p>
     <div id="world-kpis" class="row"></div>
+    <div id="world-map" style="margin:12px 0;"></div>
     <div id="world-events"></div>
   </section>
 
   <section id="tab-sim" class="card" hidden>
     <h2>Simulation <span class="badge sim">SIMULATED</span></h2>
-    <p class="muted">Stub engine: synthetic statistical personas, not real people. Scenario projections under assumptions — never “the future is…”.</p>
+    <div class="disclaimer">
+      <span class="badge sim">SIMULATED</span>
+      Synthetic statistical personas, not real people. Scenario projections under assumptions — never “the future is…”.
+    </div>
+    <p>
+      <button class="btn" onclick="createSim()">Create typhoon_manila_001</button>
+      <button class="btn" onclick="runSim()">Run</button>
+      <button class="btn" onclick="pauseSim()">Pause</button>
+      <button class="btn" onclick="resumeSim()">Resume</button>
+    </p>
     <div id="sim-body"></div>
   </section>
 
   <section id="tab-exp" class="card" hidden>
     <h2>Experience <span class="badge sim">SIMULATED</span></h2>
-    <p class="muted">Validated EVE-stub artifacts. Counterfactuals are model-generated, not fact.</p>
+    <p class="muted">Validated EVE-stub artifacts by layer (agent / population / simulator). Counterfactuals are model-generated, not fact.</p>
     <div id="exp-body"></div>
   </section>
 
   <section id="tab-rc" class="card" hidden>
     <h2>Reality Check</h2>
-    <p class="muted">Predicted (<span class="badge sim">SIMULATED</span>) vs observed (<span class="badge obs">OBSERVED</span>) + error. If a domain has no observations, do not trust it.</p>
+    <p class="muted">Predicted (<span class="badge sim">SIMULATED</span>) vs observed (<span class="badge obs">OBSERVED</span>). If a domain has no observations, do not trust it.</p>
     <div id="rc-body"></div>
+  </section>
+
+  <section id="tab-rel" class="card" hidden>
+    <h2>Reliability</h2>
+    <p class="muted">Per-source freshness, completeness, availability, and simulation calibration. Stale or empty sources are untrusted.</p>
+    <div id="rel-body"></div>
   </section>
 </main>
 <script>
+const TABS = ["world","sim","exp","rc","rel"];
 const kindClass = k => ({observed:"obs", derived:"der", forecast:"fc", simulated:"sim"}[k] || "obs");
 function badge(k){ k=(k||"").toLowerCase(); return `<span class="badge ${kindClass(k)}">${(k||"?").toUpperCase()}</span>`; }
-async function j(url){ const r = await fetch(url); if(!r.ok) return null; return r.json(); }
+function fmt(v){ if(v==null || Number.isNaN(v)) return "n/a"; if(typeof v==="number") return (Math.round(v*1000)/1000).toString(); return String(v); }
+async function j(url, opts){
+  const r = await fetch(url, Object.assign({headers:{"content-type":"application/json"}}, opts||{}));
+  const ct = r.headers.get("content-type")||"";
+  const body = ct.includes("application/json") || ct.includes("json") ? await r.json() : await r.text();
+  if(!r.ok) throw new Error((body && body.detail) || (body && body.error) || r.statusText);
+  return body;
+}
+function sessionSet(k,v){ if(v) localStorage.setItem("eve_miro_"+k, v); }
+function sessionGet(k){ return localStorage.getItem("eve_miro_"+k) || ""; }
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
   document.querySelectorAll("nav button").forEach(x => x.classList.remove("active"));
   b.classList.add("active");
-  ["world","sim","exp","rc"].forEach(t => {
-    document.getElementById("tab-"+t).hidden = t !== b.dataset.tab;
-  });
+  TABS.forEach(t => { document.getElementById("tab-"+t).hidden = t !== b.dataset.tab; });
 });
 
-async function refresh(){
-  const health = await j("/health");
-  const worldsHint = health ? `<div class="kpi"><span class="muted">API</span><b>${health.status}</b></div>` : "";
-  document.getElementById("world-kpis").innerHTML = worldsHint +
-    `<div class="kpi"><span class="muted">store</span><b>${health && health.store || "?"}</b></div>`;
+function phMap(events){
+  const W=640, H=260, minLat=4.2, maxLat=21.2, minLon=116.5, maxLon=127.0;
+  const xy = (lat,lon) => [
+    ((lon-minLon)/(maxLon-minLon))* (W-24) + 12,
+    ((maxLat-lat)/(maxLat-minLat))* (H-24) + 12
+  ];
+  const dots = (events||[]).filter(e => e.location && e.location.lat!=null).slice(0,200).map(e => {
+    const [x,y] = xy(e.location.lat, e.location.lon);
+    const c = {observed:"#3dd68c", derived:"#6ea8ff", forecast:"#ff8a5b", simulated:"#f5c542"}[e.kind] || "#3dd68c";
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="${c}" opacity="0.9"><title>${e.kind} ${e.source && e.source.provider} ${e.event_type}</title></circle>`;
+  }).join("");
+  const [mx,my] = xy(14.5995, 120.9842);
+  return `<svg class="map" viewBox="0 0 ${W} ${H}" role="img" aria-label="Philippines bbox event locations">
+    <rect x="0" y="0" width="${W}" height="${H}" fill="#0a0e1c"/>
+    <rect x="12" y="12" width="${W-24}" height="${H-24}" fill="none" stroke="#334070" stroke-dasharray="4 3"/>
+    <text x="20" y="28" fill="#93a0c2" font-size="11">PH bbox 4.2N–21.2N, 116.5E–127E — public events only</text>
+    ${dots}
+    <circle cx="${mx}" cy="${my}" r="5" fill="none" stroke="#f5c542" stroke-width="1.5"/>
+    <text x="${mx+8}" y="${my+4}" fill="#f5c542" font-size="10">Manila (scenario origin)</text>
+  </svg>
+  <p class="muted">List-map of ingested lat/lon. ${badge("observed")} sensors · not a tracking globe.</p>`;
+}
 
-  // Try to find a world by listing reliability; events need a world id from last create.
-  // Dashboard expects the happy-path demo world id in localStorage.
-  const wid = localStorage.getItem("eve_miro_world") || "";
-  const sid = localStorage.getItem("eve_miro_sim") || "";
-  const eid = localStorage.getItem("eve_miro_eval") || "";
-  let eventsHtml = `<p class="muted">Create a world via POST /worlds then ingest fixtures. Demo: <code>make demo</code></p>`;
-  if (wid) {
-    const ev = await j(`/worlds/${wid}/events`);
-    const st = await j(`/worlds/${wid}/state`);
-    if (ev) {
-      eventsHtml = `<p>World <code>${wid}</code> — ${ev.n} events.
-        State kinds: ${(st && st.quality && st.quality.kinds || []).map(badge).join(" ")}</p>
-        <table><thead><tr><th>kind</th><th>source</th><th>type</th><th>freshness</th><th>id</th></tr></thead><tbody>` +
-        ev.events.slice(0,80).map(e => `<tr><td>${badge(e.kind)}</td><td>${e.source.provider}/${e.source.dataset}</td><td>${e.event_type}</td><td>${e.freshness}</td><td>${e.id}</td></tr>`).join("") +
-        `</tbody></table>`;
+function sparkline(pred, obs){
+  const w=680, h=150;
+  pred = (pred||[]).map(Number).filter(n => !Number.isNaN(n));
+  obs = (obs||[]).map(Number).filter(n => !Number.isNaN(n));
+  const n = Math.max(pred.length, obs.length, 2);
+  const all = pred.concat(obs);
+  const min = all.length ? Math.min(...all) : 0;
+  const max = all.length ? Math.max(...all) : 1;
+  const sx = i => 20 + (i / Math.max(n-1,1)) * (w-40);
+  const sy = v => h-18 - ((v-min)/((max-min)||1)) * (h-36);
+  const line = (arr, color) => {
+    if(!arr.length) return "";
+    const pts = arr.map((v,i) => `${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(" ");
+    return `<polyline fill="none" stroke="${color}" stroke-width="2" points="${pts}"/>`;
+  };
+  const rows = [];
+  const m = Math.max(pred.length, obs.length);
+  for(let i=0;i<Math.min(m,24);i++){
+    rows.push(`<tr><td>${i}</td><td>${badge("simulated")} ${fmt(pred[i])}</td><td>${badge("observed")} ${fmt(obs[i])}</td></tr>`);
+  }
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" style="background:#0a0e1c;border:1px solid #243056;border-radius:8px;">
+    ${line(pred,"#f5c542")}
+    ${line(obs,"#3dd68c")}
+    <text x="24" y="14" fill="#f5c542" font-size="11">SIMULATED predicted</text>
+    <text x="180" y="14" fill="#3dd68c" font-size="11">OBSERVED</text>
+  </svg>
+  <table style="margin-top:8px;"><thead><tr><th>i</th><th>predicted</th><th>observed</th></tr></thead><tbody>${rows.join("")}</tbody></table>`;
+}
+
+async function ensureWorld(){
+  let wid = sessionGet("world");
+  if(wid) return wid;
+  const worlds = await j("/worlds");
+  if(worlds && worlds.worlds && worlds.worlds.length){
+    wid = worlds.worlds[0].id;
+    sessionSet("world", wid);
+    return wid;
+  }
+  return "";
+}
+
+async function loadDemo(){
+  const btn = document.getElementById("btn-demo");
+  btn.disabled = true; btn.textContent = "Running demo…";
+  document.getElementById("session-status").textContent = "Ingest fixtures → snapshot → sim → evaluate";
+  try {
+    const r = await j("/demo", {method:"POST", body: JSON.stringify({id:"ph-demo", population:200})});
+    sessionSet("world", r.world_id);
+    sessionSet("sim", r.simulation_id);
+    sessionSet("eval", r.evaluation_id);
+    document.getElementById("session-status").textContent = `world ${r.world_id} · sim ${r.simulation_id} · eval ${r.evaluation_id}`;
+    await refresh();
+  } catch(err){
+    document.getElementById("session-status").textContent = "demo failed: "+err.message;
+    alert("Load demo failed: "+err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = "Load demo";
+  }
+}
+
+async function createSim(){
+  const wid = await ensureWorld();
+  if(!wid){ alert("Load demo or POST /worlds first."); return; }
+  const r = await j("/simulations", {method:"POST", body: JSON.stringify({world_id:wid, scenario:"typhoon_manila_001", population:200})});
+  sessionSet("sim", r.id);
+  await refresh();
+}
+async function runSim(){
+  const sid = sessionGet("sim");
+  if(!sid){ alert("Create a simulation first."); return; }
+  const r = await j(`/simulations/${sid}/run`, {method:"POST"});
+  if(r.evaluation_id) sessionSet("eval", r.evaluation_id);
+  await refresh();
+}
+async function pauseSim(){
+  const sid = sessionGet("sim");
+  if(!sid) return;
+  await j(`/simulations/${sid}/pause`, {method:"POST"});
+  await refresh();
+}
+async function resumeSim(){
+  const sid = sessionGet("sim");
+  if(!sid) return;
+  await j(`/simulations/${sid}/resume`, {method:"POST"});
+  await refresh();
+}
+
+async function refresh(){
+  const health = await j("/health").catch(()=>null);
+  let wid = sessionGet("world");
+  let sid = sessionGet("sim");
+  let eid = sessionGet("eval");
+  const worlds = await j("/worlds").catch(()=>null);
+  if(!wid && worlds && worlds.worlds && worlds.worlds.length){
+    wid = worlds.worlds[0].id; sessionSet("world", wid);
+  }
+  if(!sid){
+    const sims = await j("/simulations").catch(()=>null);
+    if(sims && sims.simulations && sims.simulations.length){
+      sid = sims.simulations[sims.simulations.length-1].id; sessionSet("sim", sid);
     }
   }
-  document.getElementById("world-events").innerHTML = eventsHtml;
-
-  const rel = await j("/reliability" + (wid?`?world_id=${wid}`:""));
-  if (rel) {
-    const un = (rel.untrusted_domains||[]).join(", ") || "none";
-    document.getElementById("world-events").innerHTML +=
-      `<p class="muted">Reliability untrusted domains: <b>${un}</b> — “don’t trust this domain” when stale or empty.</p>`;
+  if(!eid){
+    const evs = await j("/evaluations").catch(()=>null);
+    if(evs && evs.evaluations && evs.evaluations.length){
+      eid = evs.evaluations[evs.evaluations.length-1].id; sessionSet("eval", eid);
+    }
   }
 
-  let simHtml = "<p class='muted'>No simulation in this browser session.</p>";
-  if (sid) {
-    const s = await j(`/simulations/${sid}`);
-    const o = await j(`/simulations/${sid}/outcomes`);
-    if (s) {
-      simHtml = `<p>${badge("simulated")} status=<b>${s.status}</b> population=${s.personas_n} hours=${s.hours}</p>
-        <p class="muted">${s.disclaimer||""}</p>
-        <pre>${JSON.stringify(o && o.summary || s, null, 2)}</pre>`;
+  const kpis = [];
+  kpis.push(`<div class="kpi"><span class="muted">API</span><b>${health && health.status || "?"}</b></div>`);
+  kpis.push(`<div class="kpi"><span class="muted">store</span><b>${health && health.store || "?"}</b></div>`);
+  kpis.push(`<div class="kpi"><span class="muted">worlds</span><b>${worlds ? worlds.n : 0}</b></div>`);
+
+  let eventsHtml = `<p class="muted">No world yet. Click <b>Load demo</b> to ingest Open-Meteo + USGS fixtures for the Philippines bbox.</p>`;
+  let mapHtml = "";
+  if(wid){
+    const ev = await j(`/worlds/${wid}/events`).catch(()=>null);
+    const st = await j(`/worlds/${wid}/state`).catch(()=>null);
+    kpis.push(`<div class="kpi"><span class="muted">events</span><b>${ev ? ev.n : 0}</b></div>`);
+    kpis.push(`<div class="kpi"><span class="muted">cutoff</span><b style="font-size:13px">${(st && st.information_cutoff) || "—"}</b></div>`);
+    if(ev){
+      mapHtml = phMap(ev.events);
+      eventsHtml = `<p>World <code>${wid}</code> — ${ev.n} events.
+        State kinds: ${(st && st.quality && st.quality.kinds || []).map(badge).join(" ")}</p>
+        <table><thead><tr><th>kind</th><th>source</th><th>type</th><th>freshness</th><th>lat,lon</th><th>id</th></tr></thead><tbody>` +
+        ev.events.slice(0,100).map(e => {
+          const loc = e.location ? `${e.location.lat.toFixed(2)}, ${e.location.lon.toFixed(2)}` : "—";
+          const src = e.source ? `${e.source.provider}/${e.source.dataset}` : "?";
+          return `<tr><td>${badge(e.kind)}</td><td>${src}</td><td>${e.event_type}</td><td>${e.freshness||""}</td><td>${loc}</td><td><code>${e.id}</code></td></tr>`;
+        }).join("") + `</tbody></table>`;
+    }
+  }
+  document.getElementById("world-kpis").innerHTML = kpis.join("");
+  document.getElementById("world-map").innerHTML = mapHtml;
+  document.getElementById("world-events").innerHTML = eventsHtml;
+
+  let simHtml = "<p class='muted'>No simulation. Create <code>typhoon_manila_001</code> or Load demo.</p>";
+  if(sid){
+    const s = await j(`/simulations/${sid}`).catch(()=>null);
+    const o = await j(`/simulations/${sid}/outcomes`).catch(()=>null);
+    if(s){
+      simHtml = `<div class="row">
+        <div class="kpi"><span class="muted">status</span><b>${s.status}</b></div>
+        <div class="kpi"><span class="muted">population</span><b>${s.population_n || s.personas_n}</b></div>
+        <div class="kpi"><span class="muted">hours</span><b>${s.hours}</b></div>
+        <div class="kpi"><span class="muted">cutoff</span><b style="font-size:13px">${s.information_cutoff||"—"}</b></div>
+      </div>
+      <p>${badge("simulated")} scenario <code>${s.scenario_name||""}</code> id=<code>${s.id}</code></p>
+      <div class="disclaimer">${s.disclaimer||"SIMULATED. Not observation."}</div>
+      <pre>${JSON.stringify((o && o.summary) || {status:s.status}, null, 2)}</pre>`;
     }
   }
   document.getElementById("sim-body").innerHTML = simHtml;
 
-  const ex = await j("/experiences");
-  if (ex) {
+  const ex = await j("/experiences").catch(()=>null);
+  if(ex){
     document.getElementById("exp-body").innerHTML = (ex.experiences||[]).map(e => {
       const art = e.artifact ? `<pre>${JSON.stringify(e.artifact, null, 2)}</pre>` : "";
-      const cf = (e.counterfactuals||[]).map(c => `${badge("simulated")} ${c.label} — ${c.disclaimer}`).join("<br/>");
-      return `<div class="card"><div>${badge("simulated")} ${e.layer} <code>${e.id}</code> confidence=${e.confidence}</div>${art}<p>${cf}</p></div>`;
-    }).join("") || "<p class='muted'>No experiences yet.</p>";
+      const cf = (e.counterfactuals||[]).map(c => `${badge("simulated")} ${c.label} — ${c.disclaimer}`).join("<br/>") || "<span class='muted'>no counterfactuals</span>";
+      return `<div class="card" style="margin-top:8px;">
+        <div><span class="layer">${e.layer}</span> ${badge("simulated")} <code>${e.id}</code>
+          confidence=${fmt(e.confidence)} learning=${fmt(e.learning_value)}</div>
+        ${art}
+        <p>${cf}</p>
+      </div>`;
+    }).join("") || "<p class='muted'>No experiences yet. Run a simulation.</p>";
   }
 
   let rc = "<p class='muted'>Run a simulation to persist an evaluation.</p>";
-  if (eid) {
-    const evl = await j(`/evaluations/${eid}`);
-    if (evl) {
+  if(eid){
+    const evl = await j(`/evaluations/${eid}`).catch(()=>null);
+    if(evl){
+      const trust = evl.domain_trusted
+        ? `<p class="ok">Domain has observations — still a scenario projection, not a forecast skill claim.</p>`
+        : `<p class="warn">Do not trust this domain — no observations.</p>`;
       rc = `<p>${badge(evl.predicted_kind)} predicted vs ${badge(evl.observed_kind)} observed — ${evl.metric_name}</p>
         <div class="row">
-          <div class="kpi"><span class="muted">MAE</span><b>${evl.mae ?? "n/a"}</b></div>
-          <div class="kpi"><span class="muted">RMSE</span><b>${evl.rmse ?? "n/a"}</b></div>
-          <div class="kpi"><span class="muted">Brier</span><b>${evl.brier ?? "n/a"}</b></div>
-          <div class="kpi"><span class="muted">timing min</span><b>${evl.timing_error_minutes ?? "n/a"}</b></div>
+          <div class="kpi"><span class="muted">MAE</span><b>${fmt(evl.mae)}</b></div>
+          <div class="kpi"><span class="muted">RMSE</span><b>${fmt(evl.rmse)}</b></div>
+          <div class="kpi"><span class="muted">Brier</span><b>${fmt(evl.brier)}</b></div>
+          <div class="kpi"><span class="muted">timing min</span><b>${fmt(evl.timing_error_minutes)}</b></div>
         </div>
-        <p>${evl.domain_trusted ? "" : "<b>Do not trust this domain — no observations.</b>"} ${evl.notes||""}</p>
-        <p class="muted">${evl.calibration && evl.calibration.reliability_note || ""}</p>`;
+        ${trust}
+        <p class="muted">${evl.notes||""} ${(evl.calibration && evl.calibration.reliability_note) || ""}</p>
+        ${sparkline(evl.predicted, evl.observed)}`;
     }
   }
   document.getElementById("rc-body").innerHTML = rc;
+
+  const rel = await j("/reliability" + (wid?`?world_id=${wid}`:"")).catch(()=>null);
+  if(rel){
+    const un = (rel.untrusted_domains||[]);
+    const srcRows = Object.entries(rel.sources||{}).map(([name, s]) => {
+      const verdict = (s.verdict||"").includes("do not trust")
+        ? `<span class="badge bad">DON'T TRUST</span>`
+        : `<span class="badge obs">FRESH</span>`;
+      return `<tr><td>${name}</td><td>${s.available?"yes":"no"}</td><td>${s.complete?"yes":"no"}</td>
+        <td>${s.event_count||0}</td><td>${s.age_seconds==null?"n/a":Math.round(s.age_seconds)+"s"}</td>
+        <td>${s.last_effective_time||"—"}</td><td>${verdict}</td></tr>`;
+    }).join("");
+    const cal = (rel.simulation_calibration||[]).map(c =>
+      `<tr><td><code>${c.id}</code></td><td>${badge(c.predicted_kind)} vs ${badge(c.observed_kind)}</td>
+       <td>${fmt(c.mae)}</td><td>${fmt(c.rmse)}</td><td>${c.n}</td>
+       <td>${c.domain_trusted?"":"<span class='badge bad'>DON'T TRUST</span>"} ${c.reliability_note||""}</td></tr>`
+    ).join("") || `<tr><td colspan="6" class="muted">No evaluations yet.</td></tr>`;
+    document.getElementById("rel-body").innerHTML = `
+      ${un.length? `<p class="warn">Do not trust: ${un.join(", ")}</p>` : `<p class="ok">No untrusted domains flagged for this world.</p>`}
+      <h3>Sources</h3>
+      <table><thead><tr><th>source</th><th>available</th><th>complete</th><th>events</th><th>age</th><th>last</th><th>verdict</th></tr></thead>
+      <tbody>${srcRows||`<tr><td colspan="7" class="muted">No sources (ingest a world).</td></tr>`}</tbody></table>
+      <h3 style="margin-top:16px;">Simulation calibration <span class="badge sim">SIMULATED</span> vs <span class="badge obs">OBSERVED</span></h3>
+      <table><thead><tr><th>eval</th><th>kinds</th><th>MAE</th><th>RMSE</th><th>n</th><th>note</th></tr></thead>
+      <tbody>${cal}</tbody></table>`;
+  }
+  document.getElementById("session-status").textContent =
+    (wid?`world ${wid}`:"no world")+" · "+(sid?`sim ${sid}`:"no sim");
 }
 refresh();
-setInterval(refresh, 8000);
+setInterval(refresh, 12000);
 </script>
 </body>
 </html>

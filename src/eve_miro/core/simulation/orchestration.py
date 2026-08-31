@@ -6,8 +6,8 @@ from datetime import timedelta
 from pathlib import Path
 
 from eve_miro.config import TRACES_DIR
-from eve_miro.core.experience.engine import StubExperienceEngine
-from eve_miro.core.simulation.engine import StubSimulationEngine
+from eve_miro.core.experience.engine import get_experience_engine
+from eve_miro.core.simulation.engine import get_simulation_engine
 from eve_miro.core.simulation.replay import replay_world
 from eve_miro.core.simulation.scenarios import Scenario
 from eve_miro.core.world.events import WorldEvent
@@ -28,7 +28,7 @@ async def run_scenario(
         at=scenario.origin,
         information_cutoff=scenario.cutoff,
     )
-    engine = StubSimulationEngine(scenario)
+    engine = get_simulation_engine(scenario)
     sim = await engine.initialize(world, Population(synthetic_n=scenario.population))
     until = scenario.origin + timedelta(hours=scenario.simulated_hours)
     result = await engine.run(sim, until)
@@ -36,7 +36,7 @@ async def run_scenario(
     if result.traces:
         write_trace_parquet(result.traces, path)
         result.summary["trace_path"] = str(path)
-    exp_engine = StubExperienceEngine()
+    exp_engine = get_experience_engine()
     from eve_miro.core.experience.candidates import Trajectory
 
     traj = Trajectory(simulation_id=sim.id, actions=result.traces, predicted_series=result.predicted_series)

@@ -1,0 +1,37 @@
+{
+  "vessels": [
+    {
+      "mmsi": 548012000,
+      "lat": 14.52,
+      "lon": 120.88,
+      "sog": 12.4,
+      "cog": 180.0,
+      "destination": "MANILA",
+      "name": "PH CARGO 1",
+      "ship_type": 70,
+      "timestamp": "2026-08-31T03:20:00Z"
+    },
+    {
+      "mmsi": 548033111,
+      "lat": 13.72,
+      "lon": 121.05,
+      "sog": 8.1,
+      "cog": 95.0,
+      "destination": "BATANGAS",
+      "name": "PH TANKER 2",
+      "ship_type": 80,
+      "timestamp": "2026-08-31T03:21:00Z"
+    },
+    {
+      "mmsi": 548044222,
+      "lat": 10.29,
+      "lon": 123.9,
+      "sog": 14.0,
+      "cog": 45.0,
+      "destination": "CEBU",
+      "name": "PH FERRY 3",
+      "ship_type": 60,
+      "timestamp": "2026-08-31T03:19:00Z"
+    }
+  ]
+}

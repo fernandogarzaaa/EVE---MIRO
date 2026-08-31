@@ -18,3 +18,18 @@ environment, economy, infrastructure, mobility, information, population,
 events, provenance_graph.
 
 Every simulation and every world state carries `information_cutoff`.
+
+## Provenance kinds (never mixed)
+
+`observed` | `derived` | `forecast` | `simulated`
+
+## HTTP extras
+
+- `GET /metrics` — Prometheus text counters `ingest_count`, `sim_runs`, `evals` (`?format=json` for JSON)
+- `GET /reliability?world_id=` — per-source freshness/completeness/availability + `simulation_calibration`
+- `GET /provenance/{id}` — event→source walk from the folded graph when present
+- `POST /demo` — one-click first-domain loop
+
+## Object prefixes (MinIO bucket `eve-miro`)
+
+`raw/` `normalized/` `derived/` `simulation/` `experiments/`

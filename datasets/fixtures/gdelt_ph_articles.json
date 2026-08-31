@@ -1,0 +1,28 @@
+{
+  "articles": [
+    {
+      "url": "https://www.cna.com.tw/news/aopl/202608250235.aspx",
+      "title": "菲律賓 「 外來惡意影響活動 」 增加 軍方 ： 誰在做很清楚 | 國際",
+      "seendate": "20260825T120000Z",
+      "sourcecountry": "Taiwan",
+      "domain": "cna.com.tw",
+      "language": "Chinese"
+    },
+    {
+      "url": "https://www.cna.com.tw/news/aipl/202608240169.aspx",
+      "title": "菲律賓氣候變遷論壇 台灣盼深化第一島鏈防災合作 | 政治",
+      "seendate": "20260824T081500Z",
+      "sourcecountry": "Taiwan",
+      "domain": "cna.com.tw",
+      "language": "Chinese"
+    },
+    {
+      "url": "https://www.setn.com/news/1895488",
+      "title": "菲美澳第19次南海多邊演習 強化協同作戰能力 | 國際 | 三立新聞網 SETN . COM",
+      "seendate": "20260826T030000Z",
+      "sourcecountry": "Taiwan",
+      "domain": "setn.com",
+      "language": "Chinese"
+    }
+  ]
+}
