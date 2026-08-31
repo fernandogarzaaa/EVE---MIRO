@@ -10,6 +10,28 @@ This is **not** an AI dashboard and **not** a clone of SIGINT / God's Eye View /
 AEGIS / H.O.T-EARTH. The data fabric, adapters, and core are first-party.
 MiroFish and EVE ship **in this repository** as first-party engine trees.
 
+## Status
+
+Architecture, fail-closed in-tree engines, and a first live closed loop are on
+`main`. This is **not** a finished product.
+
+What has actually run end to end:
+
+- WorldState(t0) from the Open-Meteo Manila archive fixture
+- MiroFish Flask: ontology generate, on-disk local graph
+  (`MIROFISH_MEMORY=local`), OASIS twitter
+- EVE CLI `node eve/bin/eve.js trajectory --stdin` (no `POST /validate`)
+- Reality ledger + trust profile
+
+A 1-round slice at simulated hour 0 is OASIS off-peak, so `actions_n` can be
+0. MiroFish social output does not currently map onto `wind_speed_10m`, so
+weather MAE can be empty. That is a mapping gap, not a silent stub.
+
+Still open: peak-hour / multi-round OASIS so agents actually post, mapping
+social timeline onto weather and mobility for alignment, and a split Python
+3.11 venv in bootstrap (OASIS cannot install on 3.12+). Several providers
+remain stubs.
+
 ## Layout
 
 ```
@@ -61,7 +83,8 @@ offline and do not need keys or a node build.
 
 `MIROFISH_URL` / `EVE_URL` / `EVE_BIN` are optional overrides to a **running
 local service** (including compose). They are not GitHub install URLs.
-`EVE_BIN` defaults to the in-tree CLI entry when that file exists.
+`EVE_BIN` defaults to the in-tree CLI entry when that file exists. A `.js`
+path is launched with `node` (Windows cannot exec `eve.js` directly).
 
 ## First domain
 
@@ -101,12 +124,16 @@ Historical replay refuses any event after the cutoff.
 
 ## How to run
 
-Python 3.12 is the intended combined runtime (MiroFish targets <3.13); fabric
-tests may still run on 3.13. Tests do **not** need Docker, the network, LLM keys,
-or a node build.
+Python versions are split on purpose:
 
-**First-time clone — one command** (fabric + MiroFish backend deps + EVE CLI
-build + env templates if missing):
+- Fabric (this API, tests, closed loop): Python **3.12** (3.13 is fine for tests).
+- MiroFish OASIS (`camel-oasis==0.2.5`): Python **3.10 or 3.11 only**. It will
+  not install on 3.12+. Use `mirofish/.venv` on 3.11 for Flask. Pin `mcp>=1.6,<2`
+  so camel-ai 0.2.78 can import `FastMCP`.
+
+Tests do **not** need Docker, the network, LLM keys, OASIS, or a node build.
+
+**First-time clone — fabric + EVE CLI:**
 
 ```bash
 cd eve-miro
@@ -135,32 +162,53 @@ Layout folder `apps/api` is a pointer — see that README.
 returns **503** `{"error":"engine_not_configured","detail":...}` instead of
 running the typhoon stub.
 
-`make install` / `python3 scripts/bootstrap.py` already created `.venv`,
-installed `.[all]` + MiroFish requirements, built the EVE CLI, and copied
+`make install` / `python3 scripts/bootstrap.py` creates the repo-root `.venv`,
+installs `.[all]` + MiroFish requirements, builds the EVE CLI, and copies
 `.env.example` -> `.env` and `mirofish/.env.example` -> `mirofish/.env`
 when those files were missing (never overwritten, never invents API keys).
-Bootstrap prefers **one** `.venv` at repo root. On Python 3.13+ it warns
-(MiroFish historically wants <3.13) and uses `python3.12` to create the venv
-when that interpreter is on PATH.
+Bootstrap prefers **one** `.venv` at repo root. That is **not** enough for
+OASIS: create a second venv on 3.11 at `mirofish/.venv` and install
+`mirofish/backend/requirements.txt` there.
 
 After install, boot the engines:
 
-1. Python 3.12 venv for MiroFish (`requires-python <3.13`) — the repo-root
-   `.venv` from bootstrap.
-2. `mirofish/.env` (copied from the example if missing). This first run uses a
-   local OpenAI-compatible GGUF server:
-   `LLM_API_KEY=local`, `LLM_BASE_URL=http://127.0.0.1:8088/v1`,
-   `LLM_MODEL_NAME=qwen2.5-0.5b-instruct`, plus `MIROFISH_MEMORY=local`
-   (skips Zep Cloud; does **not** fake Zep). Local memory builds an on-disk
-   graph under `mirofish/backend/uploads/local_graphs/`; it is not Zep Cloud.
-   Weights path: `models/qwen2.5-0.5b-instruct-q4_k_m.gguf`
-   (see `scripts/local_llm_server.py`).
-3. `python mirofish/backend/run.py` listens on http://127.0.0.1:5001
-4. EVE CLI: `eve/bin/eve.js` and `eve/dist/cli/main.js` from the bootstrap
-   build. The adapter calls `eve trajectory --stdin`.
+1. **LLM.** GPU path (NVIDIA, recommended): Ollama with `qwen2.5:3b` on CUDA.
+   `mirofish/.env`:
+   `LLM_API_KEY=local`, `LLM_BASE_URL=http://127.0.0.1:11434/v1`,
+   `LLM_MODEL_NAME=qwen2.5:3b`, `MIROFISH_MEMORY=local`.
+   CPU path: local GGUF server at `http://127.0.0.1:8088/v1`,
+   `LLM_MODEL_NAME=qwen2.5-0.5b-instruct`, weights
+   `models/qwen2.5-0.5b-instruct-q4_k_m.gguf`
+   (see `scripts/local_llm_server.py`). Dummy key `local` is only for a
+   local OpenAI-compatible endpoint.
+2. **Memory.** `MIROFISH_MEMORY=local` skips Zep Cloud and builds a real
+   JSON graph under `mirofish/backend/uploads/local_graphs/`. It is not
+   Zep Cloud and not a stub. Missing ZEP with local memory **off** still
+   fail-closes (HTTP 500).
+3. **MiroFish Flask** from the 3.11 venv:
+   `mirofish/.venv/Scripts/python.exe mirofish/backend/run.py` (Windows)
+   or `mirofish/.venv/bin/python mirofish/backend/run.py`.
+   Listens on http://127.0.0.1:5001
+4. **EVE CLI:** `eve/bin/eve.js` and `eve/dist/cli/main.js` from the
+   bootstrap build. The adapter calls `node eve/bin/eve.js trajectory --stdin`.
    There is no HTTP `POST /validate`.
-5. `FIXTURES=1 EVE_MIRO_ENGINES=in-tree python3 -m uvicorn eve_miro.api.main:app --port 8000`
-6. `POST /experiments/run` fails loudly if steps 3-4 are not up.
+5. Fabric API:
+   `FIXTURES=1 EVE_MIRO_ENGINES=in-tree python3 -m uvicorn eve_miro.api.main:app --port 8000`
+6. Tiny live closed loop (needs steps 1–4):
+
+```bash
+export EVE_MIRO_ENGINES=in-tree
+export MIROFISH_URL=http://127.0.0.1:5001
+export MIROFISH_TIMEOUT_S=3600
+export MIROFISH_MEMORY=local
+python scripts/run_live_tiny_loop.py
+```
+
+Writes `data/live_loop_result.json` (gitignored). 1 seed, 1 simulated hour,
+baseline scenario only. Truncated OASIS runs pass `--no-wait` so the worker
+exits instead of sitting in interview mode.
+
+`POST /experiments/run` fails loudly if Flask or the EVE CLI is not up.
 
 MiroFish Flask routes used (not invented `/api/predict`):
 `/api/graph/ontology/generate` then `/api/graph/build` then poll
@@ -234,7 +282,8 @@ python3 -m pytest -q
 Must pass without Docker, network, LLM keys, or a node build. Coverage includes
 provenance mixing, cutoff leakage, WorldState reconstruction, Open-Meteo/USGS
 fixture normalize, MAE, API happy path, DuckDB parquet traces, counterfactual
-labeling, in-tree engine presence.
+labeling, in-tree engine presence, local-graph memory, EVE `.js` launched via
+`node`.
 
 ## License
 
