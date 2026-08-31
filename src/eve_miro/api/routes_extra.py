@@ -17,7 +17,7 @@ from eve_miro.api.metrics_prom import as_json, render_prometheus
 from eve_miro.api import state as app_state
 from eve_miro.api.state import WorldRecord
 from eve_miro.core.experience.candidates import ExperienceCandidate
-from eve_miro.core.experience.engine import StubExperienceEngine
+from eve_miro.core.experience.engine import get_experience_engine
 from eve_miro.core.simulation.engine import StubSimulationEngine
 from eve_miro.core.world.events import ProvenanceKind
 from eve_miro.core.world.projector import project_world_state
@@ -150,7 +150,7 @@ async def post_experience(body: ExperienceIn):
         observation=body.observation,
         outcome=body.outcome,
     )
-    engine = StubExperienceEngine()
+    engine = get_experience_engine()
     val = await engine.validate(cand)
     app_state.STATE.experiences[val.id] = val
     return val.model_dump(mode="json")

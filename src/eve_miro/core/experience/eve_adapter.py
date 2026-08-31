@@ -1,17 +1,14 @@
-"""EVE adapter. Not a clone — HTTP/CLI client behind ExperienceEngine.
+"""In-tree EVE adapter behind ExperienceEngine.
 
-Fernando's experience-validation-engine is a TypeScript UX/cognitive simulator
-with an observe → predict → decide loop. We map ExperienceCandidate onto that
-loop conceptually and never vendor the repo.
+This repo contains EVE at ``eve/`` (first-party, MIT). The default runtime
+still uses ``StubExperienceEngine`` until ``EVE_MIRO_ENGINES=in-tree`` *and*
+the engine can actually run. Tests never call the CLI.
 
-If EVE_URL is set: POST {EVE_URL}/validate with the candidate JSON.
-If EVE_BIN is set: invoke the binary with JSON on stdin (timeout-fast).
-If neither is set, every call delegates to StubExperienceEngine.
+``EVE_URL`` is an optional override to a running local HTTP service.
+``EVE_BIN`` defaults to the in-tree CLI entry when that file exists.
+EVE is CLI-first; there is no required HTTP port.
 
-On error, fall back to the stub. Counterfactuals are always labeled
-model-generated, not fact. Mapped fields: validity, confidence,
-prediction_error, learning_value, transferability, retention_score,
-counterfactuals, applicability.
+Counterfactuals are always labeled model-generated, not fact.
 """
 
 from __future__ import annotations
@@ -25,6 +22,7 @@ from eve_miro.core.experience.counterfactual import Counterfactual
 from eve_miro.core.experience.engine import StubExperienceEngine
 from eve_miro.core.experience.validation import TransferResult, ValidatedExperience
 from eve_miro.core.world.events import ProvenanceKind
+from eve_miro.paths import engines_mode, eve_root
 
 _DEFAULT_TIMEOUT = 1.5
 
@@ -34,8 +32,29 @@ def _env(name: str) -> str | None:
     return v or None
 
 
+def in_tree_available() -> bool:
+    """True when the first-party EVE tree is present in this repo."""
+    return (eve_root() / "src" / "index.ts").is_file()
+
+
+def default_eve_bin() -> str | None:
+    """Path to the in-tree CLI entry when that file exists."""
+    candidate = eve_root() / "bin" / "eve.js"
+    return str(candidate) if candidate.is_file() else None
+
+
+def _eve_can_run() -> bool:
+    """True when the in-tree CLI has been built (dist + node_modules)."""
+    root = eve_root()
+    return (
+        (root / "bin" / "eve.js").is_file()
+        and (root / "dist" / "cli" / "main.js").is_file()
+        and (root / "node_modules").is_dir()
+    )
+
+
 class EVEExperienceEngine:
-    """ExperienceEngine that optionally calls a replaceable EVE service."""
+    """ExperienceEngine for the in-tree EVE copy; stubs until configured."""
 
     name = "eve"
 
@@ -47,14 +66,16 @@ class EVEExperienceEngine:
         timeout: float = _DEFAULT_TIMEOUT,
     ) -> None:
         self.url = url if url is not None else _env("EVE_URL")
-        self.bin = bin_path if bin_path is not None else _env("EVE_BIN")
+        explicit_bin = bin_path if bin_path is not None else _env("EVE_BIN")
+        self.bin = explicit_bin or default_eve_bin()
+        self._invoke_bin = bool(explicit_bin)
         self.timeout = timeout
         self._stub = StubExperienceEngine()
         self.last_notes: str | None = None
 
     @property
     def using_remote(self) -> bool:
-        return bool(self.url) or bool(self.bin)
+        return bool(self.url)
 
     async def observe(self, trajectory: Trajectory) -> list[ExperienceCandidate]:
         # Observation extraction is local; EVE's loop is observe→predict→decide
@@ -73,7 +94,15 @@ class EVEExperienceEngine:
             except Exception:
                 self.last_notes = "eve_unavailable"
                 return await self._stub.validate(experience)
-        if self.bin:
+        if engines_mode() == "in-tree" and (
+            not in_tree_available() or not _eve_can_run() or not self.bin
+        ):
+            self.last_notes = "eve_in_tree_not_configured"
+            return await self._stub.validate(experience)
+        use_cli = self._invoke_bin or (
+            engines_mode() == "in-tree" and _eve_can_run()
+        )
+        if use_cli and self.bin:
             try:
                 remote = self._bin_validate(experience)
                 mapped = self._map_remote(experience, remote)

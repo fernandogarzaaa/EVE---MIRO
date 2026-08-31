@@ -1,15 +1,25 @@
 # EVE-MIRO
 
-**Reality-to-simulation feedback system.**
+**Reality-grounded loop + in-tree MiroFish (simulation) + in-tree EVE (experience).**
 
 A continuously evaluated synthetic-world platform that grounds multi-agent
-simulations in live and historical open data, models agent experience with EVE
-(behind an interface), and measures simulated futures against observed reality.
+simulations in live and historical open data, models agent experience with the
+in-tree EVE engine, and measures simulated futures against observed reality.
 
-This is **not** an AI dashboard and **not** a clone of SIGINT / God’s Eye View /
-AEGIS / H.O.T-EARTH / MiroFish. Adapters and core are first-party.
-**MiroFish and EVE are replaceable engine interfaces; v1 ships stubs.**
-Do not clone those repos into this tree.
+This is **not** an AI dashboard and **not** a clone of SIGINT / God's Eye View /
+AEGIS / H.O.T-EARTH. The data fabric, adapters, and core are first-party.
+MiroFish and EVE ship **in this repository** as first-party engine trees.
+
+## Layout
+
+```
+eve-miro/          data fabric, world state, API, dashboard (MIT)
+mirofish/          swarm simulation engine (AGPL-3.0, first-party)
+eve/               experience validation engine (MIT, first-party)
+```
+
+See `NOTICE.md` for the license split. Combined distribution that includes
+`mirofish/` is subject to AGPL-3.0 for that component.
 
 ## The loop
 
@@ -17,7 +27,7 @@ Do not clone those repos into this tree.
  Reality
    → Data fabric (providers, quality, provenance)
    → WorldState(t)          # reconstructed from an append-only event log
-   → Simulation             # SIMULATED, cutoff-bounded
+   → MiroFish               # SIMULATED, cutoff-bounded (in-tree; stub if unconfigured)
    → EVE experience/validation
    → Future scenarios
    → Reality check          # SIMULATED vs OBSERVED
@@ -37,20 +47,18 @@ Do not clone those repos into this tree.
                                                │
                     ┌──────────────────────────┼──────────────────────────┐
                     v                          v                          v
-            StubSimulationEngine     StubExperienceEngine          Reality check
-            (MiroFish-shaped)        (EVE-shaped)                  MAE RMSE Brier
-            SIMULATED                SIMULATED                     vs OBSERVED
+            MiroFish (in-tree)         EVE (in-tree)              Reality check
+            stub until configured      stub until configured      MAE RMSE Brier
+            SIMULATED                  SIMULATED                  vs OBSERVED
 ```
 
-Optional live engines (not vendored):
+Runtime still uses stubs unless `EVE_MIRO_ENGINES=in-tree` and the engine
+can actually start. Missing LLM keys or an unbuilt EVE CLI fall back with
+notes such as `mirofish_in_tree_not_configured`. Tests do not need keys.
 
-| env | points at | used as |
-|---|---|---|
-| `MIROFISH_URL` | https://github.com/fernandogarzaaa/MiroFish | `SimulationEngine` adapter |
-| `EVE_URL` | https://github.com/fernandogarzaaa/experience-validation-engine | `ExperienceEngine` adapter |
-
-v1 ignores these unless core later exposes `get_simulation_engine()`; the
-API factory falls back to `StubSimulationEngine`.
+`MIROFISH_URL` / `EVE_URL` / `EVE_BIN` are optional overrides to a **running
+local service** (including compose). They are not GitHub install URLs.
+`EVE_BIN` defaults to the in-tree CLI entry when that file exists.
 
 ## First domain
 
@@ -89,7 +97,8 @@ Historical replay refuses any event after the cutoff.
 
 ## How to run
 
-Python 3.12+ (3.13 works). Tests do **not** need Docker or the network.
+Python 3.12+ (3.13 works). Tests do **not** need Docker, the network, LLM keys,
+or a node build.
 
 ```bash
 cd eve-miro
@@ -101,6 +110,10 @@ FIXTURES=1 python3 -m uvicorn eve_miro.api.main:app --port 8000
 
 FastAPI app entry: `src/eve_miro/api/main.py` (`eve_miro.api.main:app`).
 Layout folder `apps/api` is a pointer — see that README.
+
+### In-tree engines
+
+Uvicorn serves the API. MiroFish: `python mirofish/backend/run.py` (needs its .env). EVE: `eve/bin/eve.js` after installing packages in `eve/`. Set EVE_MIRO_ENGINES=in-tree to prefer live engines; otherwise adapters keep using stubs.
 
 One-click demo (same as the dashboard **Load demo** button):
 
@@ -114,9 +127,14 @@ Optional stack (Postgres/PostGIS, Redis, MinIO, API):
 docker compose up --build
 docker compose --profile streaming up      # Redpanda
 docker compose --profile timeseries up     # same PostGIS postgres; Timescale is future
+docker compose --profile engines up --build
+# engines profile builds ./mirofish (HTTP 5001) and ./eve (CLI image).
+# Wire the API with MIROFISH_URL=http://mirofish:5001
+# EVE is CLI-only. Alternative: cd mirofish && docker compose up
 ```
 
-No Kubernetes. Default `docker compose up` does **not** start Redpanda.
+No Kubernetes. Default `docker compose up` does **not** start Redpanda or the
+engines.
 Time series stay on PostGIS; do not swap that image for Timescale.
 
 MinIO bucket prefixes: `raw/` `normalized/` `derived/` `simulation/` `experiments/`.
@@ -158,10 +176,12 @@ The dashboard has five tabs that hit these routes: **World**, **Simulation**,
 python3 -m pytest -q
 ```
 
-Must pass without Docker. Coverage includes provenance mixing, cutoff leakage,
-WorldState reconstruction, Open-Meteo/USGS fixture normalize, MAE, API happy
-path, DuckDB parquet traces, counterfactual labeling.
+Must pass without Docker, network, LLM keys, or a node build. Coverage includes
+provenance mixing, cutoff leakage, WorldState reconstruction, Open-Meteo/USGS
+fixture normalize, MAE, API happy path, DuckDB parquet traces, counterfactual
+labeling, in-tree engine presence.
 
 ## License
 
-MIT. See `LICENSE` and `docs/model-card.md`.
+Root data fabric: MIT (`LICENSE`). MiroFish: AGPL-3.0 (`mirofish/LICENSE`).
+EVE: MIT (`eve/LICENSE`). See `NOTICE.md` and `docs/model-card.md`.

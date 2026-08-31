@@ -23,15 +23,13 @@ Historical replay (`core/simulation/replay.py`) refuses any event after
 `experiments/historical-replay/haiyan_cutoff_example.yaml` (cutoff
 `2013-11-07T12:00:00Z` must reject a `2013-11-08` event).
 
-## Engines are replaceable
+## Engines are in-tree
 
-`get_simulation_engine()` in `core/simulation/engine.py`:
+`get_simulation_engine()` in `core/simulation/engine.py` prefers `MiroFishEngine`
+when `mirofish/backend/app` exists. The adapter stubs until
+`EVE_MIRO_ENGINES=in-tree` and MiroFish `Config.validate()` succeeds (LLM keys).
+Missing keys record `mirofish_in_tree_not_configured`.
 
-- **v1 default:** `StubSimulationEngine` (no network)
-- **`MIROFISH_URL` set:** `MiroFishEngine` POSTs `{seed, requirement, cutoff}` to
-  `{MIROFISH_URL}/api/predict` (then `/simulate`). Timeout is short. On error it
-  falls back to the stub and records provenance notes `mirofish_unavailable`.
-
-MiroFish is not vendored. The adapter is a conservative HTTP client; the upstream
-repo stays replaceable. Leave `MIROFISH_URL` unset unless you attach a live
-service.
+`MIROFISH_URL` optionally POSTs `{seed, requirement, cutoff}` to a running local
+service (`/api/predict`, then `/simulate`). On error it falls back to the stub
+with `mirofish_unavailable`.

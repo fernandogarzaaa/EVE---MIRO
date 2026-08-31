@@ -58,22 +58,24 @@ Five working views against FastAPI:
 
 **Load demo** → `POST /demo` (world, Open-Meteo+USGS fixtures, snapshot, sim, evaluate).
 
-## Engines are interfaces
+## Engines are in-tree
 
-`SimulationEngine` and `ExperienceEngine` are protocols. v1 ships `StubSimulationEngine` and `StubExperienceEngine`. MiroFish and EVE are replaceable backends; they are not vendored and must not be cloned into this repo.
+`SimulationEngine` and `ExperienceEngine` are protocols. Factories prefer the
+in-tree adapters (`MiroFishEngine`, `EVEExperienceEngine`), which stub until
+`EVE_MIRO_ENGINES=in-tree` and the engine can actually run. Trees live at
+`mirofish/` and `eve/`.
 
-Optional env (ignored until a core factory exists):
+`MIROFISH_URL` / `EVE_URL` / `EVE_BIN` override to a running local service
+(including `docker compose --profile engines`). They are not GitHub install URLs.
 
-- `MIROFISH_URL` → https://github.com/fernandogarzaaa/MiroFish
-- `EVE_URL` → https://github.com/fernandogarzaaa/experience-validation-engine
-
-API helper `resolve_simulation_engine()` calls `get_simulation_engine()` when core adds it; otherwise the stub.
+API helper `resolve_simulation_engine()` calls `get_simulation_engine()`.
 
 ## Compose profiles
 
 - default: postgres/PostGIS, redis, minio, api
 - `--profile streaming`: Redpanda
 - `--profile timeseries`: same PostGIS postgres (Timescale is future; do not replace the PostGIS image)
+- `--profile engines`: in-tree MiroFish (HTTP 5001) and EVE (CLI image)
 
 MinIO prefixes: `raw/` `normalized/` `derived/` `simulation/` `experiments/`.
 

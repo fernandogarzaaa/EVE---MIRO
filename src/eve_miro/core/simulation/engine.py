@@ -1,4 +1,4 @@
-"""SimulationEngine protocol and the v1 typhoon stub. MiroFish is behind this interface."""
+"""SimulationEngine protocol. In-tree MiroFish is behind this interface; v1 stubs until configured."""
 
 from __future__ import annotations
 
@@ -96,10 +96,14 @@ def get_simulation_engine(
     *,
     artifacts: list[dict[str, Any]] | None = None,
 ) -> SimulationEngine:
-    """Select MiroFish adapter when MIROFISH_URL is set; otherwise the stub."""
-    if _env("MIROFISH_URL"):
-        from eve_miro.core.simulation.mirofish_adapter import MiroFishEngine
+    """Prefer the in-tree MiroFish adapter; it stubs until configured.
 
+    ``MIROFISH_URL`` selects a running local service. If the in-tree tree is
+    missing and no URL is set, fall back to ``StubSimulationEngine``.
+    """
+    from eve_miro.core.simulation.mirofish_adapter import MiroFishEngine, in_tree_available
+
+    if _env("MIROFISH_URL") or in_tree_available():
         return MiroFishEngine(scenario=scenario, artifacts=artifacts)
     return StubSimulationEngine(scenario=scenario, artifacts=artifacts)
 

@@ -1,0 +1,227 @@
+# API Reference
+
+All symbols are exported from the package root
+(`import { ... } from "experience-validation-engine"`). Types are strict;
+this page lists the load-bearing surface — see the `.d.ts` files for full
+signatures.
+
+Not every symbol here carries the same guarantee. Phase-1 core is stable,
+Phase-2 systems are provisional, and Phase-3 analysis shapes are still
+moving. [docs/api-stability.md](api-stability.md) says which is which and
+what a version bump promises. Anything not exported from the package root
+is internal.
+
+## Engine
+
+### `new EveSession(options: SessionOptions)`
+
+| Option | Type | Default | Notes |
+|---|---|---|---|
+| `adapter` | `BrowserAdapter` | — | required |
+| `startUrl` | `string` | — | required |
+| `persona` | `Persona \| string` | `"first-time-user"` | name resolves via built-in registry |
+| `policy` | `DecisionPolicy` | `HeuristicCognition` | |
+| `plugins` | `EvePlugin[]` | `[]` | |
+| `goal` | `string` | open-ended exploration | |
+| `goalSuccessSignals` | `string[]` | `[]` | all must appear to succeed |
+| `seed` | `number \| string` | derived from persona+url | |
+| `maxSteps` | `number` | `60` | |
+| `maxDurationMs` | `number` | `600000` | |
+| `viewport` | `Viewport` | `1280×800` | |
+| `screenshots` | `boolean` | `false` | |
+| `paceScale` | `number` | `0.15` | real-browser pacing multiplier |
+| `onLog` | `(line) => void` | — | progress lines |
+
+- `session.run(): Promise<SessionResult>`
+- `session.events: EventBus` — typed subscription (`EveEventMap`).
+
+### `SessionResult`
+
+`iterations`, `findings`, `scores`, `emotionTimeline`, `workflows`,
+`workflowNodes`, `workflowTransitions`, `screenshots`, `usage`,
+`goalAchieved`, `abandoned`, `abandonReason`, `endReason`, `appTheory`,
+`goalSignalWarnings`, `llmFallbackWarnings`, `error`, `personaName`, `seed`,
+`startUrl`.
+
+`goalSignalWarnings: readonly string[]` reports configured
+`goalSuccessSignals` that were satisfied by text which does not evidence
+completion — see the goal semantics in `docs/configuration.md`. Empty when no
+signals are configured or none looked suspicious. Matching is word-boundary
+aware ("cart" does not match inside "cartoon").
+
+`error: string | null` is set when the run loop threw and was caught rather
+than completing normally (`endReason` is then `"crashed"`) — a network drop,
+a browser crash, an unguarded plugin. The adapter is still closed and every
+finding/score/iteration gathered before the throw is still returned; this is
+the only signal that the result is partial rather than a complete,
+successfully-finished session.
+
+`llmFallbackWarnings: readonly string[]` reports whenever an LLM-backed
+policy (`LlmCognition`) or plugin (`LlmCriticPlugin`) degraded to its
+non-LLM fallback — missing/invalid API key, network error, refusal, or a
+malformed response. Also emitted as the `llm:fallback` event
+(`{ source: "cognition" | "plugin", reason: string }`). De-duplicated like
+`goalSignalWarnings`: a policy/plugin failing the same way every step reads
+as one advisory. Empty when no LLM policy/plugin was configured, or none
+degraded.
+
+## Browser layer
+
+- `interface BrowserAdapter` — `open`, `snapshot`, `screenshot`,
+  `moveMouse`, `clickAt`, `doubleClickAt`, `typeText`, `pressKey`,
+  `scrollBy`, `goBack`, `navigate`, `close`.
+- `PlaywrightAdapter(options?)`, `PuppeteerAdapter(options?)`,
+  `SeleniumAdapter(options?)` — optional-peer-backed; throw with install
+  instructions when the peer is missing.
+  - `PuppeteerAdapter`/`SeleniumAdapter` accept an `args?: readonly string[]`
+    launch-flags escape hatch (e.g. `--no-sandbox` for a root container or a
+    CI image without a usable Chrome sandbox) — not a default; a real
+    user's machine should never need it.
+  - `SeleniumAdapter` additionally accepts `chromeBinaryPath?`/
+    `chromedriverPath?: string` to bypass PATH-based (or Selenium Manager's
+    own auto-detected) browser/driver resolution entirely, for environments
+    where both are unreliable — see `tests/browser/seleniumChromeSetup.ts`
+    for a working example that pairs both from Puppeteer's own bundled
+    Chromium.
+- `MockAdapter(app?: MockAppSpec)` + `DEMO_APP` — in-memory application.
+- `createAdapter(name, options)` — factory for `"playwright" | "puppeteer" |
+  "selenium" | "mock"`.
+- Humanizer: `planClick(target, persona, rng)`, `planTyping(text, persona,
+  rng)`, `hesitationMs(risk, persona, rng)`.
+- `PERCEPTION_SCRIPT` — the injected retina script (adapter authors).
+
+## Personas
+
+- `definePersona(spec: PersonaSpec): Persona` — validates ranges.
+- `getPersona(name)`, `listPersonas()`, `registerPersona(persona)`.
+- Trait translation: `readingTimeMs`, `motorActionMs`, `typingIntervalMs`,
+  `clickScatterPx`, `workingMemoryCapacity`, `abandonmentThreshold`.
+- Constants: `BASELINE_TRAITS`, `DEFAULT_ACCESSIBILITY`.
+
+## Cognition
+
+- `interface DecisionPolicy { name; decide(ctx): Promise<Decision> }`
+- `HeuristicCognition(strategy?)` — offline default.
+- `LlmCognition(options?)` — Anthropic-backed; graceful fallback.
+  `LlmCognitionOptions.timeoutMs` (default 30s) bounds each API call so a
+  hung request cannot ride the SDK's own multi-minute default.
+- `interface FallbackReportingPolicy { takeFallbackReason(): string | null }`,
+  `asFallbackReportingPolicy(policy)` — narrows any `DecisionPolicy` to this
+  optional capability, or returns `null`. `LlmCognition` implements it:
+  `takeFallbackReason()` returns the most recent degradation reason once
+  (consumed on read), or `null` if none is pending. `EveSession` polls this
+  after every `decide()` call and surfaces it on
+  `SessionResult.llmFallbackWarnings` and the `llm:fallback` event.
+- Mental model: `predictInteraction`, `comparePrediction`,
+  `perceivesError`, `errorSnippets`, `inferAppTheory`, `tokenize`,
+  `visibleText`, `passiveText` (visible text minus interactive labels).
+- Attention: `scoreAffordances`, `prominenceOf`, `goalRelevanceOf`,
+  `riskOf`, `readingLoad`, `choiceLoad`.
+
+## Memory, emotion, planning
+
+- `OperatorMemory` — `hold`, `recordEpisode`, `decayEpisodes`,
+  `recallEpisodes`, `remembersFailure`, `learn`, `knownFacts`,
+  `observeScreen`, `recordTransition`, `knownScreens`, `loopingScore`,
+  `trail`; `screenSignature(percept)`.
+- `EmotionalState` — `get`, `snapshot`, `adjust`, `decay`, `record`,
+  `timeline`, `mean`, `peak`; `appraise(...)`, `decayRate(...)`.
+- `GoalStack`, `createGoal(description, options?)` — keyword expansion via
+  conventional associations; subgoal push/resolve.
+
+## Vision
+
+- Geometry: `checkGeometry(percept, accessibilityProfile)`.
+- Pixels: `checkPixels(percept)`, `checkRegression(prevShot, shot,
+  sameText)`.
+- Utilities: `decodePng`, `frameDiffRatio`, `luminanceVariance`,
+  `relativeLuminance`, `contrastRatio`, `parseHexColor`,
+  `sampleLuminances`, `simulateColorVision`.
+
+## Workflow
+
+- `detectWorkflow(percept): { kind, confidence }`
+- `WorkflowGraph` — `observe`, `allNodes`, `allTransitions`,
+  `discoveredWorkflows`, `revisitRatio`.
+- `WORKFLOW_SIGNATURES` — extend to teach EVE new workflow types.
+
+## Scoring & reporting
+
+- `computeScores(input: ScoringInput): Score[]` — 16 dimensions.
+- `buildReport(result): ExperienceReport`
+- `renderHtml(report)`, `renderMarkdown(report)`, `renderJson(report)`
+- `writeReports(result, outputDir)` — writes all three.
+
+## Plugins
+
+- `interface EvePlugin` — `onSessionStart?`, `onPercept?`, `onOutcome?`,
+  `onSessionEnd?`.
+- `interface PluginContext` — `persona`, `startUrl`, `capabilities`,
+  `report(finding)`, `reportLlmFallback(reason)` (surfaces an LLM-backed
+  plugin's own degradation to `SessionResult.llmFallbackWarnings` and the
+  `llm:fallback` event, exactly like `LlmCognition`'s fallback reporting).
+- `PluginManager`, `AccessibilityPlugin`, `PerformancePlugin`,
+  `LlmCriticPlugin(options?)` — `LlmCriticOptions.timeoutMs` (default 30s)
+  bounds each critique call the same way `LlmCognitionOptions.timeoutMs`
+  does.
+
+## Configuration
+
+- `resolveConfig(raw): EveConfig` — validate an object.
+- `loadConfigFile(path): Promise<EveConfig>` — YAML.
+- `DEFAULT_CONFIG`, `ConfigError`.
+
+## Phase 2 — enhanced cognition & analysis
+
+All phase-2 surface is exported from the package root and is opt-in;
+nothing here changes a default (phase-1) session.
+
+### Enhanced session options & results
+
+`SessionOptions` gains: `cognitive?: boolean | CognitiveConfig`,
+`longTermMemory?: PersistentMemory`, `culture?: CultureProfile | string`.
+`SessionResult` gains: `capturedScreens` (always), and — when enabled —
+`trustTimeline`, `cognitiveLoad`, `attention`, `expectationTimeline`,
+`learningMetrics`, `journey`, `culture`.
+
+- `UtilityCognition(strategy?)` — `DecisionPolicy` using utility-based choice
+  (softmax over emotion-weighted expected value); drop-in for `policy`.
+- `CognitiveSuite`, `CognitiveConfig`, `CognitiveLoadTimeline` — the
+  per-step subsystem bundle (attention, cognitive load, trust, expectation).
+
+### Long-term memory & learning
+
+- `interface PersistentMemory` — `load()`, `save(memory)`.
+- `InMemoryStore()`, `FileMemoryStore(path)` — implementations; pass as
+  `longTermMemory`.
+- `ApplicationMemory`, `emptyApplicationMemory()`,
+  `computeLearningMetrics(memory) → LearningMetrics`.
+
+### Social & cultural overlays
+
+- `listProfessions()`, `getProfession(name)`,
+  `applyProfession(persona, profession) → Persona`.
+- `getCulture(locale)`, `CultureProfile`, `withCulture`, `cultureOf`,
+  `CULTURES`, `DEFAULT_CULTURE`.
+
+### Regression, forecasting, panel, benchmarks, collaboration
+
+- `compareExperience(baseline, candidate, labels?) → RegressionReport`
+  (`verdict: "improved" | "unchanged" | "regressed"`, `deltas`,
+  `regressions`); `extractMetrics(result) → ExperienceMetrics`.
+- `forecastExperience(sessions) → ExperienceForecast`.
+- `runPanel(sessions) → PanelResult` (`{ executive, critique, forecast,
+  plan, tickets }`); building blocks `critiqueDesign`, `forecastExperience`,
+  `moderatePanel`, `buildProductPlan`, `generateTickets`; exporters
+  `toGitHubIssues`, `toLinearIssues`, `toJiraIssues`, `toMarkdownTasks`;
+  `renderPanelMarkdown(panel)`.
+- `validateBenchmarks(options?) → BenchmarkValidation`; `BENCHMARK_APPS`,
+  `EXCELLENT_APP`, `AVERAGE_APP`, `BAD_APP`, `BenchmarkTier`.
+- `runCollaborative(scenario) → CollaborativeResult` — multi-operator
+  handoff / approval chains.
+
+## Core utilities
+
+- `createRng(seed)`, `seedFromString(text)` — deterministic randomness.
+- `EventBus` — typed async event bus.
+- `describeAction(action)` — human-readable action strings.

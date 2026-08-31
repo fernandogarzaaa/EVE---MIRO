@@ -3,6 +3,7 @@
 # Optional:
 #   docker compose --profile streaming up     # Redpanda
 #   docker compose --profile timeseries up    # same PostGIS postgres; Timescale is future
+#   docker compose --profile engines up       # in-tree MiroFish + EVE images
 #
 # MinIO bucket (eve-miro) prefixes:
 #   raw/  normalized/  derived/  simulation/  experiments/
@@ -52,9 +53,14 @@ services:
       MINIO_ENDPOINT: minio:9000
       MINIO_BUCKET: eve-miro
       FIXTURES: "1"
-      # Optional replaceable engines — not vendored, not cloned:
-      # MIROFISH_URL: https://github.com/fernandogarzaaa/MiroFish
-      # EVE_URL: https://github.com/fernandogarzaaa/experience-validation-engine
+      EVE_MIRO_ENGINES: ${EVE_MIRO_ENGINES:-stub}
+      MIROFISH_ROOT: ${MIROFISH_ROOT:-./mirofish}
+      EVE_ROOT: ${EVE_ROOT:-./eve}
+      # Optional local service override when --profile engines is up:
+      # MIROFISH_URL: http://mirofish:5001
+      MIROFISH_URL: ${MIROFISH_URL:-}
+      EVE_URL: ${EVE_URL:-}
+      EVE_BIN: ${EVE_BIN:-}
     ports:
       - "8000:8000"
     depends_on:
@@ -97,6 +103,39 @@ services:
         condition: service_healthy
     command: ["echo", "Timescale is future. Time series live on PostGIS postgres. Do not replace postgis/postgis:16-3.4."]
     restart: "no"
+
+
+  # --profile engines
+  # In-tree MiroFish (HTTP 5001 + frontend 3000). Needs LLM keys in the
+  # environment or mirofish/.env; otherwise the process will refuse to start.
+  # Alternative: cd mirofish && docker compose up
+  mirofish:
+    profiles: ["engines"]
+    build:
+      context: ./mirofish
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+      - "5001:5001"
+    environment:
+      FLASK_HOST: 0.0.0.0
+      FLASK_PORT: "5001"
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      ZEP_API_KEY: ${ZEP_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-}
+
+  # In-tree EVE. CLI-only (entrypoint `eve`, no HTTP). Example:
+  #   docker compose --profile engines run --rm eve --help
+  # Adapters default EVE_BIN to the in-tree CLI; the API does not require
+  # this service on default `up`.
+  eve:
+    profiles: ["engines"]
+    build:
+      context: ./eve
+      dockerfile: Dockerfile
+    stdin_open: true
+    tty: true
 
 volumes:
   pgdata:

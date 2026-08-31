@@ -11,7 +11,7 @@ from eve_miro.api import state as app_state
 from eve_miro.api.state import WorldRecord
 from eve_miro.core.evaluation.reality_check import reality_check
 from eve_miro.core.experience.candidates import Trajectory
-from eve_miro.core.experience.engine import StubExperienceEngine
+from eve_miro.core.experience.engine import get_experience_engine
 from eve_miro.core.simulation.scenarios import load_scenario
 from eve_miro.core.world.events import ProvenanceKind
 from eve_miro.core.world.projector import project_world_state
@@ -78,7 +78,7 @@ async def run_demo_loop(
     app_state.STATE.results[sim.id] = result
     inc_sim_run()
 
-    exp_engine = StubExperienceEngine()
+    exp_engine = get_experience_engine()
     traj = Trajectory(simulation_id=sim.id, actions=result.traces, predicted_series=result.predicted_series)
     experience_ids: list[str] = []
     for cand in await exp_engine.observe(traj):

@@ -44,6 +44,7 @@ reactions are SIMULATED statistical investor personas (not real people).
 
 ## Engines
 
-v1 default engines are stubs. Set `MIROFISH_URL` or `EVE_URL`/`EVE_BIN` to
-attach replaceable adapters; neither repo is vendored. Failures fall back to
-the stub with provenance notes.
+Default runtime is the in-tree adapters, which stub until configured.
+`EVE_MIRO_ENGINES=in-tree` plus a runnable engine uses MiroFish/EVE in this
+repo. `MIROFISH_URL` / `EVE_URL` / `EVE_BIN` override to a local service.
+Failures fall back to the stub with provenance notes.

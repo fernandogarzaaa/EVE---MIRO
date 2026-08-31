@@ -1,16 +1,14 @@
-"""MiroFish adapter. Not a clone — HTTP client behind SimulationEngine.
+"""In-tree MiroFish adapter behind SimulationEngine.
 
-Typical MiroFish-shaped services (see comments only; we do not vendor the
-upstream repo) accept a seed world snapshot plus a prediction requirement and
-return a simulated trajectory. Conservative HTTP:
+This repo contains MiroFish at ``mirofish/`` (first-party, AGPL-3.0). The
+default runtime still uses ``StubSimulationEngine`` until
+``EVE_MIRO_ENGINES=in-tree`` *and* the engine can actually import/run
+(MiroFish ``Config.validate()`` needs LLM keys). Missing keys fall back
+with provenance note ``mirofish_in_tree_not_configured``.
 
-    POST {MIROFISH_URL}/api/predict
-    POST {MIROFISH_URL}/simulate
-    JSON body: {seed, requirement, cutoff}
-
-If MIROFISH_URL is unset, every call delegates to StubSimulationEngine so
-tests pass without the network. On error or timeout the stub is used and
-provenance notes record ``mirofish_unavailable``. All outputs are SIMULATED.
+``MIROFISH_URL`` is an optional override to a running local service
+(including ``docker compose --profile engines``), not an install-from-GitHub
+hook. All outputs are SIMULATED.
 """
 
 from __future__ import annotations
@@ -29,10 +27,11 @@ from eve_miro.core.simulation.scenarios import Scenario
 from eve_miro.core.world.events import ProvenanceKind
 from eve_miro.core.world.state import Population, WorldState
 from eve_miro.core.world.temporal import iso
+from eve_miro.paths import engines_mode, mirofish_root
 
-# Conservative paths — we do not clone MiroFish to discover a schema.
 _REMOTE_PATHS = ("/api/predict", "/simulate", "/api/simulate")
 _DEFAULT_TIMEOUT = 1.5
+_LOCAL_DEFAULT_URL = "http://127.0.0.1:5001"
 
 
 def _env_url() -> str | None:
@@ -40,8 +39,32 @@ def _env_url() -> str | None:
     return v or None
 
 
+def in_tree_available() -> bool:
+    """True when the first-party MiroFish tree is present in this repo."""
+    return (mirofish_root() / "backend" / "app").is_dir()
+
+
+def _mirofish_configured() -> bool:
+    """True when in-tree MiroFish ``Config.validate()`` succeeds (LLM keys)."""
+    config_path = mirofish_root() / "backend" / "app" / "config.py"
+    if not config_path.is_file():
+        return False
+    try:
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("_eve_miro_mirofish_config", config_path)
+        if spec is None or spec.loader is None:
+            return False
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        errors = list(mod.Config.validate() or [])
+        return not errors
+    except Exception:
+        return False
+
+
 class MiroFishEngine:
-    """SimulationEngine that optionally POSTs to a replaceable MiroFish service."""
+    """SimulationEngine for the in-tree MiroFish copy; stubs until configured."""
 
     name = "mirofish"
 
@@ -65,15 +88,29 @@ class MiroFishEngine:
         return bool(self.url)
 
     async def initialize(self, world: WorldState, population: Population) -> Simulation:
-        # Local Simulation object is always built by the stub (same contract).
         return await self._stub.initialize(world, population)
 
     async def step(self, simulation: Simulation) -> SimulationStep:
         return await self._stub.step(simulation)
 
     async def run(self, simulation: Simulation, until: datetime) -> SimulationResult:
-        if not self.url:
-            return await self._stub.run(simulation, until)
+        if self.url:
+            return await self._run_remote(simulation, until)
+
+        if engines_mode() == "in-tree":
+            if not in_tree_available() or not _mirofish_configured():
+                return await self._stub_with("mirofish_in_tree_not_configured", simulation, until)
+            # Configured: talk to a running local service (compose or run.py).
+            saved = self.url
+            self.url = _env_url() or _LOCAL_DEFAULT_URL
+            try:
+                return await self._run_remote(simulation, until)
+            finally:
+                self.url = saved
+
+        return await self._stub.run(simulation, until)
+
+    async def _run_remote(self, simulation: Simulation, until: datetime) -> SimulationResult:
         try:
             remote = await self._post_predict(simulation, until)
             mapped = self._map_remote(simulation, remote)
@@ -85,12 +122,15 @@ class MiroFishEngine:
                 return mapped
             raise ValueError("unmappable mirofish response")
         except Exception:
-            result = await self._stub.run(simulation, until)
-            self.last_notes = "mirofish_unavailable"
-            result.summary["engine"] = "stub"
-            result.summary["provenance_notes"] = "mirofish_unavailable"
-            result.summary["provenance_kind"] = ProvenanceKind.SIMULATED.value
-            return result
+            return await self._stub_with("mirofish_unavailable", simulation, until)
+
+    async def _stub_with(self, note: str, simulation: Simulation, until: datetime) -> SimulationResult:
+        result = await self._stub.run(simulation, until)
+        self.last_notes = note
+        result.summary["engine"] = "stub"
+        result.summary["provenance_notes"] = note
+        result.summary["provenance_kind"] = ProvenanceKind.SIMULATED.value
+        return result
 
     async def _post_predict(self, simulation: Simulation, until: datetime) -> dict[str, Any]:
         import httpx

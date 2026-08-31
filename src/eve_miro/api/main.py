@@ -25,8 +25,7 @@ from eve_miro.api import state as app_state
 from eve_miro.api.state import WorldRecord, reset_state
 from eve_miro.config import PHILIPPINES, PROVIDER_INTERVALS
 from eve_miro.core.evaluation.reality_check import Evaluation, reality_check, reliability_from_freshness
-from eve_miro.core.experience.engine import StubExperienceEngine
-from eve_miro.core.simulation.engine import StubSimulationEngine
+from eve_miro.core.experience.engine import get_experience_engine
 from eve_miro.core.simulation.orchestration import run_scenario
 from eve_miro.core.simulation.scenarios import load_scenario
 from eve_miro.core.world.events import ProvenanceKind, WorldEvent
@@ -308,14 +307,14 @@ async def run_sim(sim_id: str):
     if not sim:
         raise HTTPException(404, "simulation not found")
     pack = app_state.STATE.scenarios.get(sim_id) or {}
-    engine: StubSimulationEngine = pack.get("engine") or resolve_simulation_engine()
+    engine = pack.get("engine") or resolve_simulation_engine()
     until = sim.origin + timedelta(hours=sim.hours)
     result = await engine.run(sim, until)
     app_state.STATE.results[sim_id] = result
     # experiences
     from eve_miro.core.experience.candidates import Trajectory
 
-    exp_engine = StubExperienceEngine()
+    exp_engine = get_experience_engine()
     traj = Trajectory(simulation_id=sim.id, actions=result.traces, predicted_series=result.predicted_series)
     for cand in await exp_engine.observe(traj):
         val = await exp_engine.validate(cand)
@@ -406,7 +405,7 @@ async def validate_exp(exp_id: str):
     e = app_state.STATE.experiences.get(exp_id)
     if not e:
         raise HTTPException(404, "experience not found")
-    engine = StubExperienceEngine()
+    engine = get_experience_engine()
     val = await engine.validate(e.candidate)
     app_state.STATE.experiences[val.id] = val
     return val.model_dump(mode="json")
