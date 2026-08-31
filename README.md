@@ -105,9 +105,22 @@ Python 3.12 is the intended combined runtime (MiroFish targets <3.13); fabric
 tests may still run on 3.13. Tests do **not** need Docker, the network, LLM keys,
 or a node build.
 
+**First-time clone — one command** (fabric + MiroFish backend deps + EVE CLI
+build + env templates if missing):
+
 ```bash
 cd eve-miro
-python3 -m pip install -e ".[dev]"
+make install
+# equivalent: python3 scripts/bootstrap.py
+# Windows PowerShell: .\scripts\install.ps1
+```
+
+`make install-dev` is pip-only (`pip install -e ".[dev]"`) for the offline
+test suite.
+
+Then:
+
+```bash
 python3 -m pytest -q
 FIXTURES=1 python3 -m uvicorn eve_miro.api.main:app --port 8000
 # dashboard: http://127.0.0.1:8000/
@@ -122,15 +135,28 @@ Layout folder `apps/api` is a pointer — see that README.
 returns **503** `{"error":"engine_not_configured","detail":...}` instead of
 running the typhoon stub.
 
-1. Python 3.12 venv for MiroFish (`requires-python <3.13`).
-2. Copy `mirofish/.env.example` to `mirofish/.env`. This first run uses a
+`make install` / `python3 scripts/bootstrap.py` already created `.venv`,
+installed `.[all]` + MiroFish requirements, built the EVE CLI, and copied
+`.env.example` -> `.env` and `mirofish/.env.example` -> `mirofish/.env`
+when those files were missing (never overwritten, never invents API keys).
+Bootstrap prefers **one** `.venv` at repo root. On Python 3.13+ it warns
+(MiroFish historically wants <3.13) and uses `python3.12` to create the venv
+when that interpreter is on PATH.
+
+After install, boot the engines:
+
+1. Python 3.12 venv for MiroFish (`requires-python <3.13`) — the repo-root
+   `.venv` from bootstrap.
+2. `mirofish/.env` (copied from the example if missing). This first run uses a
    local OpenAI-compatible GGUF server:
    `LLM_API_KEY=local`, `LLM_BASE_URL=http://127.0.0.1:8088/v1`,
    `LLM_MODEL_NAME=qwen2.5-0.5b-instruct`, plus `MIROFISH_MEMORY=local`
    (skips Zep Cloud; does **not** fake Zep).
+   Weights path: `models/qwen2.5-0.5b-instruct-q4_k_m.gguf`
+   (see `scripts/local_llm_server.py`).
 3. `python mirofish/backend/run.py` listens on http://127.0.0.1:5001
-4. In `eve/`, install packages and build so `eve/bin/eve.js` and
-   `eve/dist/cli/main.js` exist. The adapter calls `eve trajectory --stdin`.
+4. EVE CLI: `eve/bin/eve.js` and `eve/dist/cli/main.js` from the bootstrap
+   build. The adapter calls `eve trajectory --stdin`.
    There is no HTTP `POST /validate`.
 5. `FIXTURES=1 EVE_MIRO_ENGINES=in-tree python3 -m uvicorn eve_miro.api.main:app --port 8000`
 6. `POST /experiments/run` fails loudly if steps 3-4 are not up.

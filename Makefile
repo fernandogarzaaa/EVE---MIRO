@@ -1,6 +1,9 @@
-.PHONY: install test run demo compose schemas
+.PHONY: install install-dev test run demo compose schemas
 
 install:
+	python3 scripts/bootstrap.py
+
+install-dev:
 	python3 -m pip install -e ".[dev]"
 
 test:
