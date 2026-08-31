@@ -7,7 +7,7 @@ from typing import Any
 
 import duckdb
 
-from eve_miro.config import REPO_ROOT, TRACES_DIR
+from eve_miro.config import TRACES_DIR
 
 
 def traces_glob(directory: Path | None = None) -> str:

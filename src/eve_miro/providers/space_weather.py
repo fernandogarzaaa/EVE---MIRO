@@ -14,7 +14,7 @@ from eve_miro.core.world.events import (
     WorldEvent,
 )
 from eve_miro.core.world.temporal import as_utc, utcnow
-from eve_miro.providers.common import fixtures_enabled, http_get_json, live_requested, load_fixture
+from eve_miro.providers.common import fetch_live_or_fixture, fixtures_enabled, http_get_json, live_requested
 from eve_miro.providers.protocol import DataSchema, ProviderHealth, ProviderProvenance, TimeWindow
 
 XRAY_URL = "https://services.swpc.noaa.gov/json/goes/primary/xrays-6-hour.json"
@@ -100,12 +100,8 @@ class SpaceWeatherProvider:
 
     async def fetch(self, window: TimeWindow, region: Region | None = None) -> list[WorldEvent]:
         _ = window, region or PHILIPPINES
-        payload = None
-        if live_requested("SPACEWEATHER_LIVE"):
-            try:
-                payload = await http_get_json(XRAY_URL, timeout=20.0)
-            except Exception:
-                payload = None
-        if payload is None:
-            payload = load_fixture(FIXTURE)
+        async def _live():
+            return await http_get_json(XRAY_URL, timeout=20.0)
+
+        payload = await fetch_live_or_fixture("SPACEWEATHER_LIVE", FIXTURE, _live)
         return self.normalize(payload)

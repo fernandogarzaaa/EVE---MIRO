@@ -89,4 +89,4 @@ Earth + mobility + weather + events, bounded to the Philippines bbox
 
 ## Second domain
 
-Finance (CoinGecko stub). Same loop, public ticks only.
+Finance (CoinGecko live + fixture). Same loop, public ticks only.

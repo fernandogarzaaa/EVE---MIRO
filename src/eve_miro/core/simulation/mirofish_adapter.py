@@ -19,7 +19,6 @@ from eve_miro.core.simulation.engine import (
 )
 from eve_miro.core.simulation.mirofish_client import (
     mirofish_configured as _mirofish_configured,
-    missing_mirofish_keys,
     run_mirofish_simulation,
 )
 from eve_miro.core.simulation.scenarios import Scenario

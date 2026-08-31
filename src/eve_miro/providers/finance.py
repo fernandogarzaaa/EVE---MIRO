@@ -14,7 +14,7 @@ from eve_miro.core.world.events import (
     WorldEvent,
 )
 from eve_miro.core.world.temporal import utcnow
-from eve_miro.providers.common import fixtures_enabled, http_get_json, live_requested, load_fixture
+from eve_miro.providers.common import fetch_live_or_fixture, fixtures_enabled, http_get_json, live_requested
 from eve_miro.providers.protocol import DataSchema, ProviderHealth, ProviderProvenance, TimeWindow
 
 PRICE_URL = "https://api.coingecko.com/api/v3/simple/price"
@@ -88,15 +88,11 @@ class CoinGeckoProvider:
 
     async def fetch(self, window: TimeWindow, region: Region | None = None) -> list[WorldEvent]:
         _ = window, region or PHILIPPINES
-        payload = None
-        if live_requested("COINGECKO_LIVE"):
-            try:
-                payload = await http_get_json(
-                    PRICE_URL,
-                    params={"ids": IDS, "vs_currencies": "usd", "include_24hr_change": "true"},
-                )
-            except Exception:
-                payload = None
-        if payload is None:
-            payload = load_fixture(FIXTURE)
+        async def _live():
+            return await http_get_json(
+                PRICE_URL,
+                params={"ids": IDS, "vs_currencies": "usd", "include_24hr_change": "true"},
+            )
+
+        payload = await fetch_live_or_fixture("COINGECKO_LIVE", FIXTURE, _live)
         return self.normalize(payload)

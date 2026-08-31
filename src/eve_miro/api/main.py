@@ -7,24 +7,24 @@ The layout folder apps/api is a pointer; this module is the real app.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from eve_miro import __version__
 from eve_miro.api.metrics_prom import inc_eval, inc_ingest, inc_sim_run
 from eve_miro.api.routes_extra import resolve_simulation_engine, router as extra_router
 from eve_miro.api import state as app_state
-from eve_miro.api.state import WorldRecord, reset_state
-from eve_miro.config import PHILIPPINES, PROVIDER_INTERVALS
-from eve_miro.core.evaluation.reality_check import Evaluation, reality_check, reliability_from_freshness
+from eve_miro.api.state import WorldRecord
+from eve_miro.config import PROVIDER_INTERVALS
+from eve_miro.core.evaluation.reality_check import reality_check, reliability_from_freshness
 from eve_miro.core.experience.engine import get_experience_engine
 from eve_miro.core.simulation.orchestration import run_scenario
 from eve_miro.core.simulation.scenarios import load_scenario
@@ -32,7 +32,7 @@ from eve_miro.core.world.events import ProvenanceKind, WorldEvent
 from eve_miro.core.world.projector import project_world_state
 from eve_miro.core.world.state import Population
 from eve_miro.core.world.temporal import as_utc, iso, utcnow
-from eve_miro.errors import EngineNotConfigured, EveMiroError, FutureLeakageError, ProvenanceError, ReplayError
+from eve_miro.errors import EngineNotConfigured, FutureLeakageError, ProvenanceError, ReplayError
 from eve_miro.providers.protocol import TimeWindow
 from eve_miro.providers.registry import all_providers
 from eve_miro.worker.loop import ingest_from_providers, provider_cadence
@@ -458,7 +458,6 @@ async def get_eval(eval_id: str):
 
 @app.post("/evaluations")
 async def post_eval(body: EvaluateBody):
-    sim = app_state.STATE.simulations.get(body.simulation_id)
     result = app_state.STATE.results.get(body.simulation_id)
     predicted = body.predicted
     if predicted is None and result:

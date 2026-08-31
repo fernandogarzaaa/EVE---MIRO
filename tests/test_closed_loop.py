@@ -8,7 +8,6 @@ from fastapi.testclient import TestClient
 from eve_miro.api.main import app
 from eve_miro.core.orchestration.closed_loop import ClosedLoop, split_at_cutoff
 from eve_miro.core.orchestration.experiment import load_experiment
-from eve_miro.core.world.events import ProvenanceKind
 from eve_miro.core.world.projector import project_world_state
 from eve_miro.errors import FutureLeakageError
 from eve_miro.providers.common import load_fixture

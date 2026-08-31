@@ -1,4 +1,4 @@
-"""Data providers. Live adapters for Open-Meteo and USGS; honest stubs otherwise."""
+"""Data providers. Live public-data adapters. FIXTURES=1 is offline; live HTTP fail-closes. StubProvider is a test double, not registered."""
 
 from eve_miro.providers.protocol import DataProvider, DataSchema, ProviderHealth, ProviderProvenance, TimeWindow
 from eve_miro.providers.registry import all_providers, get_provider

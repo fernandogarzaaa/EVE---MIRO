@@ -16,6 +16,7 @@ from eve_miro.core.world.events import (
     WorldEvent,
 )
 from eve_miro.core.world.temporal import as_utc, utcnow
+from eve_miro.errors import ProviderError
 from eve_miro.providers.common import fixtures_enabled, live_requested, load_fixture
 from eve_miro.providers.protocol import DataSchema, ProviderHealth, ProviderProvenance, TimeWindow
 
@@ -109,7 +110,9 @@ class AISStreamProvider:
         if not live_requested("AISSTREAM_LIVE"):
             events = self.normalize(load_fixture(FIXTURE))
             return [e for e in events if e.location and region.contains(e.location.lat, e.location.lon)]
-        if not os.environ.get("AISSTREAM_API_KEY"):
-            return []
-        # AISStream is WebSocket-only; there is no public REST snapshot. Do not invent positions.
-        return []
+        if not (os.environ.get("AISSTREAM_API_KEY") or "").strip():
+            raise ProviderError("AISSTREAM_API_KEY missing for live aisstream fetch")
+        raise ProviderError(
+            "AISStream live ingest is WebSocket-only; no REST snapshot exists. "
+            "Fail closed rather than inventing vessel positions. Use FIXTURES=1."
+        )

@@ -165,3 +165,16 @@ async def test_mirofish_step_raises():
     sim = await engine.initialize(world, pop)
     with pytest.raises(EngineNotConfigured, match="does not support step"):
         await engine.step(sim)
+
+
+@pytest.mark.asyncio
+async def test_eve_observe_is_labeled_local_heuristic():
+    from eve_miro.core.experience.candidates import Trajectory
+    from eve_miro.core.experience.eve_adapter import EVEExperienceEngine
+
+    engine = EVEExperienceEngine(url=None, timeout=0.2)
+    cands = await engine.observe(
+        Trajectory(simulation_id="sim_h", actions=[{"action": "CREATE_POST", "agent_id": "a1", "hour": 0}])
+    )
+    assert cands
+    assert all(c.provenance.get("engine") == "local-heuristic" for c in cands)

@@ -36,6 +36,8 @@ _project_root = os.path.abspath(os.path.join(_backend_dir, '..'))
 sys.path.insert(0, _scripts_dir)
 sys.path.insert(0, _backend_dir)
 
+from action_logger import PlatformActionLogger, harvest_trace_actions
+
 # 加载项目根目录的 .env 文件（包含 LLM_API_KEY 等配置）
 from dotenv import load_dotenv
 _env_file = os.path.join(_project_root, '.env')
@@ -410,6 +412,7 @@ class TwitterSimulationRunner:
         self.env = None
         self.agent_graph = None
         self.ipc_handler = None
+        self.action_logger = PlatformActionLogger("twitter", self.simulation_dir)
         
     def _load_config(self) -> Dict[str, Any]:
         """加载配置文件"""
@@ -463,28 +466,21 @@ class TwitterSimulationRunner:
         self, 
         env, 
         current_hour: int,
-        round_num: int
+        round_num: int,
+        force: bool = False,
     ) -> List:
         """
         根据时间和配置决定本轮激活哪些Agent
-        
-        Args:
-            env: OASIS环境
-            current_hour: 当前模拟小时（0-23）
-            round_num: 当前轮数
-            
-        Returns:
-            激活的Agent列表
+
+        Round 0 / truncated sims force a minimum posting set so jsonl is not empty.
         """
         time_config = self.config.get("time_config", {})
         agent_configs = self.config.get("agent_configs", [])
         
-        # 基础激活数量
         base_min = time_config.get("agents_per_hour_min", 5)
         base_max = time_config.get("agents_per_hour_max", 20)
         
-        # 根据时段调整
-        peak_hours = time_config.get("peak_hours", [9, 10, 11, 14, 15, 20, 21, 22])
+        peak_hours = time_config.get("peak_hours", [9, 10, 11, 14, 15, 19, 20, 21, 22])
         off_peak_hours = time_config.get("off_peak_hours", [0, 1, 2, 3, 4, 5])
         
         if current_hour in peak_hours:
@@ -495,29 +491,40 @@ class TwitterSimulationRunner:
             multiplier = 1.0
         
         target_count = int(random.uniform(base_min, base_max) * multiplier)
+        if force:
+            target_count = max(1, target_count, min(3, max(1, len(agent_configs) or 1)))
         
-        # 根据每个Agent的配置计算激活概率
         candidates = []
         for cfg in agent_configs:
             agent_id = cfg.get("agent_id", 0)
             active_hours = cfg.get("active_hours", list(range(8, 23)))
             activity_level = cfg.get("activity_level", 0.5)
             
-            # 检查是否在活跃时间
-            if current_hour not in active_hours:
+            if not force and current_hour not in active_hours:
                 continue
             
-            # 根据活跃度计算概率
-            if random.random() < activity_level:
+            if force or random.random() < activity_level:
                 candidates.append(agent_id)
+
+        if not candidates and force:
+            for cfg in agent_configs:
+                aid = cfg.get("agent_id")
+                if aid is not None:
+                    candidates.append(aid)
+            if not candidates:
+                try:
+                    for agent_id, _agent in env.agent_graph.get_agents():
+                        candidates.append(agent_id)
+                        if len(candidates) >= max(1, target_count):
+                            break
+                except Exception:
+                    pass
         
-        # 随机选择
         selected_ids = random.sample(
             candidates, 
-            min(target_count, len(candidates))
+            min(max(target_count, 1 if force else 0), len(candidates))
         ) if candidates else []
         
-        # 转换为Agent对象
         active_agents = []
         for agent_id in selected_ids:
             try:
@@ -603,10 +610,28 @@ class TwitterSimulationRunner:
         self.ipc_handler = IPCHandler(self.simulation_dir, self.env, self.agent_graph)
         self.ipc_handler.update_status("running")
         
+        agent_names = {}
+        for cfg in self.config.get("agent_configs", []):
+            aid = cfg.get("agent_id")
+            if aid is not None:
+                agent_names[aid] = cfg.get("entity_name") or f"Agent_{aid}"
+        last_rowid = 0
+        db_path = self._get_db_path()
+        logger = self.action_logger
+        logger.log_simulation_start(self.config)
+
+        peak_hours = time_config.get("peak_hours") or [19, 20, 21, 22]
+        is_truncated = max_rounds is not None and max_rounds > 0
+        hour_offset = int(
+            time_config.get("simulation_start_hour", peak_hours[0] if is_truncated else 0)
+        )
+
         # 执行初始事件
         event_config = self.config.get("event_config", {})
         initial_posts = event_config.get("initial_posts", [])
         
+        logger.log_round_start(0, hour_offset)
+        initial_action_count = 0
         if initial_posts:
             print(f"执行初始事件 ({len(initial_posts)}条初始帖子)...")
             initial_actions = {}
@@ -619,41 +644,65 @@ class TwitterSimulationRunner:
                         action_type=ActionType.CREATE_POST,
                         action_args={"content": content}
                     )
+                    logger.log_action(
+                        round_num=0,
+                        agent_id=agent_id,
+                        agent_name=agent_names.get(agent_id, f"Agent_{agent_id}"),
+                        action_type="CREATE_POST",
+                        action_args={"content": content},
+                    )
+                    initial_action_count += 1
                 except Exception as e:
                     print(f"  警告: 无法为Agent {agent_id}创建初始帖子: {e}")
             
             if initial_actions:
                 await self.env.step(initial_actions)
+                harvested, last_rowid = harvest_trace_actions(db_path, last_rowid, agent_names)
                 print(f"  已发布 {len(initial_actions)} 条初始帖子")
+        logger.log_round_end(0, initial_action_count, simulated_hours=0)
         
         # 主模拟循环
         print("\n开始模拟循环...")
         start_time = datetime.now()
+        total_actions = initial_action_count
         
         for round_num in range(total_rounds):
-            # 计算当前模拟时间
+            # 计算当前模拟时间. Truncated runs start in peak hours so round 0 posts.
             simulated_minutes = round_num * minutes_per_round
-            simulated_hour = (simulated_minutes // 60) % 24
+            simulated_hour = ((simulated_minutes // 60) + hour_offset) % 24
             simulated_day = simulated_minutes // (60 * 24) + 1
             
-            # 获取本轮激活的Agent
+            logger.log_round_start(round_num + 1, simulated_hour)
             active_agents = self._get_active_agents_for_round(
                 self.env, simulated_hour, round_num
             )
-            
             if not active_agents:
-                continue
+                print(f"  off-peak/empty at hour {simulated_hour}; forcing a posting round")
+                peak_hour = int(peak_hours[0])
+                active_agents = self._get_active_agents_for_round(
+                    self.env, peak_hour, round_num, force=True
+                )
             
-            # 构建动作
-            actions = {
-                agent: LLMAction()
-                for _, agent in active_agents
-            }
+            round_action_count = 0
+            if active_agents:
+                actions = {
+                    agent: LLMAction()
+                    for _, agent in active_agents
+                }
+                await self.env.step(actions)
+                harvested, last_rowid = harvest_trace_actions(db_path, last_rowid, agent_names)
+                for action_data in harvested:
+                    logger.log_action(
+                        round_num=round_num + 1,
+                        agent_id=action_data["agent_id"],
+                        agent_name=action_data["agent_name"],
+                        action_type=action_data["action_type"],
+                        action_args=action_data.get("action_args") or {},
+                    )
+                    round_action_count += 1
+                    total_actions += 1
+            logger.log_round_end(round_num + 1, round_action_count, simulated_hours=round_num + 1)
             
-            # 执行动作
-            await self.env.step(actions)
-            
-            # 打印进度
             if (round_num + 1) % 10 == 0 or round_num == 0:
                 elapsed = (datetime.now() - start_time).total_seconds()
                 progress = (round_num + 1) / total_rounds * 100
@@ -661,6 +710,7 @@ class TwitterSimulationRunner:
                       f"Round {round_num + 1}/{total_rounds} ({progress:.1f}%) "
                       f"- {len(active_agents)} agents active "
                       f"- elapsed: {elapsed:.1f}s")
+        logger.log_simulation_end(total_rounds, total_actions)
         
         total_elapsed = (datetime.now() - start_time).total_seconds()
         print(f"\n模拟循环完成!")

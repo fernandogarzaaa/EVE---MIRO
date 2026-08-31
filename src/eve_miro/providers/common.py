@@ -11,7 +11,7 @@ import httpx
 from eve_miro.config import FIXTURES_DIR
 
 _TRUTHY = {"1", "true", "True", "yes"}
-_USER_AGENT = "eve-miro/0.1 (public-data adapters; research)"
+_USER_AGENT = "eve-miro/1.0 (public-data adapters; research)"
 
 
 def fixtures_enabled() -> bool:
@@ -64,3 +64,24 @@ async def http_post_json(
         response = await client.post(url, json=body, headers=hdrs)
         response.raise_for_status()
         return response.json()
+
+async def fetch_live_or_fixture(
+    live_flag: str,
+    fixture_name: str,
+    live_factory,
+    *,
+    key_env: str | None = None,
+) -> Any:
+    """Use a fixture unless live is requested. Live HTTP must succeed or raise ProviderError."""
+    from eve_miro.errors import ProviderError
+
+    if not live_requested(live_flag):
+        return load_fixture(fixture_name)
+    if key_env and not (os.environ.get(key_env) or "").strip():
+        raise ProviderError(f"{key_env} missing for live {live_flag} fetch")
+    try:
+        return await live_factory()
+    except ProviderError:
+        raise
+    except Exception as exc:
+        raise ProviderError(f"live {live_flag} fetch failed: {exc}") from exc

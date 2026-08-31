@@ -1,5 +1,7 @@
 # EVE-MIRO
 
+[![ci](https://github.com/fernandogarzaaa/EVE---MIRO/actions/workflows/ci.yml/badge.svg)](https://github.com/fernandogarzaaa/EVE---MIRO/actions)
+
 **Reality-grounded loop + in-tree MiroFish (simulation) + in-tree EVE (experience).**
 
 A continuously evaluated synthetic-world platform that grounds multi-agent
@@ -12,25 +14,20 @@ MiroFish and EVE ship **in this repository** as first-party engine trees.
 
 ## Status
 
-Architecture, fail-closed in-tree engines, and a first live closed loop are on
-`main`. This is **not** a finished product.
+**v1.0.0** on `main`. Fail-closed in-tree engines, live public-data adapters,
+OASIS action harvest, weather/mobility mapping, CLI, and CI/CD.
 
-What has actually run end to end:
+Shipped:
 
-- WorldState(t0) from the Open-Meteo Manila archive fixture
-- MiroFish Flask: ontology generate, on-disk local graph
-  (`MIROFISH_MEMORY=local`), OASIS twitter
-- EVE CLI `node eve/bin/eve.js trajectory --stdin` (no `POST /validate`)
+- WorldState(t0) from Open-Meteo (fixture in CI, live via `OPENMETEO_LIVE=1` / `LIVE=1`)
+- MiroFish Flask: ontology generate, on-disk local graph (`MIROFISH_MEMORY=local`), OASIS twitter/reddit
+- OASIS writes `twitter/actions.jsonl` / `reddit/actions.jsonl`; truncated runs start in a peak posting hour
+- `map_mirofish_result` keeps `CREATE_POST` and copies `wind_speed_10m` into `predicted_series` (congestion from posts)
+- EVE CLI `node eve/bin/eve.js trajectory --stdin` (no `POST /validate`). `observe`/`select`/`transfer` are local-heuristic
 - Reality ledger + trust profile
+- Providers hit real public HTTP APIs when live is requested and **fail closed** on HTTP/parse/missing-key errors
 
-A 1-round slice at simulated hour 0 is OASIS off-peak, so `actions_n` can be
-0. MiroFish social output does not currently map onto `wind_speed_10m`, so
-weather MAE can be empty. That is a mapping gap, not a silent stub.
-
-Still open: peak-hour / multi-round OASIS so agents actually post, and mapping
-social timeline onto weather and mobility for alignment. OASIS stays on a
-split Python 3.11 venv (`mirofish/.venv`); it cannot install on 3.12+. Several
-providers remain stubs.
+Live OASIS still needs Python **3.11** (`mirofish/.venv`) plus an OpenAI-compatible LLM. `camel-oasis` will not install on 3.12+. Pytest stays offline (`FIXTURES=1`); it does not need GPU, Ollama, or network.
 
 ## Layout
 
@@ -61,7 +58,7 @@ See `NOTICE.md` for the license split. Combined distribution that includes
  ┌─────────────┐   OBSERVED/FORECAST    ┌──────────────┐
  │ Open-Meteo  │────────┐               │ Event log    │  never mutated
  │ USGS  …     │        ├──────────────▶│ (append-only)│
- │ stubs       │────────┘               └──────┬───────┘
+ │ adapters    │────────┘               └──────┬───────┘
  └─────────────┘                               │ fold ≤ t0
                                                v
                                         WorldState(t0)
@@ -95,7 +92,7 @@ Earth + mobility + weather + events, **Philippines** bbox roughly
 
 ## Second domain
 
-**Finance** (stub): CoinGecko-style public market ticks. Same provenance
+**Finance**: CoinGecko public market ticks. Same provenance
 rules — public data only, no person tracking. Not the default Load demo.
 
 ## Provenance (mandatory, never mixed)
@@ -274,17 +271,18 @@ Do not poll everything every second.
 
 | Provider | Interval | v1 |
 |---|---|---|
-| openmeteo | 1 h | live + fixture (archive=OBSERVED, forecast=FORECAST) |
+| openmeteo | 1 h | live + fixture (archive=OBSERVED, forecast=FORECAST). `OPENMETEO_LIVE=1` / `LIVE=1` |
 | usgs | 15 min | live + fixture (OBSERVED) |
-| opensky / aisstream | 30 s | stub |
-| gdacs | 10 min | stub |
-| gdelt | 15 min | stub |
-| nasa / celestrak | 6 h | stub |
-| osm | 24 h | stub |
-| coingecko | 5 min | stub (finance domain) |
-| worldbank | 30 d | stub |
+| opensky / aisstream | 30 s | live + fixture. AISStream live is key-gated (`AISSTREAM_API_KEY`) and WebSocket-only |
+| gdacs | 10 min | live + fixture |
+| gdelt | 15 min | live + fixture |
+| nasa / celestrak | 6 h | live + fixture |
+| osm | 24 h | live + fixture |
+| coingecko | 5 min | live + fixture (finance domain) |
+| worldbank | 30 d | live + fixture |
+| spaceweather | 5 min | live + fixture |
 
-Stubs report `health.available=false` unless `FIXTURES=1`.
+CI and default local runs use `FIXTURES=1` (no network). Live HTTP fail-closes (`ProviderError`) instead of returning `[]` or silently loading a fixture. `StubProvider` is a test double and is not registered.
 
 ## API
 
@@ -306,11 +304,19 @@ The dashboard has five tabs that hit these routes: **World**, **Simulation**,
 python3 -m pytest -q
 ```
 
-Must pass without Docker, network, LLM keys, or a node build. Coverage includes
-provenance mixing, cutoff leakage, WorldState reconstruction, Open-Meteo/USGS
-fixture normalize, MAE, API happy path, DuckDB parquet traces, counterfactual
+Must pass without Docker, network, LLM keys, OASIS, or a node build. Coverage includes
+provenance mixing, cutoff leakage, WorldState reconstruction, provider fixture
+normalize + mocked live fetch, OASIS payload mapping (`CREATE_POST`, wind MAE),
+fail-closed engines/keys, API happy path, DuckDB parquet traces, counterfactual
 labeling, in-tree engine presence, local-graph memory, EVE `.js` launched via
 `node`.
+
+```bash
+make lint
+make test
+```
+
+CI: https://github.com/fernandogarzaaa/EVE---MIRO/actions
 
 ## License
 

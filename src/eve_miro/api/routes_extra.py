@@ -270,16 +270,26 @@ async def run_experiment(body: ExperimentRunBody | None = None):
 
     from eve_miro.core.orchestration.closed_loop import ClosedLoop, split_at_cutoff
     from eve_miro.core.orchestration.experiment import load_experiment, parse_horizon
-    from eve_miro.core.world.events import ProvenanceKind
     from eve_miro.providers.common import load_fixture
     from eve_miro.providers.weather import OpenMeteoProvider
 
     payload = body or ExperimentRunBody()
     spec = load_experiment(payload.experiment)
+    provider = OpenMeteoProvider(mode="archive")
     if payload.use_fixtures:
         os.environ.setdefault("FIXTURES", "1")
-    provider = OpenMeteoProvider(mode="archive")
-    events = provider.normalize(load_fixture("openmeteo_manila_archive.json"))
+        events = provider.normalize(load_fixture("openmeteo_manila_archive.json"))
+    else:
+        from eve_miro.config import TimeWindow as CfgWindow
+
+        # Live Open-Meteo: OPENMETEO_LIVE=1 or LIVE=1 or FIXTURES=0. Fail closed.
+        os.environ.setdefault("OPENMETEO_LIVE", "1")
+        cutoff = spec.cutoff
+        window = CfgWindow(
+            start=cutoff.strftime("%Y-%m-%dT00:00:00Z") if hasattr(cutoff, "strftime") else str(cutoff),
+            end="2024-11-03T23:00:00Z",
+        )
+        events = await provider.fetch(window)
     t0, t1 = split_at_cutoff(events, spec.cutoff)
     loop = ClosedLoop(ledger=app_state.STATE.ledger, graph=app_state.STATE.experience_graph)
     result = await loop.run(

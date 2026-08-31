@@ -23,3 +23,7 @@ class ReplayError(EveMiroError):
 
 class EngineNotConfigured(EveMiroError):
     """Raised when in-tree MiroFish/EVE cannot run. Fail closed — never silent stub."""
+
+
+class ProviderError(EveMiroError):
+    """Raised when a live provider fetch fails. Fail closed — never silent []."""

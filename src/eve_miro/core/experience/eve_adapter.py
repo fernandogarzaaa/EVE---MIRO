@@ -67,7 +67,7 @@ class EVEExperienceEngine:
         self.bin = explicit_bin or default_eve_bin()
         self._invoke_bin = bool(explicit_bin)
         self.timeout = float(timeout if timeout is not None else _DEFAULT_TIMEOUT)
-        self._stub = StubExperienceEngine()
+        self._local_heuristic = StubExperienceEngine()
         self.last_notes: str | None = None
 
     @property
@@ -75,9 +75,18 @@ class EVEExperienceEngine:
         return bool(self.url)
 
     async def observe(self, trajectory: Trajectory) -> list[ExperienceCandidate]:
-        # Observation extraction is local; EVE's loop is observe→predict→decide
-        # at validate time. Always emit the three layers via the stub.
-        return await self._stub.observe(trajectory)
+        """Layer extraction is a local heuristic. EVE CLI runs at validate()."""
+        cands = await self._local_heuristic.observe(trajectory)
+        for cand in cands:
+            prov = dict(cand.provenance or {})
+            prov["kind"] = ProvenanceKind.SIMULATED.value
+            prov["engine"] = "local-heuristic"
+            prov["notes"] = (
+                "Candidate extraction is a local heuristic. "
+                "EVE CLI (eve.js trajectory) runs at validate(), not observe()."
+            )
+            cand.provenance = prov
+        return cands
 
     async def validate(self, experience: ExperienceCandidate) -> ValidatedExperience:
         try:
@@ -95,13 +104,22 @@ class EVEExperienceEngine:
         return mapped
 
     async def select(self, experiences: list[ValidatedExperience], budget: int) -> list[ValidatedExperience]:
-        return await self._stub.select(experiences, budget)
+        chosen = await self._local_heuristic.select(experiences, budget)
+        self.last_notes = "local-heuristic-select"
+        return chosen
 
     async def generate_counterfactual(self, experience: ValidatedExperience) -> list[Counterfactual]:
-        return await self._stub.generate_counterfactual(experience)
+        cfs = await self._local_heuristic.generate_counterfactual(experience)
+        self.last_notes = "local-heuristic-counterfactual"
+        return cfs
 
     async def evaluate_transfer(self, experience: ValidatedExperience, context: dict[str, Any]) -> TransferResult:
-        return await self._stub.evaluate_transfer(experience, context)
+        result = await self._local_heuristic.evaluate_transfer(experience, context)
+        note = (result.notes or "").strip()
+        extra = "local-heuristic transfer; EVE CLI is used at validate()."
+        result.notes = f"{note} {extra}".strip() if note else extra
+        self.last_notes = "local-heuristic-transfer"
+        return result
 
     def _bin_validate(self, experience: ExperienceCandidate) -> dict[str, Any]:
         import subprocess

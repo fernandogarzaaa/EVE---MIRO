@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 
 from eve_miro.core.simulation.observation import perceive, perceive_population
 from eve_miro.core.simulation.population import Persona, generate_population
-from eve_miro.core.world.events import ProvenanceKind
 from eve_miro.core.world.state import WorldState
 from tests.helpers import make_event
 import random

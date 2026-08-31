@@ -13,7 +13,7 @@ from eve_miro.core.world.events import (
     WorldEvent,
 )
 from eve_miro.core.world.temporal import as_utc, utcnow
-from eve_miro.providers.common import fixtures_enabled, http_get_json, live_requested, load_fixture
+from eve_miro.providers.common import fetch_live_or_fixture, fixtures_enabled, http_get_json, live_requested
 from eve_miro.providers.protocol import DataSchema, ProviderHealth, ProviderProvenance, TimeWindow
 
 DOC_URL = "https://api.gdeltproject.org/api/v2/doc/doc"
@@ -103,19 +103,17 @@ class GDELTProvider:
 
     async def fetch(self, window: TimeWindow, region: Region | None = None) -> list[WorldEvent]:
         _ = window, region or PHILIPPINES
-        if live_requested("GDELT_LIVE"):
-            try:
-                payload = await http_get_json(
-                    DOC_URL,
-                    params={
-                        "query": "Philippines",
-                        "mode": "ArtList",
-                        "maxrecords": 10,
-                        "format": "json",
-                    },
-                    timeout=20.0,
-                )
-            except Exception:
-                return []
-            return self.normalize(payload)
-        return self.normalize(load_fixture(FIXTURE))
+        async def _live():
+            return await http_get_json(
+                DOC_URL,
+                params={
+                    "query": "Philippines",
+                    "mode": "ArtList",
+                    "maxrecords": 10,
+                    "format": "json",
+                },
+                timeout=20.0,
+            )
+
+        payload = await fetch_live_or_fixture("GDELT_LIVE", FIXTURE, _live)
+        return self.normalize(payload)

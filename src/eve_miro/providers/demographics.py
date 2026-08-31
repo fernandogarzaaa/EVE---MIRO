@@ -14,7 +14,7 @@ from eve_miro.core.world.events import (
     WorldEvent,
 )
 from eve_miro.core.world.temporal import as_utc, utcnow
-from eve_miro.providers.common import fixtures_enabled, http_get_json, live_requested, load_fixture
+from eve_miro.providers.common import fetch_live_or_fixture, fixtures_enabled, http_get_json, live_requested
 from eve_miro.providers.protocol import DataSchema, ProviderHealth, ProviderProvenance, TimeWindow
 
 WB_URL = "https://api.worldbank.org/v2/country/PH/indicator/{indicator}"
@@ -108,22 +108,18 @@ class WorldBankProvider:
 
     async def fetch(self, window: TimeWindow, region: Region | None = None) -> list[WorldEvent]:
         _ = region or PHILIPPINES
-        payload = None
-        if live_requested("WORLDBANK_LIVE"):
-            try:
-                blocks = []
-                for ind in INDICATORS:
-                    blocks.append(
-                        await http_get_json(
-                            WB_URL.format(indicator=ind),
-                            params={"format": "json", "per_page": 5},
-                        )
+        async def _live():
+            blocks = []
+            for ind in INDICATORS:
+                blocks.append(
+                    await http_get_json(
+                        WB_URL.format(indicator=ind),
+                        params={"format": "json", "per_page": 5},
                     )
-                payload = {"responses": blocks}
-            except Exception:
-                payload = None
-        if payload is None:
-            payload = load_fixture(FIXTURE)
+                )
+            return {"responses": blocks}
+
+        payload = await fetch_live_or_fixture("WORLDBANK_LIVE", FIXTURE, _live)
         events = self.normalize(payload)
         start, end = as_utc(window.start), as_utc(window.end)
         out = []

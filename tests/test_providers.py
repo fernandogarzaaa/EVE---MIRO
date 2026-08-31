@@ -4,9 +4,6 @@ from eve_miro.providers.weather import OpenMeteoProvider
 
 
 def test_openmeteo_archive_fixture_is_observed():
-    payload = __import__("json").loads(
-        (__import__("pathlib").Path("datasets/fixtures/openmeteo_manila_archive.json")).read_text()
-    ) if False else None
     provider = OpenMeteoProvider(mode="archive")
     from eve_miro.providers.common import load_fixture
 

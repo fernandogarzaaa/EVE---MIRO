@@ -6,8 +6,6 @@ from datetime import datetime
 
 from eve_miro.config import PHILIPPINES, PROVIDER_INTERVALS, Region
 from eve_miro.core.world.events import ProvenanceKind, WorldEvent
-from eve_miro.core.world.projector import project_world_state
-from eve_miro.core.world.temporal import as_utc
 from eve_miro.providers.protocol import TimeWindow
 from eve_miro.providers.registry import get_provider
 from eve_miro.storage.event_store import EventStore

@@ -6,7 +6,6 @@ from datetime import datetime, timezone, timedelta
 
 import pytest
 
-from eve_miro.core.experience.candidates import ExperienceCandidate
 from eve_miro.core.experience.engine import StubExperienceEngine, get_experience_engine
 from eve_miro.core.experience.eve_adapter import EVEExperienceEngine
 from eve_miro.core.simulation.engine import StubSimulationEngine, get_simulation_engine

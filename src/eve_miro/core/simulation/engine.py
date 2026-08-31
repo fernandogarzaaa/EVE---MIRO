@@ -25,7 +25,7 @@ class AgentAction(BaseModel):
     agent_id: str
     t: datetime
     hour: int
-    action: Literal["stay", "evacuate", "shelter", "stuck", "buy", "sell", "hold"]
+    action: str
     wind_speed: float
     congestion: float
     warning_active: bool

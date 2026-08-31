@@ -5,7 +5,7 @@ from __future__ import annotations
 import random
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 AGE_BANDS = ("0-17", "18-34", "35-54", "55-74", "75+")
 # Approximate Metro Manila household / mobility mix — statistical, not individuals.

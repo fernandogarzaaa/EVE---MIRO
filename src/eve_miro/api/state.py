@@ -12,8 +12,7 @@ from eve_miro.core.experience.validation import ValidatedExperience
 from eve_miro.core.reality.ledger import RealityLedger
 from eve_miro.core.reality.trust_profile import TrustProfile
 from eve_miro.core.simulation.engine import Simulation, SimulationResult
-from eve_miro.core.world.temporal import utcnow
-from eve_miro.storage.event_store import EventStore, InMemoryEventStore, get_event_store
+from eve_miro.storage.event_store import EventStore, get_event_store
 
 
 @dataclass

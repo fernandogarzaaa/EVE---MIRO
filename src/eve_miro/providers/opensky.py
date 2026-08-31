@@ -15,7 +15,7 @@ from eve_miro.core.world.events import (
     WorldEvent,
 )
 from eve_miro.core.world.temporal import utcnow
-from eve_miro.providers.common import fixtures_enabled, http_get_json, live_requested, load_fixture
+from eve_miro.providers.common import fetch_live_or_fixture, fixtures_enabled, http_get_json, live_requested
 from eve_miro.providers.protocol import DataSchema, ProviderHealth, ProviderProvenance, TimeWindow
 
 STATES_URL = "https://opensky-network.org/api/states/all"
@@ -126,22 +126,18 @@ class OpenSkyProvider:
 
     async def fetch(self, window: TimeWindow, region: Region | None = None) -> list[WorldEvent]:
         region = region or PHILIPPINES
-        payload = None
-        if live_requested("OPENSKY_LIVE"):
-            try:
-                payload = await http_get_json(
-                    STATES_URL,
-                    params={
-                        "lamin": region.min_lat,
-                        "lomin": region.min_lon,
-                        "lamax": region.max_lat,
-                        "lomax": region.max_lon,
-                    },
-                    timeout=25.0,
-                )
-            except Exception:
-                payload = None
-        if payload is None:
-            payload = load_fixture(FIXTURE)
+        async def _live():
+            return await http_get_json(
+                STATES_URL,
+                params={
+                    "lamin": region.min_lat,
+                    "lomin": region.min_lon,
+                    "lamax": region.max_lat,
+                    "lomax": region.max_lon,
+                },
+                timeout=25.0,
+            )
+
+        payload = await fetch_live_or_fixture("OPENSKY_LIVE", FIXTURE, _live)
         events = self.normalize(payload)
         return [e for e in events if e.location and region.contains(e.location.lat, e.location.lon)]

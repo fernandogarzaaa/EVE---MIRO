@@ -417,7 +417,10 @@ def seed_markdown_from_simulation(simulation: Simulation) -> bytes:
 
 
 def _map_action_kind(action_type: str) -> str:
-    raw = (action_type or "stay").strip()
+    """Keep social types (CREATE_POST etc.). Only map known mobility/market verbs."""
+    raw = (action_type or "").strip()
+    if not raw:
+        return "stay"
     lower = raw.lower()
     allowed = {"stay", "evacuate", "shelter", "stuck", "buy", "sell", "hold"}
     if lower in allowed:
@@ -428,11 +431,80 @@ def _map_action_kind(action_type: str) -> str:
         return "shelter"
     if "stuck" in lower or "block" in lower:
         return "stuck"
-    return "stay"
+    return raw
+
+
+def _round_of(row: dict[str, Any]) -> int:
+    for key in ("round_num", "round", "hour"):
+        if row.get(key) is not None:
+            try:
+                return int(row[key])
+            except (TypeError, ValueError):
+                continue
+    return 0
+
+
+def _is_event_row(row: dict[str, Any]) -> bool:
+    event = str(row.get("event_type") or "")
+    if not event:
+        return False
+    if row.get("action_type") or row.get("action"):
+        return False
+    return "agent_id" not in row
+
+
+def _is_create_post(action_type: str) -> bool:
+    return "CREATE_POST" in (action_type or "").upper().replace(" ", "_")
+
+
+def _weather_from_snapshot(
+    simulation: Simulation, n_hours: int
+) -> tuple[list[float], list[float], list[str]]:
+    """Persist t0 Open-Meteo wind/precip across simulated round hours. SIMULATED."""
+    origin = simulation.origin
+    snap = dict(simulation.world_snapshot or {})
+    phys = snap.get("physical_conditions") or {}
+    weather = phys.get("weather") or snap.get("weather") or {}
+    series = list(weather.get("series") or [])
+    latest = weather.get("latest") or {}
+    by_hour: dict[int, dict[str, Any]] = {}
+    last_wind = latest.get("wind_speed_10m")
+    last_precip = latest.get("precipitation")
+    for row in series:
+        if not isinstance(row, dict):
+            continue
+        t_raw = row.get("time")
+        try:
+            t = as_utc(t_raw) if t_raw else origin
+            hour = int(round((t - origin).total_seconds() / 3600.0))
+        except Exception:
+            continue
+        by_hour[hour] = row
+        if last_wind is None and row.get("wind_speed_10m") is not None:
+            last_wind = row.get("wind_speed_10m")
+        if last_precip is None and row.get("precipitation") is not None:
+            last_precip = row.get("precipitation")
+    if last_wind is None and last_precip is None and not by_hour:
+        return [], [], []
+    n = max(int(n_hours or 1), 2)
+    winds: list[float] = []
+    precips: list[float] = []
+    times: list[str] = []
+    for hour in range(n):
+        row = by_hour.get(hour)
+        if row:
+            if row.get("wind_speed_10m") is not None:
+                last_wind = row.get("wind_speed_10m")
+            if row.get("precipitation") is not None:
+                last_precip = row.get("precipitation")
+        winds.append(float(last_wind or 0.0))
+        precips.append(float(last_precip or 0.0))
+        times.append(iso(origin + timedelta(hours=hour)))
+    return winds, precips, times
 
 
 def map_mirofish_result(simulation: Simulation, payload: dict[str, Any]) -> SimulationResult:
-    """Map actions/timeline into AgentAction-like traces + predicted_series. SIMULATED."""
+    """Map actions/timeline into traces + weather/mobility predicted_series. SIMULATED."""
     actions_raw = list(payload.get("actions") or [])
     timeline_raw = list(payload.get("timeline") or [])
     traces: list[dict[str, Any]] = []
@@ -443,15 +515,19 @@ def map_mirofish_result(simulation: Simulation, payload: dict[str, Any]) -> Simu
     for row in actions_raw:
         if not isinstance(row, dict):
             continue
-        round_num = int(row.get("round_num") or row.get("hour") or 0)
-        action_type = str(row.get("action_type") or row.get("action") or "stay")
-        agent_id = str(row.get("agent_id") if row.get("agent_id") is not None else row.get("agent_name") or "agent")
+        round_num = _round_of(row)
+        if _is_event_row(row):
+            posts_by_round.setdefault(round_num, posts_by_round.get(round_num, 0.0))
+            continue
+        action_type = str(row.get("action_type") or row.get("action") or row.get("event_type") or "stay")
+        agent_id = str(
+            row.get("agent_id") if row.get("agent_id") is not None else row.get("agent_name") or "agent"
+        )
         t_raw = row.get("timestamp") or row.get("t")
         try:
             t = as_utc(t_raw) if t_raw else origin + timedelta(hours=round_num)
         except Exception:
             t = origin + timedelta(hours=round_num)
-        kind = _map_action_kind(action_type)
         success = row.get("success")
         outcome = str(row.get("result") or row.get("outcome") or ("ok" if success is not False else "failed"))
         traces.append(
@@ -462,40 +538,43 @@ def map_mirofish_result(simulation: Simulation, payload: dict[str, Any]) -> Simu
                 "t": iso(t),
                 "agent_id": agent_id,
                 "action": action_type,
-                "mapped_action": kind,
+                "mapped_action": _map_action_kind(action_type),
                 "outcome": outcome,
                 "platform": row.get("platform"),
                 "provenance_kind": ProvenanceKind.SIMULATED.value,
             }
         )
-        if "CREATE_POST" in action_type.upper() or "post" in action_type.lower():
+        if _is_create_post(action_type):
             posts_by_round[round_num] = posts_by_round.get(round_num, 0.0) + 1.0
 
     for item in timeline_raw:
         if not isinstance(item, dict):
             continue
-        round_num = int(item.get("round_num") or item.get("hour") or 0)
-        t_raw = item.get("start_time") or item.get("timestamp") or item.get("t")
+        round_num = _round_of(item)
+        t_raw = item.get("start_time") or item.get("timestamp") or item.get("t") or item.get("first_action_time")
         try:
             t = as_utc(t_raw) if t_raw else origin + timedelta(hours=round_num)
         except Exception:
             t = origin + timedelta(hours=round_num)
         tw = float(item.get("twitter_actions") or 0)
         rd = float(item.get("reddit_actions") or 0)
-        post_n = posts_by_round.get(round_num, tw + rd)
-        posts_by_round[round_num] = max(posts_by_round.get(round_num, 0.0), post_n)
+        post_n = posts_by_round.get(round_num, 0.0)
+        event_posts = 0.0
+        if item.get("event_type") == "round_end":
+            event_posts = float(item.get("actions_count") or 0)
+        posts_by_round[round_num] = max(post_n, tw, rd, event_posts)
         step_actions: list[AgentAction] = []
-        for row in item.get("actions") or []:
-            if not isinstance(row, dict):
+        nested = list(item.get("actions") or [])
+        for row in nested:
+            if not isinstance(row, dict) or _is_event_row(row):
                 continue
             action_type = str(row.get("action_type") or row.get("action") or "stay")
-            kind = _map_action_kind(action_type)
             step_actions.append(
                 AgentAction(
                     agent_id=str(row.get("agent_id") or "agent"),
                     t=t,
                     hour=round_num,
-                    action=kind,  # type: ignore[arg-type]
+                    action=action_type,
                     wind_speed=0.0,
                     congestion=0.0,
                     warning_active=False,
@@ -512,25 +591,34 @@ def map_mirofish_result(simulation: Simulation, payload: dict[str, Any]) -> Simu
                 precipitation=0.0,
                 congestion=0.0,
                 warning_active=False,
-                evacuated_n=int(tw),
-                stuck_n=int(rd),
+                evacuated_n=0,
+                stuck_n=0,
                 actions=step_actions,
             )
         )
 
-    rounds_sorted = sorted(posts_by_round)
-    if not rounds_sorted and timeline_raw:
-        rounds_sorted = list(range(len(timeline_raw)))
-        for i, item in enumerate(timeline_raw):
-            if isinstance(item, dict):
-                posts_by_round[i] = float(
-                    (item.get("twitter_actions") or 0) + (item.get("reddit_actions") or 0)
-                )
-    posts_series = [float(posts_by_round.get(r, 0.0)) for r in rounds_sorted]
-    times = []
-    for r in rounds_sorted:
-        match = next((s for s in steps if s.hour == r), None)
-        times.append(iso(match.t if match else origin + timedelta(hours=r)))
+    n_hours = max(int(simulation.hours or 1), max(posts_by_round, default=-1) + 1, len(steps), 2)
+    winds, precips, weather_times = _weather_from_snapshot(simulation, n_hours)
+    posts_aligned = [float(posts_by_round.get(h, 0.0)) for h in range(n_hours)]
+    peak_posts = max(posts_aligned) if posts_aligned else 0.0
+    congestion = [(p / peak_posts) if peak_posts else 0.0 for p in posts_aligned]
+    times = weather_times or [iso(origin + timedelta(hours=h)) for h in range(n_hours)]
+
+    # Stamp weather/congestion onto steps and traces.
+    wind_by_hour = {h: winds[h] for h in range(len(winds))}
+    cong_by_hour = {h: congestion[h] for h in range(len(congestion))}
+    precip_by_hour = {h: precips[h] for h in range(len(precips))}
+    for step in steps:
+        step.wind_speed = float(wind_by_hour.get(step.hour, 0.0))
+        step.precipitation = float(precip_by_hour.get(step.hour, 0.0))
+        step.congestion = float(cong_by_hour.get(step.hour, 0.0))
+        for act in step.actions:
+            act.wind_speed = step.wind_speed
+            act.congestion = step.congestion
+    for row in traces:
+        hour = int(row.get("hour") or 0)
+        row["wind_speed"] = float(wind_by_hour.get(hour, 0.0))
+        row["congestion"] = float(cong_by_hour.get(hour, 0.0))
 
     simulation.status = "completed"
     simulation.provenance_kind = ProvenanceKind.SIMULATED
@@ -538,14 +626,24 @@ def map_mirofish_result(simulation: Simulation, payload: dict[str, Any]) -> Simu
         simulation.steps = steps
         simulation.cursor_hour = steps[-1].hour + 1
 
+    predicted_series: dict[str, list[float]] = {
+        "posts": posts_aligned,
+        "rounds": [float(h) for h in range(n_hours)],
+        "congestion": congestion,
+    }
+    if winds:
+        predicted_series["wind_speed_10m"] = winds
+    if precips:
+        predicted_series["precipitation"] = precips
+
     summary = {
-        "hours": len(steps) or len(rounds_sorted) or simulation.hours,
+        "hours": n_hours,
         "evacuated": 0,
         "stuck": 0,
-        "peak_wind": 0,
-        "peak_congestion": 0,
-        "posts": int(sum(posts_series)),
-        "rounds": len(rounds_sorted),
+        "peak_wind": max(winds) if winds else 0,
+        "peak_congestion": max(congestion) if congestion else 0,
+        "posts": int(sum(posts_aligned)),
+        "rounds": n_hours,
         "actions_n": len(traces),
         "mirofish_simulation_id": payload.get("simulation_id"),
         "graph_id": payload.get("graph_id"),
@@ -554,10 +652,6 @@ def map_mirofish_result(simulation: Simulation, payload: dict[str, Any]) -> Simu
         "provenance_kind": ProvenanceKind.SIMULATED.value,
         "disclaimer": simulation.disclaimer,
     }
-    predicted_series: dict[str, list[float]] = {}
-    if posts_series:
-        predicted_series["posts"] = posts_series
-        predicted_series["rounds"] = [float(r) for r in rounds_sorted]
     return SimulationResult(
         simulation=simulation,
         traces=traces,

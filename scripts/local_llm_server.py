@@ -14,7 +14,7 @@ from typing import Any
 import uvicorn
 from fastapi import FastAPI
 from llama_cpp import Llama
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 MODEL_PATH = "/workspace/eve-miro/models/qwen2.5-0.5b-instruct-q4_k_m.gguf"
 MODEL_ID = "qwen2.5-0.5b-instruct"

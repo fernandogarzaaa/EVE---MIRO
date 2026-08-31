@@ -1,1 +1,1 @@
-Implementation: `src/eve_miro/providers`. Open-Meteo and USGS are real; others are honest stubs.
+Implementation: `src/eve_miro/providers`. Live public HTTP adapters with recorded fixtures. Live mode fail-closes on HTTP/parse/missing-key errors.

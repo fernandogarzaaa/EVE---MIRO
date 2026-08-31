@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 
 from eve_miro.core.world.temporal import as_utc, iso
 

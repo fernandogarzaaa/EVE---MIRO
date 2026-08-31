@@ -1041,7 +1041,8 @@ def get_active_agents_for_round(
     env,
     config: Dict[str, Any],
     current_hour: int,
-    round_num: int
+    round_num: int,
+    force: bool = False,
 ) -> List:
     """根据时间和配置决定本轮激活哪些Agent"""
     time_config = config.get("time_config", {})
@@ -1068,15 +1069,21 @@ def get_active_agents_for_round(
         active_hours = cfg.get("active_hours", list(range(8, 23)))
         activity_level = cfg.get("activity_level", 0.5)
         
-        if current_hour not in active_hours:
+        if not force and current_hour not in active_hours:
             continue
         
-        if random.random() < activity_level:
+        if force or random.random() < activity_level:
             candidates.append(agent_id)
+
+    if not candidates and force:
+        for cfg in agent_configs:
+            aid = cfg.get("agent_id")
+            if aid is not None:
+                candidates.append(aid)
     
     selected_ids = random.sample(
         candidates, 
-        min(target_count, len(candidates))
+        min(max(target_count, 1 if force else 0), len(candidates))
     ) if candidates else []
     
     active_agents = []
@@ -1236,16 +1243,19 @@ async def run_twitter_simulation(
         simulated_hour = (simulated_minutes // 60) % 24
         simulated_day = simulated_minutes // (60 * 24) + 1
         
+        if action_logger:
+            action_logger.log_round_start(round_num + 1, simulated_hour)
+
         active_agents = get_active_agents_for_round(
             result.env, config, simulated_hour, round_num
         )
-        
-        # 无论是否有活跃agent，都记录round开始
-        if action_logger:
-            action_logger.log_round_start(round_num + 1, simulated_hour)
-        
         if not active_agents:
-            # 没有活跃agent时也记录round结束（actions_count=0）
+            peak_hours = (config.get("time_config") or {}).get("peak_hours") or [19, 20, 21, 22]
+            log_info(f"off-peak/empty at hour {simulated_hour}; forcing a posting round")
+            active_agents = get_active_agents_for_round(
+                result.env, config, int(peak_hours[0]), round_num, force=True
+            )
+        if not active_agents:
             if action_logger:
                 action_logger.log_round_end(round_num + 1, 0)
             continue
@@ -1435,16 +1445,19 @@ async def run_reddit_simulation(
         simulated_hour = (simulated_minutes // 60) % 24
         simulated_day = simulated_minutes // (60 * 24) + 1
         
+        if action_logger:
+            action_logger.log_round_start(round_num + 1, simulated_hour)
+
         active_agents = get_active_agents_for_round(
             result.env, config, simulated_hour, round_num
         )
-        
-        # 无论是否有活跃agent，都记录round开始
-        if action_logger:
-            action_logger.log_round_start(round_num + 1, simulated_hour)
-        
         if not active_agents:
-            # 没有活跃agent时也记录round结束（actions_count=0）
+            peak_hours = (config.get("time_config") or {}).get("peak_hours") or [19, 20, 21, 22]
+            log_info(f"off-peak/empty at hour {simulated_hour}; forcing a posting round")
+            active_agents = get_active_agents_for_round(
+                result.env, config, int(peak_hours[0]), round_num, force=True
+            )
+        if not active_agents:
             if action_logger:
                 action_logger.log_round_end(round_num + 1, 0)
             continue

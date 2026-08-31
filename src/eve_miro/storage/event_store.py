@@ -9,7 +9,6 @@ from typing import Protocol, runtime_checkable
 from eve_miro.core.world.events import ProvenanceKind, WorldEvent
 from eve_miro.core.world.quality import run_quality
 from eve_miro.core.world.temporal import as_utc
-from eve_miro.errors import ProvenanceError
 
 
 @runtime_checkable

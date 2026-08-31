@@ -14,7 +14,7 @@ from eve_miro.core.world.events import (
     WorldEvent,
 )
 from eve_miro.core.world.temporal import as_utc, utcnow
-from eve_miro.providers.common import fixtures_enabled, http_get_json, live_requested, load_fixture
+from eve_miro.providers.common import fetch_live_or_fixture, fixtures_enabled, http_get_json, live_requested
 from eve_miro.providers.protocol import DataSchema, ProviderHealth, ProviderProvenance, TimeWindow
 
 GP_URL = "https://celestrak.org/NORAD/elements/gp.php"
@@ -81,12 +81,12 @@ class CelestrakProvider:
             name = row.get("OBJECT_NAME") or "unknown"
             events.append(
                 WorldEvent(
-                    id=f"celestrak:{norad}:{t.strftime('%Y%m%dT%H%M%S')}",
+                    id=f"celestrak:{norad or name}:{t.strftime('%Y%m%dT%H%M%S')}",
                     source=source,
                     observed_at=t,
                     ingested_at=ingested_at,
                     location=None,
-                    entity=Entity(id=str(norad), type="satellite") if norad is not None else None,
+                    entity=Entity(id=str(norad if norad is not None else name), type="satellite"),
                     event_type="satellite.tle",
                     payload={k: row.get(k) for k in _GP_FIELDS},
                     provenance=Provenance(
@@ -109,12 +109,8 @@ class CelestrakProvider:
 
     async def fetch(self, window: TimeWindow, region: Region | None = None) -> list[WorldEvent]:
         _ = window, region or PHILIPPINES
-        payload = None
-        if live_requested("CELESTRAK_LIVE"):
-            try:
-                payload = await http_get_json(GP_URL, params={"GROUP": "stations", "FORMAT": "json"}, timeout=25.0)
-            except Exception:
-                payload = None
-        if payload is None:
-            payload = load_fixture(FIXTURE)
+        async def _live():
+            return await http_get_json(GP_URL, params={"GROUP": "stations", "FORMAT": "json"}, timeout=25.0)
+
+        payload = await fetch_live_or_fixture("CELESTRAK_LIVE", FIXTURE, _live)
         return self.normalize(payload)

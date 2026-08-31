@@ -101,6 +101,8 @@ class TimeSimulationConfig:
     # 低谷时段（凌晨0-5点，几乎无人活动）
     off_peak_hours: List[int] = field(default_factory=lambda: [0, 1, 2, 3, 4, 5])
     off_peak_activity_multiplier: float = 0.05  # 凌晨活跃度极低
+    # Truncated / first-round posting: start the clock in a peak hour so round 0 is not empty.
+    simulation_start_hour: int = 19
     
     # 早间时段
     morning_hours: List[int] = field(default_factory=lambda: [6, 7, 8])
@@ -607,7 +609,8 @@ class SimulationConfigGenerator:
             "off_peak_hours": [0, 1, 2, 3, 4, 5],
             "morning_hours": [6, 7, 8],
             "work_hours": [9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
-            "reasoning": "使用默认中国人作息配置（每轮1小时）"
+            "simulation_start_hour": 19,
+            "reasoning": "使用默认中国人作息配置（每轮1小时；truncated round 0 starts at peak hour 19）"
         }
     
     def _parse_time_config(self, result: Dict[str, Any], num_entities: int) -> TimeSimulationConfig:
@@ -638,6 +641,7 @@ class SimulationConfigGenerator:
             peak_hours=result.get("peak_hours", [19, 20, 21, 22]),
             off_peak_hours=result.get("off_peak_hours", [0, 1, 2, 3, 4, 5]),
             off_peak_activity_multiplier=0.05,  # 凌晨几乎无人
+            simulation_start_hour=int(result.get("simulation_start_hour", (result.get("peak_hours") or [19])[0])),
             morning_hours=result.get("morning_hours", [6, 7, 8]),
             morning_activity_multiplier=0.4,
             work_hours=result.get("work_hours", list(range(9, 19))),

@@ -14,7 +14,7 @@ from eve_miro.core.world.events import (
     WorldEvent,
 )
 from eve_miro.core.world.temporal import as_utc, utcnow
-from eve_miro.providers.common import fixtures_enabled, http_post_json, live_requested, load_fixture
+from eve_miro.providers.common import fetch_live_or_fixture, fixtures_enabled, http_post_json, live_requested
 from eve_miro.providers.protocol import DataSchema, ProviderHealth, ProviderProvenance, TimeWindow
 
 STAC_URL = "https://earth-search.aws.element84.com/v1/search"
@@ -111,25 +111,21 @@ class NASAProvider:
 
     async def fetch(self, window: TimeWindow, region: Region | None = None) -> list[WorldEvent]:
         region = region or PHILIPPINES
-        payload = None
-        if live_requested("NASA_LIVE"):
-            try:
-                start = as_utc(window.start).strftime("%Y-%m-%dT%H:%M:%SZ")
-                end = as_utc(window.end).strftime("%Y-%m-%dT%H:%M:%SZ")
-                payload = await http_post_json(
-                    STAC_URL,
-                    {
-                        "collections": ["sentinel-2-l2a"],
-                        "bbox": MM_BBOX,
-                        "datetime": f"{start}/{end}",
-                        "limit": 3,
-                    },
-                    timeout=30.0,
-                )
-            except Exception:
-                payload = None
-        if payload is None:
-            payload = load_fixture(FIXTURE)
+        async def _live():
+            start = as_utc(window.start).strftime("%Y-%m-%dT%H:%M:%SZ")
+            end = as_utc(window.end).strftime("%Y-%m-%dT%H:%M:%SZ")
+            return await http_post_json(
+                STAC_URL,
+                {
+                    "collections": ["sentinel-2-l2a"],
+                    "bbox": MM_BBOX,
+                    "datetime": f"{start}/{end}",
+                    "limit": 3,
+                },
+                timeout=30.0,
+            )
+
+        payload = await fetch_live_or_fixture("NASA_LIVE", FIXTURE, _live)
         events = self.normalize(payload)
         start, end = as_utc(window.start), as_utc(window.end)
         out = []

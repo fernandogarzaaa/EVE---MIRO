@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 from eve_miro.core.evaluation.metrics import geographic_distance_km
 from eve_miro.core.simulation.population import Persona
-from eve_miro.core.world.events import ProvenanceKind, WorldEvent
+from eve_miro.core.world.events import WorldEvent
 from eve_miro.core.world.state import WorldState
 from eve_miro.core.world.temporal import as_utc, utcnow
 

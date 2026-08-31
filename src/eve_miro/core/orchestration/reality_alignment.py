@@ -6,7 +6,7 @@ Spatial haversine is computed when coordinates are present.
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Sequence
 
 from pydantic import BaseModel, Field
 
@@ -59,6 +59,39 @@ def observed_weather_series(
         if event.location is not None and coords is None:
             coords = (event.location.lat, event.location.lon)
     return times, values, coords
+
+
+
+def observed_mobility_series(
+    events: Sequence[WorldEvent],
+) -> tuple[list[str], list[float], tuple[float, float] | None]:
+    """Observed congestion proxy from mobility events, or explicit congestion payloads."""
+    times: list[str] = []
+    values: list[float] = []
+    coords: tuple[float, float] | None = None
+    counts: dict[str, int] = {}
+    for event in events:
+        et = event.event_type or ""
+        raw = event.payload.get("congestion") if isinstance(event.payload, dict) else None
+        if raw is not None:
+            times.append(iso(event.temporal.effective_time))
+            values.append(float(raw))
+            if event.location is not None and coords is None:
+                coords = (event.location.lat, event.location.lon)
+            continue
+        if not (et.startswith("aircraft") or et.startswith("vessel") or et.startswith("mobility")):
+            continue
+        key = iso(event.temporal.effective_time)
+        counts[key] = counts.get(key, 0) + 1
+        if event.location is not None and coords is None:
+            coords = (event.location.lat, event.location.lon)
+    if values:
+        return times, values, coords
+    if not counts:
+        return [], [], coords
+    peak = max(counts.values()) or 1
+    keys = sorted(counts)
+    return keys, [counts[k] / peak for k in keys], coords
 
 
 class RealityAligner:
@@ -130,18 +163,27 @@ class RealityAligner:
             )
         )
 
-        # congestion / evacuation rate if predicted; observed mobility is often empty
+        # congestion / evacuation rate if predicted; observed mobility when t1 has it
+        obs_cong_times, obs_cong, _ = observed_mobility_series(t1_events)
         for name in ("congestion", "evacuation_rate"):
             series = predicted_series.get(name)
             if not series:
                 continue
+            p_c, o_c, t_c = list(series), [], list(pred_times)[: len(series)]
+            mae_c = None
+            if name == "congestion" and obs_cong and pred_times:
+                p_c, o_c, t_c = align_series(list(pred_times), list(series), obs_cong_times, obs_cong)
+                if p_c and o_c:
+                    mae_c = mae(p_c, o_c)
+                else:
+                    p_c, o_c, t_c = list(series), obs_cong, list(pred_times)[: len(series)]
             out.append(
                 Alignment(
                     metric_name=name,
-                    predicted=list(series),
-                    observed=[],
-                    times=list(pred_times)[: len(series)],
-                    mae=None,
+                    predicted=p_c,
+                    observed=o_c,
+                    times=t_c,
+                    mae=mae_c if "mae" in want else None,
                     input_provenance_kinds=kinds,
                 )
             )

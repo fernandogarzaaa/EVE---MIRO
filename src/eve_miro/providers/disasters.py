@@ -14,7 +14,7 @@ from eve_miro.core.world.events import (
     WorldEvent,
 )
 from eve_miro.core.world.temporal import as_utc, utcnow
-from eve_miro.providers.common import fixtures_enabled, http_get_json, live_requested, load_fixture
+from eve_miro.providers.common import fetch_live_or_fixture, fixtures_enabled, http_get_json, live_requested
 from eve_miro.providers.protocol import DataSchema, ProviderHealth, ProviderProvenance, TimeWindow
 
 SEARCH_URL = "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH"
@@ -112,24 +112,20 @@ class GDACSProvider:
 
     async def fetch(self, window: TimeWindow, region: Region | None = None) -> list[WorldEvent]:
         _ = region or PHILIPPINES
-        payload = None
-        if live_requested("GDACS_LIVE"):
-            try:
-                start = as_utc(window.start).date().isoformat()
-                end = as_utc(window.end).date().isoformat()
-                payload = await http_get_json(
-                    SEARCH_URL,
-                    params={
-                        "fromdate": start,
-                        "todate": end,
-                        "alertlevel": "Green;Orange;Red",
-                    },
-                    timeout=25.0,
-                )
-            except Exception:
-                payload = None
-        if payload is None:
-            payload = load_fixture(FIXTURE)
+        async def _live():
+            start = as_utc(window.start).date().isoformat()
+            end = as_utc(window.end).date().isoformat()
+            return await http_get_json(
+                SEARCH_URL,
+                params={
+                    "fromdate": start,
+                    "todate": end,
+                    "alertlevel": "Green;Orange;Red",
+                },
+                timeout=25.0,
+            )
+
+        payload = await fetch_live_or_fixture("GDACS_LIVE", FIXTURE, _live)
         events = self.normalize(payload)
         start, end = as_utc(window.start), as_utc(window.end)
         out = []

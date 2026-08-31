@@ -7,7 +7,7 @@ Verdicts CORRECT / INCORRECT are computed from known numeric series (MAE).
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field

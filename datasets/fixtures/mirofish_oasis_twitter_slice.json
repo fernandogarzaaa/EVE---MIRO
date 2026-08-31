@@ -1,0 +1,91 @@
+{
+  "project_id": "proj_fixture_oasis",
+  "graph_id": "graph_fixture_oasis",
+  "simulation_id": "sim_twitter_slice",
+  "rounds_count": 3,
+  "actions": [
+    {
+      "round_num": 0,
+      "round": 0,
+      "timestamp": "2024-11-01T19:05:00Z",
+      "platform": "twitter",
+      "agent_id": 1,
+      "agent_name": "Agent_1",
+      "action_type": "CREATE_POST",
+      "action_args": {"content": "SIMULATED typhoon watch for Metro Manila. Not a real person."},
+      "result": "ok",
+      "success": true
+    },
+    {
+      "round_num": 1,
+      "round": 1,
+      "timestamp": "2024-11-01T20:10:00Z",
+      "platform": "twitter",
+      "agent_id": 2,
+      "agent_name": "Agent_2",
+      "action_type": "CREATE_POST",
+      "action_args": {"content": "SIMULATED wind pickup. Statistical persona."},
+      "result": "ok",
+      "success": true
+    },
+    {
+      "round_num": 1,
+      "round": 1,
+      "timestamp": "2024-11-01T20:18:00Z",
+      "platform": "twitter",
+      "agent_id": 1,
+      "agent_name": "Agent_1",
+      "action_type": "LIKE_POST",
+      "result": "ok",
+      "success": true
+    },
+    {
+      "round_num": 2,
+      "round": 2,
+      "timestamp": "2024-11-01T21:04:00Z",
+      "platform": "twitter",
+      "agent_id": 3,
+      "agent_name": "Agent_3",
+      "action_type": "CREATE_POST",
+      "action_args": {"content": "SIMULATED shelter-in-place chatter."},
+      "result": "ok",
+      "success": true
+    }
+  ],
+  "timeline": [
+    {
+      "round_num": 0,
+      "event_type": "round_end",
+      "twitter_actions": 1,
+      "reddit_actions": 0,
+      "start_time": "2024-11-01T19:00:00Z",
+      "actions_count": 1,
+      "actions": [
+        {"agent_id": 1, "action_type": "CREATE_POST", "result": "ok"}
+      ]
+    },
+    {
+      "round_num": 1,
+      "event_type": "round_end",
+      "twitter_actions": 2,
+      "reddit_actions": 0,
+      "start_time": "2024-11-01T20:00:00Z",
+      "actions_count": 2,
+      "actions": [
+        {"agent_id": 2, "action_type": "CREATE_POST", "result": "ok"},
+        {"agent_id": 1, "action_type": "LIKE_POST", "result": "ok"}
+      ]
+    },
+    {
+      "round_num": 2,
+      "event_type": "round_end",
+      "twitter_actions": 1,
+      "reddit_actions": 0,
+      "start_time": "2024-11-01T21:00:00Z",
+      "actions_count": 1,
+      "actions": [
+        {"agent_id": 3, "action_type": "CREATE_POST", "result": "ok"}
+      ]
+    }
+  ]
+}

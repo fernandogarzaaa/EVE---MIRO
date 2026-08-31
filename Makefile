@@ -1,4 +1,4 @@
-.PHONY: install install-dev test run demo compose schemas
+.PHONY: install install-dev test run demo compose schemas lint
 
 install:
 	python3 scripts/bootstrap.py
@@ -8,6 +8,9 @@ install-dev:
 
 test:
 	python3 -m pytest -q
+
+lint:
+	ruff check src tests scripts
 
 run:
 	FIXTURES=1 python3 -m uvicorn eve_miro.api.main:app --reload --port 8000

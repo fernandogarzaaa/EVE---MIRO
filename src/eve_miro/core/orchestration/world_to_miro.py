@@ -92,6 +92,7 @@ class MiroWorldAdapter:
         physical = {
             "weather": {
                 "latest": weather.get("latest") or {},
+                "series": list(weather.get("series") or []),
                 "series_n": weather.get("series_n") or len(weather.get("series") or []),
                 "kind": weather.get("kind"),
             },

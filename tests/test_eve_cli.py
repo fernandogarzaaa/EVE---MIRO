@@ -1,6 +1,5 @@
 """EVE CLI argv: .js entries must be launched with node (Windows cannot exec them)."""
 
-from pathlib import Path
 
 from eve_miro.core.experience.eve_cli import eve_trajectory_command
 

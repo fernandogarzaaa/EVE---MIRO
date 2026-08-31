@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 import polars as pl
 
@@ -17,7 +17,7 @@ from eve_miro.core.world.events import (
     WorldEvent,
 )
 from eve_miro.core.world.temporal import as_utc, utcnow
-from eve_miro.providers.common import fixtures_enabled, http_get_json, load_fixture
+from eve_miro.providers.common import fetch_live_or_fixture, fixtures_enabled, http_get_json
 from eve_miro.providers.protocol import DataSchema, ProviderHealth, ProviderProvenance, TimeWindow
 
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
@@ -120,20 +120,16 @@ class OpenMeteoProvider:
 
     async def fetch(self, window: TimeWindow, region: Region | None = None) -> list[WorldEvent]:
         region = region or PHILIPPINES
-        live = os.environ.get("OPENMETEO_LIVE", "0") == "1" and not fixtures_enabled()
-        payload = None
-        if live:
-            try:
-                payload = await self._fetch_live(window)
-            except Exception:
-                payload = None
-        if payload is None:
-            name = (
-                "openmeteo_manila_forecast.json"
-                if self.mode == "forecast"
-                else "openmeteo_manila_archive.json"
-            )
-            payload = load_fixture(name)
+        name = (
+            "openmeteo_manila_forecast.json"
+            if self.mode == "forecast"
+            else "openmeteo_manila_archive.json"
+        )
+        payload = await fetch_live_or_fixture(
+            "OPENMETEO_LIVE",
+            name,
+            lambda: self._fetch_live(window),
+        )
         events = self.normalize(payload)
         start = as_utc(window.start)
         end = as_utc(window.end)

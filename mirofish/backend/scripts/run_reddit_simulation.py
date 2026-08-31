@@ -36,6 +36,8 @@ _project_root = os.path.abspath(os.path.join(_backend_dir, '..'))
 sys.path.insert(0, _scripts_dir)
 sys.path.insert(0, _backend_dir)
 
+from action_logger import PlatformActionLogger, harvest_trace_actions
+
 # 加载项目根目录的 .env 文件（包含 LLM_API_KEY 等配置）
 from dotenv import load_dotenv
 _env_file = os.path.join(_project_root, '.env')
@@ -417,6 +419,7 @@ class RedditSimulationRunner:
         self.env = None
         self.agent_graph = None
         self.ipc_handler = None
+        self.action_logger = PlatformActionLogger("reddit", self.simulation_dir)
         
     def _load_config(self) -> Dict[str, Any]:
         """加载配置文件"""
@@ -470,18 +473,16 @@ class RedditSimulationRunner:
         self, 
         env, 
         current_hour: int,
-        round_num: int
+        round_num: int,
+        force: bool = False,
     ) -> List:
-        """
-        根据时间和配置决定本轮激活哪些Agent
-        """
         time_config = self.config.get("time_config", {})
         agent_configs = self.config.get("agent_configs", [])
         
         base_min = time_config.get("agents_per_hour_min", 5)
         base_max = time_config.get("agents_per_hour_max", 20)
         
-        peak_hours = time_config.get("peak_hours", [9, 10, 11, 14, 15, 20, 21, 22])
+        peak_hours = time_config.get("peak_hours", [9, 10, 11, 14, 15, 19, 20, 21, 22])
         off_peak_hours = time_config.get("off_peak_hours", [0, 1, 2, 3, 4, 5])
         
         if current_hour in peak_hours:
@@ -492,6 +493,8 @@ class RedditSimulationRunner:
             multiplier = 1.0
         
         target_count = int(random.uniform(base_min, base_max) * multiplier)
+        if force:
+            target_count = max(1, target_count, min(3, max(1, len(agent_configs) or 1)))
         
         candidates = []
         for cfg in agent_configs:
@@ -499,15 +502,29 @@ class RedditSimulationRunner:
             active_hours = cfg.get("active_hours", list(range(8, 23)))
             activity_level = cfg.get("activity_level", 0.5)
             
-            if current_hour not in active_hours:
+            if not force and current_hour not in active_hours:
                 continue
             
-            if random.random() < activity_level:
+            if force or random.random() < activity_level:
                 candidates.append(agent_id)
+
+        if not candidates and force:
+            for cfg in agent_configs:
+                aid = cfg.get("agent_id")
+                if aid is not None:
+                    candidates.append(aid)
+            if not candidates:
+                try:
+                    for agent_id, _agent in env.agent_graph.get_agents():
+                        candidates.append(agent_id)
+                        if len(candidates) >= max(1, target_count):
+                            break
+                except Exception:
+                    pass
         
         selected_ids = random.sample(
             candidates, 
-            min(target_count, len(candidates))
+            min(max(target_count, 1 if force else 0), len(candidates))
         ) if candidates else []
         
         active_agents = []
@@ -623,24 +640,51 @@ class RedditSimulationRunner:
         print("\n开始模拟循环...")
         start_time = datetime.now()
         
+        agent_names = {}
+        for cfg in self.config.get("agent_configs", []):
+            aid = cfg.get("agent_id")
+            if aid is not None:
+                agent_names[aid] = cfg.get("entity_name") or f"Agent_{aid}"
+        last_rowid = 0
+        self.action_logger.log_simulation_start(self.config)
+        peak_hours = time_config.get("peak_hours") or [19, 20, 21, 22]
+        is_truncated = max_rounds is not None and max_rounds > 0
+        hour_offset = int(time_config.get("simulation_start_hour", peak_hours[0] if is_truncated else 0))
+
         for round_num in range(total_rounds):
             simulated_minutes = round_num * minutes_per_round
-            simulated_hour = (simulated_minutes // 60) % 24
+            simulated_hour = ((simulated_minutes // 60) + hour_offset) % 24
             simulated_day = simulated_minutes // (60 * 24) + 1
             
+            self.action_logger.log_round_start(round_num + 1, simulated_hour)
             active_agents = self._get_active_agents_for_round(
                 self.env, simulated_hour, round_num
             )
-            
             if not active_agents:
-                continue
+                peak_hours = (self.config.get("time_config") or {}).get("peak_hours") or [19, 20, 21, 22]
+                print(f"  off-peak/empty at hour {simulated_hour}; forcing a posting round")
+                active_agents = self._get_active_agents_for_round(
+                    self.env, int(peak_hours[0]), round_num, force=True
+                )
             
-            actions = {
-                agent: LLMAction()
-                for _, agent in active_agents
-            }
-            
-            await self.env.step(actions)
+            round_action_count = 0
+            if active_agents:
+                actions = {
+                    agent: LLMAction()
+                    for _, agent in active_agents
+                }
+                await self.env.step(actions)
+                harvested, last_rowid = harvest_trace_actions(db_path, last_rowid, agent_names)
+                for action_data in harvested:
+                    self.action_logger.log_action(
+                        round_num=round_num + 1,
+                        agent_id=action_data["agent_id"],
+                        agent_name=action_data["agent_name"],
+                        action_type=action_data["action_type"],
+                        action_args=action_data.get("action_args") or {},
+                    )
+                    round_action_count += 1
+            self.action_logger.log_round_end(round_num + 1, round_action_count, simulated_hours=round_num + 1)
             
             if (round_num + 1) % 10 == 0 or round_num == 0:
                 elapsed = (datetime.now() - start_time).total_seconds()
@@ -650,6 +694,7 @@ class RedditSimulationRunner:
                       f"- {len(active_agents)} agents active "
                       f"- elapsed: {elapsed:.1f}s")
         
+        self.action_logger.log_simulation_end(total_rounds, 0)
         total_elapsed = (datetime.now() - start_time).total_seconds()
         print(f"\n模拟循环完成!")
         print(f"  - 总耗时: {total_elapsed:.1f}秒")

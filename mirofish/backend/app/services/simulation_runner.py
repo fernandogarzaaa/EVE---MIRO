@@ -1284,6 +1284,48 @@ class SimulationRunner:
         
         # 按轮次分组
         rounds: Dict[int, Dict[str, Any]] = {}
+
+        sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
+        for platform, rel in (("twitter", os.path.join("twitter", "actions.jsonl")),
+                              ("reddit", os.path.join("reddit", "actions.jsonl"))):
+            log_path = os.path.join(sim_dir, rel)
+            if not os.path.exists(log_path):
+                continue
+            try:
+                with open(log_path, "r", encoding="utf-8") as fh:
+                    for line in fh:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            data = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        if data.get("event_type") != "round_end":
+                            continue
+                        round_num = int(data.get("round") or 0)
+                        rounds.setdefault(round_num, {
+                            "round_num": round_num,
+                            "twitter_actions": 0,
+                            "reddit_actions": 0,
+                            "active_agents": set(),
+                            "action_types": {},
+                            "first_action_time": data.get("timestamp"),
+                            "last_action_time": data.get("timestamp"),
+                            "event_type": "round_end",
+                        })
+                        rounds[round_num]["event_type"] = "round_end"
+                        count = int(data.get("actions_count") or 0)
+                        if platform == "twitter":
+                            rounds[round_num]["twitter_actions"] = max(
+                                rounds[round_num]["twitter_actions"], count
+                            )
+                        else:
+                            rounds[round_num]["reddit_actions"] = max(
+                                rounds[round_num]["reddit_actions"], count
+                            )
+            except OSError:
+                pass
         
         for action in actions:
             round_num = action.round_num
@@ -1329,6 +1371,7 @@ class SimulationRunner:
                 "action_types": r["action_types"],
                 "first_action_time": r["first_action_time"],
                 "last_action_time": r["last_action_time"],
+                "event_type": r.get("event_type") or "round_end",
             })
         
         return result

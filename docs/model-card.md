@@ -1,6 +1,6 @@
 # Model card — typhoon_manila_001
 
-**Type:** scenario projection under a stub mobility/weather engine.
+**Type:** scenario projection under in-tree MiroFish + Open-Meteo. Pytest uses engine stubs.
 **Not:** a forecast of a real typhoon, and not a statement that “the future is…”.
 
 ## Intended use
@@ -24,7 +24,7 @@ predicted wind to observed wind when timestamps align.
 ## Limitations
 
 - No hydrodynamic storm surge, no building stock, no real road graph.
-- Mobility (OpenSky/AIS) is a stub in v1.
+- Mobility (OpenSky/AIS) has live adapters plus fixtures. AISStream live is key-gated and WebSocket-only.
 - Calibration is **not yet established**. MAE/RMSE on aligned series are
   diagnostic, not a claim of skill.
 - 72 simulated hours × 1000 agents is a toy scale.

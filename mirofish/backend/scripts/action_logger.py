@@ -77,7 +77,7 @@ class PlatformActionLogger:
         with open(self.log_path, 'a', encoding='utf-8') as f:
             f.write(json.dumps(entry, ensure_ascii=False) + '\n')
     
-    def log_round_end(self, round_num: int, actions_count: int):
+    def log_round_end(self, round_num: int, actions_count: int, simulated_hours: int | None = None):
         """记录轮次结束"""
         entry = {
             "round": round_num,
@@ -85,6 +85,8 @@ class PlatformActionLogger:
             "event_type": "round_end",
             "actions_count": actions_count,
         }
+        if simulated_hours is not None:
+            entry["simulated_hours"] = simulated_hours
         
         with open(self.log_path, 'a', encoding='utf-8') as f:
             f.write(json.dumps(entry, ensure_ascii=False) + '\n')
@@ -303,3 +305,71 @@ def get_logger(log_path: Optional[str] = None) -> ActionLogger:
         _global_logger = ActionLogger("actions.jsonl")
     
     return _global_logger
+
+
+def harvest_trace_actions(db_path: str, last_rowid: int, agent_names: dict) -> tuple:
+    """Read new OASIS `trace` rows. Returns (rows, new_last_rowid)."""
+    import json as _json
+    import sqlite3 as _sqlite3
+
+    actions = []
+    new_last = last_rowid
+    if not db_path or not os.path.exists(db_path):
+        return actions, new_last
+    action_map = {
+        "create_post": "CREATE_POST",
+        "like_post": "LIKE_POST",
+        "dislike_post": "DISLIKE_POST",
+        "repost": "REPOST",
+        "quote_post": "QUOTE_POST",
+        "follow": "FOLLOW",
+        "mute": "MUTE",
+        "create_comment": "CREATE_COMMENT",
+        "like_comment": "LIKE_COMMENT",
+        "dislike_comment": "DISLIKE_COMMENT",
+        "do_nothing": "DO_NOTHING",
+    }
+    try:
+        conn = _sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT rowid, user_id, action, info FROM trace WHERE rowid > ? ORDER BY rowid ASC",
+            (last_rowid,),
+        )
+        rows = cursor.fetchall()
+        user_to_agent = {}
+        try:
+            cursor.execute("SELECT user_id, agent_id, name, user_name FROM user")
+            for user_id, agent_id, name, user_name in cursor.fetchall():
+                user_to_agent[user_id] = {
+                    "agent_id": agent_id,
+                    "name": name or user_name or "",
+                }
+        except Exception:
+            pass
+        for rowid, user_id, action, info_json in rows:
+            new_last = rowid
+            action_type = action_map.get(str(action or "").lower(), str(action or "").upper())
+            if action_type in {"REFRESH", "SEARCH_POSTS", "SEARCH_USER", "TREND"}:
+                continue
+            try:
+                action_args = _json.loads(info_json) if info_json else {}
+            except Exception:
+                action_args = {}
+            meta = user_to_agent.get(user_id) or {}
+            agent_id = meta.get("agent_id")
+            if agent_id is None:
+                agent_id = user_id
+            agent_name = agent_names.get(agent_id) or meta.get("name") or f"Agent_{agent_id}"
+            actions.append(
+                {
+                    "agent_id": agent_id,
+                    "agent_name": agent_name,
+                    "action_type": action_type,
+                    "action_args": action_args if isinstance(action_args, dict) else {},
+                }
+            )
+        conn.close()
+    except Exception:
+        return actions, new_last
+    return actions, new_last

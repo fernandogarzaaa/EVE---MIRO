@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 
 from eve_miro.core.experience.eve_adapter import EVEExperienceEngine, in_tree_available as eve_in_tree
 from eve_miro.core.simulation.mirofish_adapter import MiroFishEngine, in_tree_available as mirofish_in_tree

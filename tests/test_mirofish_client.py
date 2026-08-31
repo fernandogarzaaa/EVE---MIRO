@@ -17,7 +17,6 @@ from eve_miro.core.simulation.mirofish_client import (
 from eve_miro.core.simulation.scenarios import Scenario
 from eve_miro.core.world.events import ProvenanceKind
 from eve_miro.core.world.state import Population, WorldState
-from eve_miro.errors import EngineNotConfigured
 
 
 def _keys(monkeypatch, *, llm="local", local_mem=True):

@@ -15,7 +15,7 @@ from eve_miro.core.world.events import (
     WorldEvent,
 )
 from eve_miro.core.world.temporal import as_utc, utcnow
-from eve_miro.providers.common import fixtures_enabled, http_get_json, load_fixture
+from eve_miro.providers.common import fetch_live_or_fixture, fixtures_enabled, http_get_json
 from eve_miro.providers.protocol import DataSchema, ProviderHealth, ProviderProvenance, TimeWindow
 
 FDSN = "https://earthquake.usgs.gov/fdsnws/event/1/query"
@@ -95,22 +95,17 @@ class USGSProvider:
 
     async def fetch(self, window: TimeWindow, region: Region | None = None) -> list[WorldEvent]:
         region = region or PHILIPPINES
-        live = os.environ.get("USGS_LIVE", "0") == "1" and not fixtures_enabled()
-        payload = None
-        if live:
-            try:
-                url = (
-                    f"{FDSN}?format=geojson"
-                    f"&minlatitude={region.min_lat}&maxlatitude={region.max_lat}"
-                    f"&minlongitude={region.min_lon}&maxlongitude={region.max_lon}"
-                    f"&starttime={as_utc(window.start).date()}&endtime={as_utc(window.end).date()}"
-                    f"&limit=200"
-                )
-                payload = await http_get_json(url)
-            except Exception:
-                payload = None
-        if payload is None:
-            payload = load_fixture("usgs_philippines.json")
+        async def _live():
+            url = (
+                f"{FDSN}?format=geojson"
+                f"&minlatitude={region.min_lat}&maxlatitude={region.max_lat}"
+                f"&minlongitude={region.min_lon}&maxlongitude={region.max_lon}"
+                f"&starttime={as_utc(window.start).date()}&endtime={as_utc(window.end).date()}"
+                f"&limit=200"
+            )
+            return await http_get_json(url)
+
+        payload = await fetch_live_or_fixture("USGS_LIVE", "usgs_philippines.json", _live)
         events = self.normalize(payload)
         start, end = as_utc(window.start), as_utc(window.end)
         out = []

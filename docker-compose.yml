@@ -53,7 +53,7 @@ services:
       MINIO_ENDPOINT: minio:9000
       MINIO_BUCKET: eve-miro
       FIXTURES: "1"
-      EVE_MIRO_ENGINES: ${EVE_MIRO_ENGINES:-stub}
+      EVE_MIRO_ENGINES: ${EVE_MIRO_ENGINES:-in-tree}
       MIROFISH_ROOT: ${MIROFISH_ROOT:-./mirofish}
       EVE_ROOT: ${EVE_ROOT:-./eve}
       # Optional local service override when --profile engines is up:
