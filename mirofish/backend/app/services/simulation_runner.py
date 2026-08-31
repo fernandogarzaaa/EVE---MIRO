@@ -536,6 +536,7 @@ class SimulationRunner:
             # 如果指定了最大轮数，添加到命令行参数
             if max_rounds is not None and max_rounds > 0:
                 cmd.extend(["--max-rounds", str(max_rounds)])
+                cmd.append("--no-wait")
             
             # 创建主日志文件，避免 stdout/stderr 管道缓冲区满导致进程阻塞
             main_log_path = os.path.join(sim_dir, "simulation.log")
@@ -546,6 +547,7 @@ class SimulationRunner:
             env = os.environ.copy()
             env['PYTHONUTF8'] = '1'  # Python 3.7+ 支持，让所有 open() 默认使用 UTF-8
             env['PYTHONIOENCODING'] = 'utf-8'  # 确保 stdout/stderr 使用 UTF-8
+            env['PYTHONUNBUFFERED'] = '1'
             
             # 设置工作目录为模拟目录（数据库等文件会生成在此）
             # 使用 start_new_session=True 创建新的进程组，确保可以通过 os.killpg 终止所有子进程

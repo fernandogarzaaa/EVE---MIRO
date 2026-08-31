@@ -20,7 +20,11 @@ def eve_trajectory_command(*, bin_path: str | None = None) -> list:
     modules = root / "node_modules"
     explicit = bin_path or _env("EVE_BIN")
     if explicit:
-        return [str(explicit), "trajectory", "--stdin"]
+        path = Path(explicit)
+        cmd = [str(path), "trajectory", "--stdin"]
+        if path.suffix.lower() == ".js":
+            cmd = ["node", *cmd]
+        return cmd
     if dist_main.is_file() and bin_js.is_file():
         return ["node", str(bin_js), "trajectory", "--stdin"]
     if modules.is_dir() and src_main.is_file():

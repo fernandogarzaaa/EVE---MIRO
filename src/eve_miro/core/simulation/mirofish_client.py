@@ -76,7 +76,7 @@ def _read_dotenv(path: Path) -> dict[str, str]:
     if not path.is_file():
         return out
     try:
-        text = path.read_text(encoding="utf-8")
+        text = path.read_text(encoding="utf-8-sig")
     except OSError:
         return out
     for line in text.splitlines():
