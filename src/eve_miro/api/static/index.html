@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>EVE-MIRO — Reality Check</title>
+  <style>
+    :root { --bg:#0b1020; --card:#141a2e; --ink:#e8eefc; --muted:#93a0c2;
+            --obs:#3dd68c; --sim:#f5c542; --der:#6ea8ff; --fc:#ff8a5b; --bad:#ff5d73; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+    header { padding:20px 28px; border-bottom:1px solid #243056; display:flex; justify-content:space-between; align-items:center; }
+    h1 { margin:0; font-size:20px; letter-spacing:.04em; }
+    h1 span { color:var(--sim); }
+    nav button { background:#1c2544; color:var(--ink); border:1px solid #334070; padding:8px 12px; margin-left:6px; border-radius:6px; cursor:pointer; }
+    nav button.active { background:#2a3a6e; }
+    main { padding:24px 28px; display:grid; gap:16px; }
+    .card { background:var(--card); border:1px solid #243056; border-radius:12px; padding:16px 18px; }
+    .badge { display:inline-block; font-size:11px; font-weight:700; letter-spacing:.06em; padding:2px 8px; border-radius:999px; margin-right:6px; }
+    .obs { background:#123b2a; color:var(--obs); border:1px solid #1f6a48; }
+    .sim { background:#3b3110; color:var(--sim); border:1px solid #8a7018; }
+    .der { background:#132544; color:var(--der); border:1px solid #2d5a9a; }
+    .fc { background:#3a2216; color:var(--fc); border:1px solid #8a4a28; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { text-align:left; padding:6px 8px; border-bottom:1px solid #243056; }
+    pre { white-space:pre-wrap; font-size:12px; color:#c9d4f0; }
+    .muted { color:var(--muted); font-size:13px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; }
+    .kpi { flex:1; min-width:140px; }
+    .kpi b { display:block; font-size:22px; }
+    a { color:#9dc0ff; }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>EVE-MIRO <span>Reality → Simulation → Reality check</span></h1>
+    <div class="muted">Kinds are never mixed. Simulated output is not observation.</div>
+  </div>
+  <nav>
+    <button class="active" data-tab="world">World</button>
+    <button data-tab="sim">Simulation</button>
+    <button data-tab="exp">Experience</button>
+    <button data-tab="rc">Reality Check</button>
+  </nav>
+</header>
+<main>
+  <section class="card">
+    <span class="badge obs">OBSERVED</span>
+    <span class="badge der">DERIVED</span>
+    <span class="badge fc">FORECAST</span>
+    <span class="badge sim">SIMULATED</span>
+    <span class="muted"> — labels are mandatory on every record shown here.</span>
+  </section>
+
+  <section id="tab-world" class="card">
+    <h2>World</h2>
+    <p class="muted">Event list with source, freshness, provenance kind. First domain: Philippines / Metro Manila.</p>
+    <div id="world-kpis" class="row"></div>
+    <div id="world-events"></div>
+  </section>
+
+  <section id="tab-sim" class="card" hidden>
+    <h2>Simulation <span class="badge sim">SIMULATED</span></h2>
+    <p class="muted">Stub engine: synthetic statistical personas, not real people. Scenario projections under assumptions — never “the future is…”.</p>
+    <div id="sim-body"></div>
+  </section>
+
+  <section id="tab-exp" class="card" hidden>
+    <h2>Experience <span class="badge sim">SIMULATED</span></h2>
+    <p class="muted">Validated EVE-stub artifacts. Counterfactuals are model-generated, not fact.</p>
+    <div id="exp-body"></div>
+  </section>
+
+  <section id="tab-rc" class="card" hidden>
+    <h2>Reality Check</h2>
+    <p class="muted">Predicted (<span class="badge sim">SIMULATED</span>) vs observed (<span class="badge obs">OBSERVED</span>) + error. If a domain has no observations, do not trust it.</p>
+    <div id="rc-body"></div>
+  </section>
+</main>
+<script>
+const kindClass = k => ({observed:"obs", derived:"der", forecast:"fc", simulated:"sim"}[k] || "obs");
+function badge(k){ k=(k||"").toLowerCase(); return `<span class="badge ${kindClass(k)}">${(k||"?").toUpperCase()}</span>`; }
+async function j(url){ const r = await fetch(url); if(!r.ok) return null; return r.json(); }
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  ["world","sim","exp","rc"].forEach(t => {
+    document.getElementById("tab-"+t).hidden = t !== b.dataset.tab;
+  });
+});
+
+async function refresh(){
+  const health = await j("/health");
+  const worldsHint = health ? `<div class="kpi"><span class="muted">API</span><b>${health.status}</b></div>` : "";
+  document.getElementById("world-kpis").innerHTML = worldsHint +
+    `<div class="kpi"><span class="muted">store</span><b>${health && health.store || "?"}</b></div>`;
+
+  // Try to find a world by listing reliability; events need a world id from last create.
+  // Dashboard expects the happy-path demo world id in localStorage.
+  const wid = localStorage.getItem("eve_miro_world") || "";
+  const sid = localStorage.getItem("eve_miro_sim") || "";
+  const eid = localStorage.getItem("eve_miro_eval") || "";
+  let eventsHtml = `<p class="muted">Create a world via POST /worlds then ingest fixtures. Demo: <code>make demo</code></p>`;
+  if (wid) {
+    const ev = await j(`/worlds/${wid}/events`);
+    const st = await j(`/worlds/${wid}/state`);
+    if (ev) {
+      eventsHtml = `<p>World <code>${wid}</code> — ${ev.n} events.
+        State kinds: ${(st && st.quality && st.quality.kinds || []).map(badge).join(" ")}</p>
+        <table><thead><tr><th>kind</th><th>source</th><th>type</th><th>freshness</th><th>id</th></tr></thead><tbody>` +
+        ev.events.slice(0,80).map(e => `<tr><td>${badge(e.kind)}</td><td>${e.source.provider}/${e.source.dataset}</td><td>${e.event_type}</td><td>${e.freshness}</td><td>${e.id}</td></tr>`).join("") +
+        `</tbody></table>`;
+    }
+  }
+  document.getElementById("world-events").innerHTML = eventsHtml;
+
+  const rel = await j("/reliability" + (wid?`?world_id=${wid}`:""));
+  if (rel) {
+    const un = (rel.untrusted_domains||[]).join(", ") || "none";
+    document.getElementById("world-events").innerHTML +=
+      `<p class="muted">Reliability untrusted domains: <b>${un}</b> — “don’t trust this domain” when stale or empty.</p>`;
+  }
+
+  let simHtml = "<p class='muted'>No simulation in this browser session.</p>";
+  if (sid) {
+    const s = await j(`/simulations/${sid}`);
+    const o = await j(`/simulations/${sid}/outcomes`);
+    if (s) {
+      simHtml = `<p>${badge("simulated")} status=<b>${s.status}</b> population=${s.personas_n} hours=${s.hours}</p>
+        <p class="muted">${s.disclaimer||""}</p>
+        <pre>${JSON.stringify(o && o.summary || s, null, 2)}</pre>`;
+    }
+  }
+  document.getElementById("sim-body").innerHTML = simHtml;
+
+  const ex = await j("/experiences");
+  if (ex) {
+    document.getElementById("exp-body").innerHTML = (ex.experiences||[]).map(e => {
+      const art = e.artifact ? `<pre>${JSON.stringify(e.artifact, null, 2)}</pre>` : "";
+      const cf = (e.counterfactuals||[]).map(c => `${badge("simulated")} ${c.label} — ${c.disclaimer}`).join("<br/>");
+      return `<div class="card"><div>${badge("simulated")} ${e.layer} <code>${e.id}</code> confidence=${e.confidence}</div>${art}<p>${cf}</p></div>`;
+    }).join("") || "<p class='muted'>No experiences yet.</p>";
+  }
+
+  let rc = "<p class='muted'>Run a simulation to persist an evaluation.</p>";
+  if (eid) {
+    const evl = await j(`/evaluations/${eid}`);
+    if (evl) {
+      rc = `<p>${badge(evl.predicted_kind)} predicted vs ${badge(evl.observed_kind)} observed — ${evl.metric_name}</p>
+        <div class="row">
+          <div class="kpi"><span class="muted">MAE</span><b>${evl.mae ?? "n/a"}</b></div>
+          <div class="kpi"><span class="muted">RMSE</span><b>${evl.rmse ?? "n/a"}</b></div>
+          <div class="kpi"><span class="muted">Brier</span><b>${evl.brier ?? "n/a"}</b></div>
+          <div class="kpi"><span class="muted">timing min</span><b>${evl.timing_error_minutes ?? "n/a"}</b></div>
+        </div>
+        <p>${evl.domain_trusted ? "" : "<b>Do not trust this domain — no observations.</b>"} ${evl.notes||""}</p>
+        <p class="muted">${evl.calibration && evl.calibration.reliability_note || ""}</p>`;
+    }
+  }
+  document.getElementById("rc-body").innerHTML = rc;
+}
+refresh();
+setInterval(refresh, 8000);
+</script>
+</body>
+</html>

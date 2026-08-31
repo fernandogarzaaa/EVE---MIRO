@@ -1,0 +1,422 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "generated": 1788146060000,
+    "url": "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=4.2&maxlatitude=21.2&minlongitude=116.5&maxlongitude=127&starttime=2024-11-01&endtime=2024-11-08&limit=15",
+    "title": "USGS Earthquakes",
+    "status": 200,
+    "api": "2.7.0",
+    "limit": 15,
+    "offset": 1
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "mag": 4.2,
+        "place": "138 km SW of Palimbang, Philippines",
+        "time": 1730947628046,
+        "updated": 1737748270040,
+        "tz": null,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us6000p725",
+        "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us6000p725&format=geojson",
+        "felt": null,
+        "cdi": null,
+        "mmi": null,
+        "alert": null,
+        "status": "reviewed",
+        "tsunami": 0,
+        "sig": 271,
+        "net": "us",
+        "code": "6000p725",
+        "ids": ",us6000p725,",
+        "sources": ",us,",
+        "types": ",origin,phase-data,",
+        "nst": 33,
+        "dmin": 4.856,
+        "rms": 0.46,
+        "gap": 120,
+        "magType": "mb",
+        "type": "earthquake",
+        "title": "M 4.2 - 138 km SW of Palimbang, Philippines"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.4747,
+          5.1817,
+          563.334
+        ]
+      },
+      "id": "us6000p725"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mag": 4.6,
+        "place": "37 km NW of Tumalaytay, Philippines",
+        "time": 1730889387217,
+        "updated": 1737748277040,
+        "tz": null,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000nq8v",
+        "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us7000nq8v&format=geojson",
+        "felt": null,
+        "cdi": null,
+        "mmi": null,
+        "alert": null,
+        "status": "reviewed",
+        "tsunami": 0,
+        "sig": 326,
+        "net": "us",
+        "code": "7000nq8v",
+        "ids": ",us7000nq8v,",
+        "sources": ",us,",
+        "types": ",origin,phase-data,",
+        "nst": 35,
+        "dmin": 17.884,
+        "rms": 0.57,
+        "gap": 121,
+        "magType": "mb",
+        "type": "earthquake",
+        "title": "M 4.6 - 37 km NW of Tumalaytay, Philippines"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9906,
+          12.5194,
+          10
+        ]
+      },
+      "id": "us7000nq8v"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mag": 4.7,
+        "place": "48 km SE of Minuri, Philippines",
+        "time": 1730771328062,
+        "updated": 1737748274040,
+        "tz": null,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000npz9",
+        "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us7000npz9&format=geojson",
+        "felt": 2,
+        "cdi": 3.1,
+        "mmi": null,
+        "alert": null,
+        "status": "reviewed",
+        "tsunami": 0,
+        "sig": 340,
+        "net": "us",
+        "code": "7000npz9",
+        "ids": ",us7000npz9,",
+        "sources": ",us,",
+        "types": ",dyfi,origin,phase-data,",
+        "nst": 61,
+        "dmin": 7.178,
+        "rms": 0.63,
+        "gap": 114,
+        "magType": "mb",
+        "type": "earthquake",
+        "title": "M 4.7 - 48 km SE of Minuri, Philippines"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.1919,
+          16.2382,
+          35
+        ]
+      },
+      "id": "us7000npz9"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mag": 4.9,
+        "place": "8 km W of Lingig, Philippines",
+        "time": 1730709146724,
+        "updated": 1737748272040,
+        "tz": null,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000nptx",
+        "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us7000nptx&format=geojson",
+        "felt": 1,
+        "cdi": 2,
+        "mmi": null,
+        "alert": null,
+        "status": "reviewed",
+        "tsunami": 0,
+        "sig": 370,
+        "net": "us",
+        "code": "7000nptx",
+        "ids": ",us7000nptx,",
+        "sources": ",us,",
+        "types": ",dyfi,origin,phase-data,",
+        "nst": 146,
+        "dmin": 1.215,
+        "rms": 0.45,
+        "gap": 78,
+        "magType": "mb",
+        "type": "earthquake",
+        "title": "M 4.9 - 8 km W of Lingig, Philippines"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.3317,
+          8.0352,
+          10
+        ]
+      },
+      "id": "us7000nptx"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mag": 4.3,
+        "place": "4 km S of Hukay, Philippines",
+        "time": 1730707048532,
+        "updated": 1737748267040,
+        "tz": null,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us6000p6sv",
+        "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us6000p6sv&format=geojson",
+        "felt": null,
+        "cdi": null,
+        "mmi": null,
+        "alert": null,
+        "status": "reviewed",
+        "tsunami": 0,
+        "sig": 284,
+        "net": "us",
+        "code": "6000p6sv",
+        "ids": ",us6000p6sv,",
+        "sources": ",us,",
+        "types": ",origin,phase-data,",
+        "nst": 41,
+        "dmin": 8.234,
+        "rms": 0.61,
+        "gap": 110,
+        "magType": "mb",
+        "type": "earthquake",
+        "title": "M 4.3 - 4 km S of Hukay, Philippines"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.6955,
+          13.8015,
+          99.786
+        ]
+      },
+      "id": "us6000p6sv"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mag": 4.4,
+        "place": "3 km ESE of Hukay, Philippines",
+        "time": 1730706806624,
+        "updated": 1737748267040,
+        "tz": null,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us6000p6st",
+        "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us6000p6st&format=geojson",
+        "felt": null,
+        "cdi": null,
+        "mmi": null,
+        "alert": null,
+        "status": "reviewed",
+        "tsunami": 0,
+        "sig": 298,
+        "net": "us",
+        "code": "6000p6st",
+        "ids": ",us6000p6st,",
+        "sources": ",us,",
+        "types": ",origin,phase-data,",
+        "nst": 60,
+        "dmin": 8.242,
+        "rms": 0.48,
+        "gap": 78,
+        "magType": "mb",
+        "type": "earthquake",
+        "title": "M 4.4 - 3 km ESE of Hukay, Philippines"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.7303,
+          13.8368,
+          103.938
+        ]
+      },
+      "id": "us6000p6st"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mag": 4.1,
+        "place": "86 km E of Pondaguitan, Philippines",
+        "time": 1730675276901,
+        "updated": 1737053034040,
+        "tz": null,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us6000p6le",
+        "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us6000p6le&format=geojson",
+        "felt": null,
+        "cdi": null,
+        "mmi": null,
+        "alert": null,
+        "status": "reviewed",
+        "tsunami": 0,
+        "sig": 259,
+        "net": "us",
+        "code": "6000p6le",
+        "ids": ",us6000p6le,",
+        "sources": ",us,",
+        "types": ",origin,phase-data,",
+        "nst": 13,
+        "dmin": 1.593,
+        "rms": 0.58,
+        "gap": 182,
+        "magType": "mb",
+        "type": "earthquake",
+        "title": "M 4.1 - 86 km E of Pondaguitan, Philippines"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.9508,
+          6.2382,
+          188.447
+        ]
+      },
+      "id": "us6000p6le"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mag": 4.2,
+        "place": "108 km NW of Basco, Philippines",
+        "time": 1730604194110,
+        "updated": 1737053025040,
+        "tz": null,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us6000p6km",
+        "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us6000p6km&format=geojson",
+        "felt": null,
+        "cdi": null,
+        "mmi": null,
+        "alert": null,
+        "status": "reviewed",
+        "tsunami": 0,
+        "sig": 271,
+        "net": "us",
+        "code": "6000p6km",
+        "ids": ",us6000p6km,",
+        "sources": ",us,",
+        "types": ",origin,phase-data,",
+        "nst": 31,
+        "dmin": 2.298,
+        "rms": 0.84,
+        "gap": 130,
+        "magType": "mb",
+        "type": "earthquake",
+        "title": "M 4.2 - 108 km NW of Basco, Philippines"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.1351,
+          21.0401,
+          10
+        ]
+      },
+      "id": "us6000p6km"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mag": 4.9,
+        "place": "98 km SSE of Hengchun, Taiwan",
+        "time": 1730528853525,
+        "updated": 1737053212040,
+        "tz": null,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000nphz",
+        "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us7000nphz&format=geojson",
+        "felt": null,
+        "cdi": null,
+        "mmi": null,
+        "alert": null,
+        "status": "reviewed",
+        "tsunami": 0,
+        "sig": 369,
+        "net": "us",
+        "code": "7000nphz",
+        "ids": ",us7000nphz,",
+        "sources": ",us,",
+        "types": ",origin,phase-data,",
+        "nst": 62,
+        "dmin": 2.156,
+        "rms": 0.52,
+        "gap": 106,
+        "magType": "mb",
+        "type": "earthquake",
+        "title": "M 4.9 - 98 km SSE of Hengchun, Taiwan"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.0776,
+          21.1754,
+          27.867
+        ]
+      },
+      "id": "us7000nphz"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mag": 4.6,
+        "place": "21 km ESE of San Mariano, Philippines",
+        "time": 1730502003112,
+        "updated": 1737053196040,
+        "tz": null,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000npgq",
+        "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us7000npgq&format=geojson",
+        "felt": 2,
+        "cdi": 2.2,
+        "mmi": null,
+        "alert": null,
+        "status": "reviewed",
+        "tsunami": 0,
+        "sig": 326,
+        "net": "us",
+        "code": "7000npgq",
+        "ids": ",us7000npgq,",
+        "sources": ",us,",
+        "types": ",dyfi,origin,phase-data,",
+        "nst": 57,
+        "dmin": 0.667,
+        "rms": 0.74,
+        "gap": 115,
+        "magType": "mb",
+        "type": "earthquake",
+        "title": "M 4.6 - 21 km ESE of San Mariano, Philippines"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.1641,
+          7.401,
+          10
+        ]
+      },
+      "id": "us7000npgq"
+    }
+  ],
+  "bbox": [
+    120.6955,
+    5.1817,
+    10,
+    126.9508,
+    21.1754,
+    563.334
+  ]
+}

@@ -1,0 +1,18 @@
+name: typhoon_manila_001
+initial_world:
+  source: world_state
+  timestamp: "2026-08-31T10:00:00Z"
+  region: philippines
+duration:
+  simulated_hours: 72
+agents:
+  population: 1000
+conditions:
+  experience_engine: eve_stub
+  memory_budget: 4096
+interventions:
+  - type: evacuation_warning
+    timestamp: "+6h"
+    coverage: 0.8
+random_seed: 48291
+information_cutoff: "2026-08-31T10:00:00Z"

@@ -1,0 +1,72 @@
+# EVE-MIRO local stack. No Kubernetes.
+# Redpanda is optional and commented out; the in-process bus is the default.
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: eve
+      POSTGRES_PASSWORD: eve
+      POSTGRES_DB: eve_miro
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eve -d eve_miro"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://eve:eve@postgres:5432/eve_miro
+      REDIS_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+      FIXTURES: "1"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+
+# Optional streaming (not required to run):
+#  redpanda:
+#    image: docker.redpanda.com/redpandadata/redpanda:v24.2.7
+#    command:
+#      - redpanda start
+#      - --smp 1
+#      - --memory 512M
+#      - --overprovisioned
+#      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+#      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+#    ports:
+#      - "19092:19092"
+
+volumes:
+  pgdata:
+  miniodata:

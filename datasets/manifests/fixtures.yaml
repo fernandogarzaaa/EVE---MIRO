@@ -1,0 +1,25 @@
+# Recorded public payloads for offline tests. Not live data.
+fixtures:
+  - id: openmeteo_manila_archive
+    provider: openmeteo
+    kind: observed
+    file: datasets/fixtures/openmeteo_manila_archive.json
+    captured: "2026-08-31"
+    window: "2024-11-01/2024-11-03"
+    license: CC BY 4.0
+    note: Open-Meteo archive API, Manila lat/lon, hourly weather.
+  - id: openmeteo_manila_forecast
+    provider: openmeteo
+    kind: forecast
+    file: datasets/fixtures/openmeteo_manila_forecast.json
+    captured: "2026-08-31"
+    license: CC BY 4.0
+    note: Open-Meteo forecast API (includes recent past hours). FORECAST kind.
+  - id: usgs_philippines
+    provider: usgs
+    kind: observed
+    file: datasets/fixtures/usgs_philippines.json
+    captured: "2026-08-31"
+    window: "2024-11-01/2024-11-08"
+    bbox: [4.2, 21.2, 116.5, 127.0]
+    license: USGS public domain

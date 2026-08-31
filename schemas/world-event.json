@@ -1,0 +1,289 @@
+{
+  "$defs": {
+    "Entity": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type"
+      ],
+      "title": "Entity",
+      "type": "object"
+    },
+    "Location": {
+      "properties": {
+        "lat": {
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "title": "Lon",
+          "type": "number"
+        },
+        "altitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Altitude"
+        }
+      },
+      "required": [
+        "lat",
+        "lon"
+      ],
+      "title": "Location",
+      "type": "object"
+    },
+    "Provenance": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ProvenanceKind"
+        },
+        "raw": {
+          "default": true,
+          "title": "Raw",
+          "type": "boolean"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "latency_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latency Ms"
+        },
+        "conflicted": {
+          "default": false,
+          "title": "Conflicted",
+          "type": "boolean"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "ProvenanceKind": {
+      "enum": [
+        "observed",
+        "derived",
+        "forecast",
+        "simulated"
+      ],
+      "title": "ProvenanceKind",
+      "type": "string"
+    },
+    "Source": {
+      "properties": {
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "dataset": {
+          "title": "Dataset",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "license": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "License"
+        }
+      },
+      "required": [
+        "provider",
+        "dataset"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "Temporal": {
+      "properties": {
+        "source_time": {
+          "format": "date-time",
+          "title": "Source Time",
+          "type": "string"
+        },
+        "effective_time": {
+          "format": "date-time",
+          "title": "Effective Time",
+          "type": "string"
+        },
+        "valid_from": {
+          "format": "date-time",
+          "title": "Valid From",
+          "type": "string"
+        },
+        "valid_until": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Valid Until"
+        },
+        "resolution": {
+          "default": "event",
+          "title": "Resolution",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_time",
+        "effective_time",
+        "valid_from"
+      ],
+      "title": "Temporal",
+      "type": "object"
+    }
+  },
+  "description": "Atomic observation or generated fact. Frozen: history is never mutated.",
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/Source"
+    },
+    "observed_at": {
+      "format": "date-time",
+      "title": "Observed At",
+      "type": "string"
+    },
+    "ingested_at": {
+      "format": "date-time",
+      "title": "Ingested At",
+      "type": "string"
+    },
+    "location": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Location"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "entity": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Entity"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "event_type": {
+      "title": "Event Type",
+      "type": "string"
+    },
+    "payload": {
+      "additionalProperties": true,
+      "title": "Payload",
+      "type": "object"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    },
+    "temporal": {
+      "$ref": "#/$defs/Temporal"
+    },
+    "information_cutoff": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Information Cutoff"
+    }
+  },
+  "required": [
+    "id",
+    "source",
+    "observed_at",
+    "ingested_at",
+    "event_type",
+    "provenance",
+    "temporal"
+  ],
+  "title": "WorldEvent",
+  "type": "object"
+}

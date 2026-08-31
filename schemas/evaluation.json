@@ -1,0 +1,214 @@
+{
+  "$defs": {
+    "CalibrationSummary": {
+      "properties": {
+        "n": {
+          "default": 0,
+          "title": "N",
+          "type": "integer"
+        },
+        "mae": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mae"
+        },
+        "rmse": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rmse"
+        },
+        "brier": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Brier"
+        },
+        "timing_error_minutes": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timing Error Minutes"
+        },
+        "reliability_note": {
+          "default": "Calibration is not yet established for v1 scenario projections.",
+          "title": "Reliability Note",
+          "type": "string"
+        },
+        "bins": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Bins",
+          "type": "array"
+        }
+      },
+      "title": "CalibrationSummary",
+      "type": "object"
+    },
+    "ProvenanceKind": {
+      "enum": [
+        "observed",
+        "derived",
+        "forecast",
+        "simulated"
+      ],
+      "title": "ProvenanceKind",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "world_id": {
+      "title": "World Id",
+      "type": "string"
+    },
+    "simulation_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Simulation Id"
+    },
+    "metric_name": {
+      "title": "Metric Name",
+      "type": "string"
+    },
+    "predicted": {
+      "items": {
+        "type": "number"
+      },
+      "title": "Predicted",
+      "type": "array"
+    },
+    "observed": {
+      "items": {
+        "type": "number"
+      },
+      "title": "Observed",
+      "type": "array"
+    },
+    "times": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Times",
+      "type": "array"
+    },
+    "mae": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Mae"
+    },
+    "rmse": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rmse"
+    },
+    "brier": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Brier"
+    },
+    "timing_error_minutes": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Timing Error Minutes"
+    },
+    "calibration": {
+      "$ref": "#/$defs/CalibrationSummary"
+    },
+    "predicted_kind": {
+      "$ref": "#/$defs/ProvenanceKind",
+      "default": "simulated"
+    },
+    "observed_kind": {
+      "$ref": "#/$defs/ProvenanceKind",
+      "default": "observed"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    },
+    "domain_trusted": {
+      "default": true,
+      "title": "Domain Trusted",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "id",
+    "world_id",
+    "metric_name"
+  ],
+  "title": "Evaluation",
+  "type": "object"
+}

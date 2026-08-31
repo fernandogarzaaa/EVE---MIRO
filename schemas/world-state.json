@@ -1,0 +1,338 @@
+{
+  "$defs": {
+    "Economy": {
+      "properties": {
+        "indicators": {
+          "additionalProperties": true,
+          "title": "Indicators",
+          "type": "object"
+        }
+      },
+      "title": "Economy",
+      "type": "object"
+    },
+    "Environment": {
+      "description": "Weather and seismic summary at timestamp.",
+      "properties": {
+        "weather": {
+          "additionalProperties": true,
+          "title": "Weather",
+          "type": "object"
+        },
+        "seismic": {
+          "additionalProperties": true,
+          "title": "Seismic",
+          "type": "object"
+        },
+        "hazards": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Hazards",
+          "type": "array"
+        }
+      },
+      "title": "Environment",
+      "type": "object"
+    },
+    "Geography": {
+      "properties": {
+        "region": {
+          "default": "philippines",
+          "title": "Region",
+          "type": "string"
+        },
+        "bbox": {
+          "default": [
+            4.2,
+            21.2,
+            116.5,
+            127.0
+          ],
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bbox",
+          "type": "array"
+        },
+        "centroid": {
+          "default": [
+            14.5995,
+            120.9842
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Centroid",
+          "type": "array"
+        }
+      },
+      "title": "Geography",
+      "type": "object"
+    },
+    "InformationLayer": {
+      "properties": {
+        "alerts": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Alerts",
+          "type": "array"
+        },
+        "news_mentions": {
+          "default": 0,
+          "title": "News Mentions",
+          "type": "integer"
+        }
+      },
+      "title": "InformationLayer",
+      "type": "object"
+    },
+    "Infrastructure": {
+      "properties": {
+        "status": {
+          "additionalProperties": true,
+          "title": "Status",
+          "type": "object"
+        }
+      },
+      "title": "Infrastructure",
+      "type": "object"
+    },
+    "Mobility": {
+      "properties": {
+        "aircraft_count": {
+          "default": 0,
+          "title": "Aircraft Count",
+          "type": "integer"
+        },
+        "vessel_count": {
+          "default": 0,
+          "title": "Vessel Count",
+          "type": "integer"
+        },
+        "traffic_index": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Traffic Index"
+        },
+        "samples": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Samples",
+          "type": "array"
+        }
+      },
+      "title": "Mobility",
+      "type": "object"
+    },
+    "Population": {
+      "description": "Statistical personas only \u2014 never a named real person.",
+      "properties": {
+        "synthetic_n": {
+          "default": 0,
+          "title": "Synthetic N",
+          "type": "integer"
+        },
+        "notes": {
+          "default": "Synthetic statistical personas. Not real people. Public data only.",
+          "title": "Notes",
+          "type": "string"
+        },
+        "demographics": {
+          "additionalProperties": true,
+          "title": "Demographics",
+          "type": "object"
+        }
+      },
+      "title": "Population",
+      "type": "object"
+    },
+    "ProvenanceEdge": {
+      "properties": {
+        "src": {
+          "title": "Src",
+          "type": "string"
+        },
+        "dst": {
+          "title": "Dst",
+          "type": "string"
+        },
+        "rel": {
+          "default": "derived_from",
+          "title": "Rel",
+          "type": "string"
+        }
+      },
+      "required": [
+        "src",
+        "dst"
+      ],
+      "title": "ProvenanceEdge",
+      "type": "object"
+    },
+    "ProvenanceGraph": {
+      "description": "Directed graph used to answer 'why did the simulator predict this?'.",
+      "properties": {
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/ProvenanceNode"
+          },
+          "title": "Nodes",
+          "type": "array"
+        },
+        "edges": {
+          "items": {
+            "$ref": "#/$defs/ProvenanceEdge"
+          },
+          "title": "Edges",
+          "type": "array"
+        }
+      },
+      "title": "ProvenanceGraph",
+      "type": "object"
+    },
+    "ProvenanceKind": {
+      "enum": [
+        "observed",
+        "derived",
+        "forecast",
+        "simulated"
+      ],
+      "title": "ProvenanceKind",
+      "type": "string"
+    },
+    "ProvenanceNode": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "source",
+            "event",
+            "state",
+            "experience",
+            "conclusion",
+            "simulation"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "provenance_kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProvenanceKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "label"
+      ],
+      "title": "ProvenanceNode",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "world_id": {
+      "title": "World Id",
+      "type": "string"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "title": "Timestamp",
+      "type": "string"
+    },
+    "information_cutoff": {
+      "format": "date-time",
+      "title": "Information Cutoff",
+      "type": "string"
+    },
+    "geography": {
+      "$ref": "#/$defs/Geography"
+    },
+    "environment": {
+      "$ref": "#/$defs/Environment"
+    },
+    "economy": {
+      "$ref": "#/$defs/Economy"
+    },
+    "infrastructure": {
+      "$ref": "#/$defs/Infrastructure"
+    },
+    "mobility": {
+      "$ref": "#/$defs/Mobility"
+    },
+    "information": {
+      "$ref": "#/$defs/InformationLayer"
+    },
+    "population": {
+      "$ref": "#/$defs/Population"
+    },
+    "events": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Events",
+      "type": "array"
+    },
+    "provenance_graph": {
+      "$ref": "#/$defs/ProvenanceGraph"
+    },
+    "quality": {
+      "additionalProperties": true,
+      "title": "Quality",
+      "type": "object"
+    }
+  },
+  "required": [
+    "world_id",
+    "timestamp",
+    "information_cutoff"
+  ],
+  "title": "WorldState",
+  "type": "object"
+}

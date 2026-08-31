@@ -1,0 +1,334 @@
+{
+  "$defs": {
+    "AgentAction": {
+      "properties": {
+        "agent_id": {
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "t": {
+          "format": "date-time",
+          "title": "T",
+          "type": "string"
+        },
+        "hour": {
+          "title": "Hour",
+          "type": "integer"
+        },
+        "action": {
+          "enum": [
+            "stay",
+            "evacuate",
+            "shelter",
+            "stuck"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "wind_speed": {
+          "title": "Wind Speed",
+          "type": "number"
+        },
+        "congestion": {
+          "title": "Congestion",
+          "type": "number"
+        },
+        "warning_active": {
+          "title": "Warning Active",
+          "type": "boolean"
+        },
+        "warning_received": {
+          "title": "Warning Received",
+          "type": "boolean"
+        },
+        "outcome": {
+          "title": "Outcome",
+          "type": "string"
+        },
+        "provenance_kind": {
+          "$ref": "#/$defs/ProvenanceKind",
+          "default": "simulated"
+        }
+      },
+      "required": [
+        "agent_id",
+        "t",
+        "hour",
+        "action",
+        "wind_speed",
+        "congestion",
+        "warning_active",
+        "warning_received",
+        "outcome"
+      ],
+      "title": "AgentAction",
+      "type": "object"
+    },
+    "Persona": {
+      "properties": {
+        "agent_id": {
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "age_band": {
+          "title": "Age Band",
+          "type": "string"
+        },
+        "household_size": {
+          "title": "Household Size",
+          "type": "integer"
+        },
+        "vehicle_access": {
+          "title": "Vehicle Access",
+          "type": "boolean"
+        },
+        "risk_aversion": {
+          "title": "Risk Aversion",
+          "type": "number"
+        },
+        "mobility_score": {
+          "title": "Mobility Score",
+          "type": "number"
+        },
+        "shelter_access": {
+          "title": "Shelter Access",
+          "type": "boolean"
+        },
+        "lat": {
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "title": "Lon",
+          "type": "number"
+        },
+        "notes": {
+          "default": "Synthetic statistical persona. Not a real person.",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "agent_id",
+        "age_band",
+        "household_size",
+        "vehicle_access",
+        "risk_aversion",
+        "mobility_score",
+        "shelter_access",
+        "lat",
+        "lon"
+      ],
+      "title": "Persona",
+      "type": "object"
+    },
+    "ProvenanceKind": {
+      "enum": [
+        "observed",
+        "derived",
+        "forecast",
+        "simulated"
+      ],
+      "title": "ProvenanceKind",
+      "type": "string"
+    },
+    "Simulation": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "world_id": {
+          "title": "World Id",
+          "type": "string"
+        },
+        "scenario_name": {
+          "title": "Scenario Name",
+          "type": "string"
+        },
+        "status": {
+          "default": "created",
+          "enum": [
+            "created",
+            "running",
+            "paused",
+            "completed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "information_cutoff": {
+          "format": "date-time",
+          "title": "Information Cutoff",
+          "type": "string"
+        },
+        "origin": {
+          "format": "date-time",
+          "title": "Origin",
+          "type": "string"
+        },
+        "hours": {
+          "title": "Hours",
+          "type": "integer"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        },
+        "population_n": {
+          "title": "Population N",
+          "type": "integer"
+        },
+        "personas": {
+          "items": {
+            "$ref": "#/$defs/Persona"
+          },
+          "title": "Personas",
+          "type": "array"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/SimulationStep"
+          },
+          "title": "Steps",
+          "type": "array"
+        },
+        "interventions": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Interventions",
+          "type": "array"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "cursor_hour": {
+          "default": 0,
+          "title": "Cursor Hour",
+          "type": "integer"
+        },
+        "provenance_kind": {
+          "$ref": "#/$defs/ProvenanceKind",
+          "default": "simulated"
+        },
+        "disclaimer": {
+          "default": "SIMULATED. Synthetic statistical personas, not real people. Outputs are scenario projections under stated assumptions, never 'the future is'.",
+          "title": "Disclaimer",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "world_id",
+        "scenario_name",
+        "information_cutoff",
+        "origin",
+        "hours",
+        "seed",
+        "population_n"
+      ],
+      "title": "Simulation",
+      "type": "object"
+    },
+    "SimulationStep": {
+      "properties": {
+        "hour": {
+          "title": "Hour",
+          "type": "integer"
+        },
+        "t": {
+          "format": "date-time",
+          "title": "T",
+          "type": "string"
+        },
+        "wind_speed": {
+          "title": "Wind Speed",
+          "type": "number"
+        },
+        "precipitation": {
+          "title": "Precipitation",
+          "type": "number"
+        },
+        "congestion": {
+          "title": "Congestion",
+          "type": "number"
+        },
+        "warning_active": {
+          "title": "Warning Active",
+          "type": "boolean"
+        },
+        "evacuated_n": {
+          "title": "Evacuated N",
+          "type": "integer"
+        },
+        "stuck_n": {
+          "title": "Stuck N",
+          "type": "integer"
+        },
+        "actions": {
+          "items": {
+            "$ref": "#/$defs/AgentAction"
+          },
+          "title": "Actions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "hour",
+        "t",
+        "wind_speed",
+        "precipitation",
+        "congestion",
+        "warning_active",
+        "evacuated_n",
+        "stuck_n"
+      ],
+      "title": "SimulationStep",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "simulation": {
+      "$ref": "#/$defs/Simulation"
+    },
+    "traces": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Traces",
+      "type": "array"
+    },
+    "predicted_series": {
+      "additionalProperties": {
+        "items": {
+          "type": "number"
+        },
+        "type": "array"
+      },
+      "title": "Predicted Series",
+      "type": "object"
+    },
+    "predicted_times": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Predicted Times",
+      "type": "array"
+    },
+    "summary": {
+      "additionalProperties": true,
+      "title": "Summary",
+      "type": "object"
+    }
+  },
+  "required": [
+    "simulation"
+  ],
+  "title": "SimulationResult",
+  "type": "object"
+}

@@ -1,0 +1,237 @@
+{
+  "$defs": {
+    "Counterfactual": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "base_experience_id": {
+          "title": "Base Experience Id",
+          "type": "string"
+        },
+        "intervention": {
+          "title": "Intervention",
+          "type": "string"
+        },
+        "predicted_delta": {
+          "additionalProperties": true,
+          "title": "Predicted Delta",
+          "type": "object"
+        },
+        "label": {
+          "default": "model-generated",
+          "title": "Label",
+          "type": "string"
+        },
+        "fact": {
+          "default": false,
+          "title": "Fact",
+          "type": "boolean"
+        },
+        "provenance_kind": {
+          "$ref": "#/$defs/ProvenanceKind",
+          "default": "simulated"
+        },
+        "disclaimer": {
+          "default": "MODEL-GENERATED counterfactual, not fact. Do not treat this as an observation of the real world.",
+          "title": "Disclaimer",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "base_experience_id",
+        "intervention"
+      ],
+      "title": "Counterfactual",
+      "type": "object"
+    },
+    "ExperienceCandidate": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "agent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent Id"
+        },
+        "episode_id": {
+          "title": "Episode Id",
+          "type": "string"
+        },
+        "layer": {
+          "title": "Layer",
+          "type": "string"
+        },
+        "context": {
+          "additionalProperties": true,
+          "title": "Context",
+          "type": "object"
+        },
+        "prediction": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prediction"
+        },
+        "action": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Action"
+        },
+        "observation": {
+          "additionalProperties": true,
+          "title": "Observation",
+          "type": "object"
+        },
+        "outcome": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outcome"
+        },
+        "temporal_window": {
+          "additionalProperties": true,
+          "title": "Temporal Window",
+          "type": "object"
+        },
+        "provenance": {
+          "additionalProperties": true,
+          "title": "Provenance",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "episode_id",
+        "layer"
+      ],
+      "title": "ExperienceCandidate",
+      "type": "object"
+    },
+    "ProvenanceKind": {
+      "enum": [
+        "observed",
+        "derived",
+        "forecast",
+        "simulated"
+      ],
+      "title": "ProvenanceKind",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "candidate": {
+      "$ref": "#/$defs/ExperienceCandidate"
+    },
+    "validity": {
+      "title": "Validity",
+      "type": "number"
+    },
+    "confidence": {
+      "title": "Confidence",
+      "type": "number"
+    },
+    "prediction_error": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Prediction Error"
+    },
+    "learning_value": {
+      "title": "Learning Value",
+      "type": "number"
+    },
+    "transferability": {
+      "title": "Transferability",
+      "type": "number"
+    },
+    "retention_score": {
+      "title": "Retention Score",
+      "type": "number"
+    },
+    "counterfactuals": {
+      "items": {
+        "$ref": "#/$defs/Counterfactual"
+      },
+      "title": "Counterfactuals",
+      "type": "array"
+    },
+    "applicability": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Applicability",
+      "type": "array"
+    },
+    "artifact": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Artifact"
+    },
+    "layer": {
+      "default": "agent",
+      "title": "Layer",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "candidate",
+    "validity",
+    "confidence",
+    "learning_value",
+    "transferability",
+    "retention_score"
+  ],
+  "title": "ValidatedExperience",
+  "type": "object"
+}
