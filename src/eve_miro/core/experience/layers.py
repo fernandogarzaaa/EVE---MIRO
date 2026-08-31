@@ -38,6 +38,8 @@ class SimulatorExperience(BaseModel):
     context: dict[str, Any] = Field(default_factory=dict)
 
 
+WorldModelExperience = SimulatorExperience  # alias of simulator_vs_reality; old name still works
+
 LayerModel = Union[AgentExperience, PopulationExperience, SimulatorExperience]
 LAYER_NAMES = ("agent", "population", "simulator_vs_reality")
 
@@ -49,6 +51,14 @@ def as_layer(candidate: ExperienceCandidate) -> LayerModel:
             candidate=candidate,
             action=candidate.action,
             observation=dict(candidate.observation),
+            outcome=candidate.outcome,
+            context=dict(candidate.context),
+        )
+    if candidate.layer in {"simulator_vs_reality", "world_model"}:
+        return SimulatorExperience(
+            candidate=candidate,
+            predicted=dict(candidate.prediction or {}),
+            observed=dict(candidate.observation),
             outcome=candidate.outcome,
             context=dict(candidate.context),
         )

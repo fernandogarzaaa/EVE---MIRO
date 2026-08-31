@@ -46,3 +46,26 @@ calls a model. If any of the five fields is missing, confidence is not invented
 
 Every `Evaluation` carries a provenance graph so `evaluation.trace()` walks
 conclusion → simulation/state → events → source providers.
+
+## Closed loop, Reality Ledger, Trust Profile
+
+`ClosedLoop` runs `WorldState(t0)` (OBSERVED, cutoff-bounded) through a
+MiroFish-shaped sim and EVE, then scores against later-observed
+`WorldState(t1)` (openmeteo archive fixture split at the cutoff).
+
+Evaluation is on the **distribution across seeds** (mean, variance,
+interval), not a single run treated as truth.
+
+`RealityAligner` matches predicted `wind_speed_10m` (and congestion /
+evacuation rate when present) to observed weather. Input provenance is
+carried so FORECAST-based predictions are tagged differently from
+OBSERVED-based. Spatial error is haversine kilometres when coordinates
+exist.
+
+`RealityLedger` stores `PredictionRecord`s: model, seed (null when
+aggregated), cutoff, source versions, provenance kinds of inputs, MAE,
+and `CORRECT` / `INCORRECT` / `PENDING` from known numeric series.
+
+`TrustProfile` (`GET /trust-profile`) is richer than `GET /reliability`
+(which is kept). Per domain (weather, mobility, population, news) it
+emits a score and a recommendation; low scores are **DO_NOT_USE**.

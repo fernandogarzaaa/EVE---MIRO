@@ -24,3 +24,13 @@ MIT License. See `eve/LICENSE`.
 Origin: see `eve/ORIGIN.txt`.
 
 EVE files stay MIT under their own copyright notice.
+
+## Runtime boundary
+
+The intended process boundary between the MIT data fabric and the AGPL-3.0
+MiroFish engine is HTTP/IPC: the fabric talks to a MiroFish process. The
+combined in-tree copy in this repository is unchanged (adapters still stub
+until configured). Python 3.12 is the intended combined runtime because
+upstream MiroFish targets <3.13; fabric tests may still run on 3.13. The
+fabric `requires-python` is not pinned below 3.13 so local 3.13 venvs keep
+working.

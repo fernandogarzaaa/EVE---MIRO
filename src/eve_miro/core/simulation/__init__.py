@@ -2,7 +2,9 @@
 
 from eve_miro.core.simulation.engine import SimulationEngine, StubSimulationEngine, get_simulation_engine
 from eve_miro.core.simulation.mirofish_adapter import MiroFishEngine
+from eve_miro.core.simulation.observation import AgentObservation
 from eve_miro.core.simulation.scenarios import Scenario, load_scenario
+from eve_miro.core.simulation.trajectory import AgentTrajectory, TrajectoryStep
 
 __all__ = [
     "SimulationEngine",
@@ -11,4 +13,7 @@ __all__ = [
     "get_simulation_engine",
     "Scenario",
     "load_scenario",
+    "AgentObservation",
+    "AgentTrajectory",
+    "TrajectoryStep",
 ]

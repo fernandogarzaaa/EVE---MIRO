@@ -253,3 +253,76 @@ async def load_demo(body: DemoBody | None = None):
         population=payload.population,
         providers=payload.providers,
     )
+
+
+class ExperimentRunBody(BaseModel):
+    experiment: str = "typhoon_manila_closed_loop"
+    use_fixtures: bool = True
+    agents: int | None = None
+    seeds: list[int] | None = None
+    horizon: str | None = None
+
+
+@router.post("/experiments/run")
+async def run_experiment(body: ExperimentRunBody | None = None):
+    """Closed loop: WorldState(t0) → sim → EVE → score vs WorldState(t1)."""
+    import os
+
+    from eve_miro.core.orchestration.closed_loop import ClosedLoop, split_at_cutoff
+    from eve_miro.core.orchestration.experiment import load_experiment, parse_horizon
+    from eve_miro.core.world.events import ProvenanceKind
+    from eve_miro.providers.common import load_fixture
+    from eve_miro.providers.weather import OpenMeteoProvider
+
+    payload = body or ExperimentRunBody()
+    spec = load_experiment(payload.experiment)
+    if payload.use_fixtures:
+        os.environ.setdefault("FIXTURES", "1")
+    provider = OpenMeteoProvider(mode="archive")
+    events = provider.normalize(load_fixture("openmeteo_manila_archive.json"))
+    t0, t1 = split_at_cutoff(events, spec.cutoff)
+    loop = ClosedLoop(ledger=app_state.STATE.ledger, graph=app_state.STATE.experience_graph)
+    result = await loop.run(
+        spec,
+        app_state.STATE.store,
+        t0,
+        t1,
+        agents=payload.agents,
+        seeds=payload.seeds,
+        horizon_hours=parse_horizon(payload.horizon, default=spec.horizon_hours) if payload.horizon else None,
+    )
+    app_state.STATE.trust_profile = result.trust_profile
+    app_state.STATE.experiments[result.experiment_id] = result
+    rec = app_state.STATE.worlds.get(result.world_id)
+    if rec is None:
+        app_state.STATE.worlds[result.world_id] = WorldRecord(
+            id=result.world_id,
+            created_at=utcnow(),
+            information_cutoff=result.information_cutoff,
+            label=result.experiment_id,
+        )
+    for run in result.seed_runs:
+        # simulations already finished; keep ids discoverable
+        app_state.STATE.scenarios.setdefault(run.simulation_id, {"experiment": result.experiment_id})
+    return result.model_dump(mode="json")
+
+
+@router.get("/ledger")
+async def get_ledger():
+    records = app_state.STATE.ledger.list()
+    return {
+        "n": len(records),
+        "records": [r.model_dump(mode="json") for r in records],
+    }
+
+
+@router.get("/trust-profile")
+async def get_trust_profile():
+    profile = app_state.STATE.trust_profile
+    if profile is None:
+        from eve_miro.core.reality.trust_profile import trust_profile_from_ledger
+
+        profile = trust_profile_from_ledger(app_state.STATE.ledger.list())
+    payload = profile.model_dump(mode="json")
+    payload["note"] = "Richer than /reliability. Keep /reliability. DO_NOT_USE when score is low."
+    return payload

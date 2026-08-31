@@ -1,0 +1,25 @@
+experiment:
+  id: typhoon_manila_001
+  observation:
+    location: metro_manila
+    information_cutoff: "2024-11-01T00:00:00Z"
+  initialization:
+    world_state: observed
+  simulation:
+    engine: mirofish
+    agents: 80          # keep tests fast; sample file can say 1000 but tests override to <=80
+    horizon: 24h
+    seeds: [1, 2, 3, 4, 5]
+  experience:
+    engine: eve
+    validate: true
+    counterfactuals: true
+  scenarios:
+    - id: baseline
+    - id: early_warning
+      intervention: {type: evacuation_warning, lead_time_minutes: 180}
+    - id: delayed_warning
+      intervention: {type: evacuation_warning, lead_time_minutes: 30}
+  evaluation:
+    reality_source: observed
+    metrics: [mae, brier, calibration, spatial_error, temporal_error]

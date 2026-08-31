@@ -26,13 +26,13 @@ See `NOTICE.md` for the license split. Combined distribution that includes
 ```
  Reality
    → Data fabric (providers, quality, provenance)
-   → WorldState(t)          # reconstructed from an append-only event log
-   → MiroFish               # SIMULATED, cutoff-bounded (in-tree; stub if unconfigured)
-   → EVE experience/validation
-   → Future scenarios
-   → Reality check          # SIMULATED vs OBSERVED
-   → prediction error
-   → EVE again
+   → WorldState(t0)         # OBSERVED, cutoff-bounded
+   → orchestration (ClosedLoop)
+   → MiroWorldAdapter → MiroFish-shaped sim   # SIMULATED
+   → trajectories → EVE (ExperienceEngine)
+   → Reality Aligner vs WorldState(t1)
+   → Reality Ledger + Trust Profile
+   → experience graph (CANDIDATE→VALIDATED→REPLICATED|CONFLICTING)
 ```
 
 ```
@@ -40,16 +40,18 @@ See `NOTICE.md` for the license split. Combined distribution that includes
  │ Open-Meteo  │────────┐               │ Event log    │  never mutated
  │ USGS  …     │        ├──────────────▶│ (append-only)│
  │ stubs       │────────┘               └──────┬───────┘
- └─────────────┘                               │ fold ≤ t
+ └─────────────┘                               │ fold ≤ t0
                                                v
-                                        WorldState(t)
-                                        information_cutoff = t
+                                        WorldState(t0)
+                                        information_cutoff = t0
                                                │
+                                               v
+                                      orchestration / ClosedLoop
                     ┌──────────────────────────┼──────────────────────────┐
                     v                          v                          v
-            MiroFish (in-tree)         EVE (in-tree)              Reality check
-            stub until configured      stub until configured      MAE RMSE Brier
-            SIMULATED                  SIMULATED                  vs OBSERVED
+            MiroFish (in-tree)         EVE (in-tree)           Reality Ledger
+            stub until configured      stub until configured   + Trust Profile
+            SIMULATED                  SIMULATED               vs WorldState(t1)
 ```
 
 Runtime still uses stubs unless `EVE_MIRO_ENGINES=in-tree` and the engine
@@ -64,7 +66,8 @@ local service** (including compose). They are not GitHub install URLs.
 
 Earth + mobility + weather + events, **Philippines** bbox roughly
 `4.2N–21.2N, 116.5E–127E`. Default scenario: Metro Manila typhoon
-`experiments/historical-replay/typhoon_manila_001.yaml`.
+`experiments/historical-replay/typhoon_manila_001.yaml`. Closed loop:
+`experiments/typhoon/typhoon_manila_closed_loop.yaml`.
 
 ## Second domain
 
@@ -97,7 +100,8 @@ Historical replay refuses any event after the cutoff.
 
 ## How to run
 
-Python 3.12+ (3.13 works). Tests do **not** need Docker, the network, LLM keys,
+Python 3.12 is the intended combined runtime (MiroFish targets <3.13); fabric
+tests may still run on 3.13. Tests do **not** need Docker, the network, LLM keys,
 or a node build.
 
 ```bash
@@ -159,8 +163,9 @@ Stubs report `health.available=false` unless `FIXTURES=1`.
 
 ## API
 
-`GET /` dashboard · `GET /health` · `GET /reliability` · `GET /metrics` ·
-`POST /demo` · `POST/GET /worlds` · ingest · snapshot · state · events ·
+`GET /` dashboard · `GET /health` · `GET /reliability` · `GET /trust-profile` ·
+`GET /ledger` · `GET /metrics` · `POST /demo` · `POST /experiments/run` ·
+`POST/GET /worlds` · ingest · snapshot · state · events ·
 `POST/GET /simulations` · run · pause · resume · actions · outcomes ·
 `GET/POST /experiences` · validate · `POST /scenarios` ·
 `POST /scenarios/{id}/simulate` · `GET /evaluations/{id}` ·

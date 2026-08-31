@@ -26,10 +26,13 @@ and not an OSINT globe.
                                       ValidatedExperience + counterfactuals
                                                     |
                                                     v
-                                      Reality check (SIMULATED vs OBSERVED)
+                                      Reality Aligner vs WorldState(t1)
                                                     |
                                                     v
-                                      prediction error -> EVE again
+                                      Reality Ledger + Trust Profile
+                                                    |
+                                                    v
+                                      experience graph / EVE again
 ```
 
 ## Packages
