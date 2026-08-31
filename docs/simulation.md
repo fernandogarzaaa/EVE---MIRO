@@ -23,13 +23,24 @@ Historical replay (`core/simulation/replay.py`) refuses any event after
 `experiments/historical-replay/haiyan_cutoff_example.yaml` (cutoff
 `2013-11-07T12:00:00Z` must reject a `2013-11-08` event).
 
-## Engines are in-tree
+## Engines are in-tree (fail closed)
 
-`get_simulation_engine()` in `core/simulation/engine.py` prefers `MiroFishEngine`
-when `mirofish/backend/app` exists. The adapter stubs until
-`EVE_MIRO_ENGINES=in-tree` and MiroFish `Config.validate()` succeeds (LLM keys).
-Missing keys record `mirofish_in_tree_not_configured`.
+`get_simulation_engine()` returns `StubSimulationEngine` only when
+`EVE_MIRO_ENGINES=stub` (pytest). Otherwise it returns `MiroFishEngine`, which
+talks to the real Flask app (`MIROFISH_URL`, default http://127.0.0.1:5001)
+via `mirofish_client`:
 
-`MIROFISH_URL` optionally POSTs `{seed, requirement, cutoff}` to a running local
-service (`/api/predict`, then `/simulate`). On error it falls back to the stub
-with `mirofish_unavailable`.
+1. POST `/api/graph/ontology/generate` (multipart seed `.md` + `simulation_requirement`)
+2. POST `/api/graph/build` `{project_id}`
+3. poll GET `/api/graph/task/<task_id>`
+4. POST `/api/simulation/create` `{project_id, enable_twitter, enable_reddit}`
+5. POST `/api/simulation/prepare` `{simulation_id}`
+6. poll POST `/api/simulation/prepare/status`
+7. POST `/api/simulation/start` `{simulation_id, max_rounds, platform}`
+8. poll GET `/api/simulation/<id>/run-status`
+9. GET `/api/simulation/<id>/actions` and `/timeline`
+
+Missing `LLM_API_KEY`, missing Zep (unless `MIROFISH_MEMORY=local` /
+`EVE_MIRO_ALLOW_LOCAL_MEMORY=1`), or a down server raises
+`EngineNotConfigured`. There is no silent stub and no `/api/predict`.
+Outputs are SIMULATED.

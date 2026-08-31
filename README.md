@@ -50,13 +50,14 @@ See `NOTICE.md` for the license split. Combined distribution that includes
                     ┌──────────────────────────┼──────────────────────────┐
                     v                          v                          v
             MiroFish (in-tree)         EVE (in-tree)           Reality Ledger
-            stub until configured      stub until configured   + Trust Profile
+            fail closed if down        fail closed if unbuilt  + Trust Profile
             SIMULATED                  SIMULATED               vs WorldState(t1)
 ```
 
-Runtime still uses stubs unless `EVE_MIRO_ENGINES=in-tree` and the engine
-can actually start. Missing LLM keys or an unbuilt EVE CLI fall back with
-notes such as `mirofish_in_tree_not_configured`. Tests do not need keys.
+Default is `EVE_MIRO_ENGINES=in-tree`. Missing LLM keys, a down Flask
+server, or an unbuilt EVE CLI raise `EngineNotConfigured` (API 503) —
+never a silent stub. Pytest `conftest.py` forces `stub` so unit tests stay
+offline and do not need keys or a node build.
 
 `MIROFISH_URL` / `EVE_URL` / `EVE_BIN` are optional overrides to a **running
 local service** (including compose). They are not GitHub install URLs.
@@ -115,9 +116,31 @@ FIXTURES=1 python3 -m uvicorn eve_miro.api.main:app --port 8000
 FastAPI app entry: `src/eve_miro/api/main.py` (`eve_miro.api.main:app`).
 Layout folder `apps/api` is a pointer — see that README.
 
-### In-tree engines
+### In-tree engines (fail closed)
 
-Uvicorn serves the API. MiroFish: `python mirofish/backend/run.py` (needs its .env). EVE: `eve/bin/eve.js` after installing packages in `eve/`. Set EVE_MIRO_ENGINES=in-tree to prefer live engines; otherwise adapters keep using stubs.
+`POST /experiments/run` uses MiroFish + EVE. If they are not up, the API
+returns **503** `{"error":"engine_not_configured","detail":...}` instead of
+running the typhoon stub.
+
+1. Python 3.12 venv for MiroFish (`requires-python <3.13`).
+2. Copy `mirofish/.env.example` to `mirofish/.env`. This first run uses a
+   local OpenAI-compatible GGUF server:
+   `LLM_API_KEY=local`, `LLM_BASE_URL=http://127.0.0.1:8088/v1`,
+   `LLM_MODEL_NAME=qwen2.5-0.5b-instruct`, plus `MIROFISH_MEMORY=local`
+   (skips Zep Cloud; does **not** fake Zep).
+3. `python mirofish/backend/run.py` listens on http://127.0.0.1:5001
+4. In `eve/`, install packages and build so `eve/bin/eve.js` and
+   `eve/dist/cli/main.js` exist. The adapter calls `eve trajectory --stdin`.
+   There is no HTTP `POST /validate`.
+5. `FIXTURES=1 EVE_MIRO_ENGINES=in-tree python3 -m uvicorn eve_miro.api.main:app --port 8000`
+6. `POST /experiments/run` fails loudly if steps 3-4 are not up.
+
+MiroFish Flask routes used (not invented `/api/predict`):
+`/api/graph/ontology/generate` then `/api/graph/build` then poll
+`/api/graph/task/<id>` then `/api/simulation/create` then
+`/api/simulation/prepare` then POST `/api/simulation/prepare/status`
+then `/api/simulation/start` then poll `/api/simulation/<id>/run-status`
+then `/actions` and `/timeline`.
 
 One-click demo (same as the dashboard **Load demo** button):
 

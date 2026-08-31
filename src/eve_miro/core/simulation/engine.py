@@ -1,4 +1,9 @@
-"""SimulationEngine protocol. In-tree MiroFish is behind this interface; v1 stubs until configured."""
+"""SimulationEngine protocol. In-tree MiroFish is behind this interface.
+
+When ``EVE_MIRO_ENGINES=stub`` (pytest) the factory returns ``StubSimulationEngine``.
+Otherwise (default ``in-tree``) it returns ``MiroFishEngine``, which raises
+``EngineNotConfigured`` instead of silently stubbing.
+"""
 
 from __future__ import annotations
 
@@ -96,16 +101,13 @@ def get_simulation_engine(
     *,
     artifacts: list[dict[str, Any]] | None = None,
 ) -> SimulationEngine:
-    """Prefer the in-tree MiroFish adapter; it stubs until configured.
+    """Stub only when ``EVE_MIRO_ENGINES=stub``. Otherwise fail closed."""
+    from eve_miro.core.simulation.mirofish_adapter import MiroFishEngine
+    from eve_miro.paths import engines_mode
 
-    ``MIROFISH_URL`` selects a running local service. If the in-tree tree is
-    missing and no URL is set, fall back to ``StubSimulationEngine``.
-    """
-    from eve_miro.core.simulation.mirofish_adapter import MiroFishEngine, in_tree_available
-
-    if _env("MIROFISH_URL") or in_tree_available():
-        return MiroFishEngine(scenario=scenario, artifacts=artifacts)
-    return StubSimulationEngine(scenario=scenario, artifacts=artifacts)
+    if engines_mode() == "stub":
+        return StubSimulationEngine(scenario=scenario, artifacts=artifacts)
+    return MiroFishEngine(scenario=scenario, artifacts=artifacts)
 
 
 def is_warning_delay_artifact(artifact: dict[str, Any]) -> bool:

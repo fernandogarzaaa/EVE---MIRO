@@ -28,7 +28,7 @@ router = APIRouter()
 
 
 def resolve_simulation_engine(scenario=None):
-    """Prefer core.get_simulation_engine() when it exists; otherwise the stub."""
+    """Call get_simulation_engine() (stub only when EVE_MIRO_ENGINES=stub)."""
     import eve_miro.core.simulation.engine as eng
 
     factory = getattr(eng, "get_simulation_engine", None)

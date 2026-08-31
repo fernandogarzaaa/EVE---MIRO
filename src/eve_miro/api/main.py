@@ -32,7 +32,7 @@ from eve_miro.core.world.events import ProvenanceKind, WorldEvent
 from eve_miro.core.world.projector import project_world_state
 from eve_miro.core.world.state import Population
 from eve_miro.core.world.temporal import as_utc, iso, utcnow
-from eve_miro.errors import EveMiroError, FutureLeakageError, ProvenanceError, ReplayError
+from eve_miro.errors import EngineNotConfigured, EveMiroError, FutureLeakageError, ProvenanceError, ReplayError
 from eve_miro.providers.protocol import TimeWindow
 from eve_miro.providers.registry import all_providers
 from eve_miro.worker.loop import ingest_from_providers, provider_cadence
@@ -71,6 +71,11 @@ async def _leak(_req, exc: FutureLeakageError):
 @app.exception_handler(ReplayError)
 async def _replay(_req, exc: ReplayError):
     return JSONResponse(status_code=400, content={"error": "replay", "detail": str(exc)})
+
+
+@app.exception_handler(EngineNotConfigured)
+async def _engine(_req, exc: EngineNotConfigured):
+    return JSONResponse(status_code=503, content={"error": "engine_not_configured", "detail": str(exc)})
 
 
 class CreateWorldBody(BaseModel):

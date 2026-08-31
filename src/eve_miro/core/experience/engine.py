@@ -1,4 +1,8 @@
-"""ExperienceEngine protocol. In-tree EVE is behind this interface; v1 stubs until configured."""
+"""ExperienceEngine protocol. In-tree EVE is behind this interface.
+
+When ``EVE_MIRO_ENGINES=stub`` the factory returns ``StubExperienceEngine``.
+Otherwise ``EVEExperienceEngine`` raises ``EngineNotConfigured`` instead of stubbing.
+"""
 
 from __future__ import annotations
 
@@ -34,16 +38,13 @@ def _env(name: str) -> str | None:
 
 
 def get_experience_engine() -> ExperienceEngine:
-    """Prefer the in-tree EVE adapter; it stubs until configured.
+    """Stub only when ``EVE_MIRO_ENGINES=stub``. Otherwise fail closed."""
+    from eve_miro.core.experience.eve_adapter import EVEExperienceEngine
+    from eve_miro.paths import engines_mode
 
-    ``EVE_URL`` or explicit ``EVE_BIN`` select a running local service/CLI.
-    If the in-tree tree is missing and neither is set, fall back to the stub.
-    """
-    from eve_miro.core.experience.eve_adapter import EVEExperienceEngine, in_tree_available
-
-    if _env("EVE_URL") or _env("EVE_BIN") or in_tree_available():
-        return EVEExperienceEngine()
-    return StubExperienceEngine()
+    if engines_mode() == "stub":
+        return StubExperienceEngine()
+    return EVEExperienceEngine()
 
 
 class StubExperienceEngine:

@@ -81,7 +81,7 @@ async def test_closed_loop_fixtures_three_seeds_ledger_trust_cutoff_mae():
             world_id="w_leak",
         )
 
-    # engines are adapters wrapping stubs by default
+    # pytest conftest forces EVE_MIRO_ENGINES=stub
     assert result.engines.get("simulation") in {"mirofish", "stub"}
     assert result.engines.get("experience") in {"eve", "eve_stub"}
     assert "weight" not in result.artifacts_note.lower() or "never" in result.artifacts_note.lower()

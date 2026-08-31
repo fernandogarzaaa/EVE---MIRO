@@ -19,3 +19,8 @@ data/traces/
 .vscode/
 node_modules/
 .next/
+
+# Local LLM weights (not source)
+models/*.gguf
+models/**/*.gguf
+mirofish/.venv/

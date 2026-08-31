@@ -1,8 +1,9 @@
 """ClosedLoop: WorldState(t0) → MiroFish-shaped sim → EVE → score vs WorldState(t1).
 
 Uses SimulationEngine / ExperienceEngine protocols. EVE and MiroFish do not
-import each other's internals. When EVE_MIRO_ENGINES!=in-tree the adapters
-still wrap StubSimulationEngine / StubExperienceEngine.
+import each other's internals. When EVE_MIRO_ENGINES=stub the factories
+return stubs. Otherwise EngineNotConfigured is raised — never a silent stub.
+On success, engines report ``mirofish`` / ``eve``.
 """
 
 from __future__ import annotations

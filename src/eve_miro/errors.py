@@ -19,3 +19,7 @@ class QualityError(EveMiroError):
 
 class ReplayError(EveMiroError):
     """Raised when historical replay is asked to consume post-cutoff events."""
+
+
+class EngineNotConfigured(EveMiroError):
+    """Raised when in-tree MiroFish/EVE cannot run. Fail closed — never silent stub."""

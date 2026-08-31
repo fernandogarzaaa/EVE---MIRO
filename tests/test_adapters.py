@@ -33,11 +33,23 @@ def _toy_scenario(*, stype: str = "typhoon") -> Scenario:
     )
 
 
-def test_factories_prefer_in_tree_adapters_which_stub(monkeypatch):
+
+def test_factories_return_stubs_when_engines_stub(monkeypatch):
+    monkeypatch.setenv("EVE_MIRO_ENGINES", "stub")
     monkeypatch.delenv("MIROFISH_URL", raising=False)
     monkeypatch.delenv("EVE_URL", raising=False)
     monkeypatch.delenv("EVE_BIN", raising=False)
-    monkeypatch.delenv("EVE_MIRO_ENGINES", raising=False)
+    sim = get_simulation_engine()
+    exp = get_experience_engine()
+    assert isinstance(sim, StubSimulationEngine)
+    assert isinstance(exp, StubExperienceEngine)
+
+
+def test_factories_return_adapters_when_in_tree(monkeypatch):
+    monkeypatch.setenv("EVE_MIRO_ENGINES", "in-tree")
+    monkeypatch.delenv("MIROFISH_URL", raising=False)
+    monkeypatch.delenv("EVE_URL", raising=False)
+    monkeypatch.delenv("EVE_BIN", raising=False)
     sim = get_simulation_engine()
     exp = get_experience_engine()
     assert isinstance(sim, MiroFishEngine)
@@ -46,27 +58,8 @@ def test_factories_prefer_in_tree_adapters_which_stub(monkeypatch):
     assert exp.using_remote is False
 
 
-def test_factories_fallback_to_stub_when_in_tree_missing(monkeypatch):
-    monkeypatch.delenv("MIROFISH_URL", raising=False)
-    monkeypatch.delenv("EVE_URL", raising=False)
-    monkeypatch.delenv("EVE_BIN", raising=False)
-    monkeypatch.setattr(
-        "eve_miro.core.simulation.mirofish_adapter.in_tree_available",
-        lambda: False,
-    )
-    monkeypatch.setattr(
-        "eve_miro.core.experience.eve_adapter.in_tree_available",
-        lambda: False,
-    )
-    sim = get_simulation_engine()
-    exp = get_experience_engine()
-    assert isinstance(sim, StubSimulationEngine)
-    assert not isinstance(sim, MiroFishEngine)
-    assert isinstance(exp, StubExperienceEngine)
-    assert not isinstance(exp, EVEExperienceEngine)
-
-
-def test_factories_select_adapters_when_env_set(monkeypatch):
+def test_factories_select_adapters_when_url_and_in_tree(monkeypatch):
+    monkeypatch.setenv("EVE_MIRO_ENGINES", "in-tree")
     monkeypatch.setenv("MIROFISH_URL", "http://127.0.0.1:9")
     monkeypatch.setenv("EVE_URL", "http://127.0.0.1:9")
     sim = get_simulation_engine()
@@ -75,50 +68,6 @@ def test_factories_select_adapters_when_env_set(monkeypatch):
     assert isinstance(exp, EVEExperienceEngine)
     assert sim.using_remote is True
     assert exp.using_remote is True
-
-
-@pytest.mark.asyncio
-async def test_mirofish_delegates_to_stub_when_url_unset():
-    world, pop = _world()
-    sc = _toy_scenario()
-    engine = MiroFishEngine(sc, url=None)
-    assert engine.using_remote is False
-    sim = await engine.initialize(world, pop)
-    result = await engine.run(sim, sim.origin + timedelta(hours=sc.simulated_hours))
-    assert result.simulation.provenance_kind is ProvenanceKind.SIMULATED
-    assert result.summary["provenance_kind"] == ProvenanceKind.SIMULATED.value
-    assert "mirofish_unavailable" not in str(result.summary)
-
-
-@pytest.mark.asyncio
-async def test_mirofish_falls_back_when_remote_unavailable():
-    world, pop = _world()
-    sc = _toy_scenario()
-    engine = MiroFishEngine(sc, url="http://127.0.0.1:1", timeout=0.2)
-    sim = await engine.initialize(world, pop)
-    result = await engine.run(sim, sim.origin + timedelta(hours=sc.simulated_hours))
-    assert engine.last_notes == "mirofish_unavailable"
-    assert result.summary.get("provenance_notes") == "mirofish_unavailable"
-    assert result.simulation.provenance_kind is ProvenanceKind.SIMULATED
-
-
-@pytest.mark.asyncio
-async def test_eve_falls_back_when_remote_unavailable():
-    engine = EVEExperienceEngine(url="http://127.0.0.1:1", timeout=0.2)
-    cand = ExperienceCandidate(
-        id="exp_x",
-        episode_id="episode_81",
-        layer="agent",
-        context={"peak_congestion": 0.6},
-        observation={"stuck_n": 2},
-        outcome="congestion_blocked",
-    )
-    val = await engine.validate(cand)
-    assert engine.last_notes == "eve_unavailable"
-    assert val.counterfactuals
-    assert val.counterfactuals[0].label == "model-generated"
-    assert val.counterfactuals[0].fact is False
-    assert val.layer == "agent"
 
 
 @pytest.mark.asyncio
@@ -147,39 +96,37 @@ async def test_market_scenario_runs_simulated_investors():
     assert actions <= {"buy", "sell", "hold"}
     assert "Not a real person" in sim.personas[0].notes
 
+
 @pytest.mark.asyncio
-async def test_mirofish_in_tree_not_configured_without_llm_keys(monkeypatch):
+async def test_mirofish_run_raises_without_keys(monkeypatch):
+    monkeypatch.setenv("EVE_MIRO_ENGINES", "in-tree")
     monkeypatch.delenv("MIROFISH_URL", raising=False)
     monkeypatch.delenv("LLM_API_KEY", raising=False)
     monkeypatch.delenv("ZEP_API_KEY", raising=False)
-    monkeypatch.setenv("EVE_MIRO_ENGINES", "in-tree")
+    monkeypatch.delenv("MIROFISH_MEMORY", raising=False)
+    monkeypatch.delenv("EVE_MIRO_ALLOW_LOCAL_MEMORY", raising=False)
+    monkeypatch.setattr("eve_miro.core.simulation.mirofish_client._read_dotenv", lambda path: {})
     world, pop = _world()
     sc = _toy_scenario()
     engine = MiroFishEngine(sc, url=None)
     sim = await engine.initialize(world, pop)
-    result = await engine.run(sim, sim.origin + timedelta(hours=sc.simulated_hours))
-    assert engine.last_notes == "mirofish_in_tree_not_configured"
-    assert result.summary.get("provenance_notes") == "mirofish_in_tree_not_configured"
-    assert result.simulation.provenance_kind is ProvenanceKind.SIMULATED
+    from eve_miro.errors import EngineNotConfigured
+    with pytest.raises(EngineNotConfigured, match="LLM_API_KEY"):
+        await engine.run(sim, sim.origin + timedelta(hours=sc.simulated_hours))
 
 
 @pytest.mark.asyncio
-async def test_eve_in_tree_not_configured_without_node_build(monkeypatch):
-    monkeypatch.delenv("EVE_URL", raising=False)
-    monkeypatch.delenv("EVE_BIN", raising=False)
+async def test_mirofish_run_raises_when_server_down(monkeypatch):
     monkeypatch.setenv("EVE_MIRO_ENGINES", "in-tree")
-    engine = EVEExperienceEngine(url=None)
-    cand = ExperienceCandidate(
-        id="exp_x",
-        episode_id="episode_81",
-        layer="agent",
-        context={"peak_congestion": 0.6},
-        observation={"stuck_n": 2},
-        outcome="congestion_blocked",
-    )
-    val = await engine.validate(cand)
-    assert engine.last_notes == "eve_in_tree_not_configured"
-    assert val.counterfactuals
-    assert val.counterfactuals[0].label == "model-generated"
-    assert val.counterfactuals[0].fact is False
-
+    monkeypatch.setenv("LLM_API_KEY", "local")
+    monkeypatch.setenv("MIROFISH_MEMORY", "local")
+    monkeypatch.setenv("EVE_MIRO_ALLOW_LOCAL_MEMORY", "1")
+    monkeypatch.delenv("ZEP_API_KEY", raising=False)
+    monkeypatch.setattr("eve_miro.core.simulation.mirofish_client._read_dotenv", lambda path: {})
+    world, pop = _world()
+    sc = _toy_scenario()
+    engine = MiroFishEngine(sc, url="http://127.0.0.1:1", timeout=0.2)
+    sim = await engine.initialize(world, pop)
+    from eve_miro.errors import EngineNotConfigured
+    with pytest.raises(EngineNotConfigured, match="mirofish server not running"):
+        await engine.run(sim, sim.origin + timedelta(hours=sc.simulated_hours))

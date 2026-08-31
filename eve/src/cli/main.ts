@@ -55,6 +55,7 @@ import { writeReports } from "../reporting/index.js";
 import { renderStudyMarkdown, writeStudyDataset } from "../research/index.js";
 import { moderateStudy, renderModeratedStudyMarkdown } from "../study/index.js";
 import { McpAdapter } from "../surface/mcp.js";
+import { runTrajectoryCommand } from "./trajectory.js";
 
 /**
  * The `eve` CLI.
@@ -75,6 +76,7 @@ Usage:
                               decks, analytics, transcripts, payloads, help
                               screens). Use "-" to read standard input.
   eve study <url> [options]   Run a population usability study (many operators)
+  eve trajectory --stdin      Validate an experience JSON blob (HeuristicCognition)
   eve mcp-eval <target>       Evaluate an MCP server (schema, conformance, fuzzing)
   eve personas                List built-in personas
   eve professions             List professional overlays
@@ -250,6 +252,10 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 
   if (command === "read") {
     return runReadCommand(rest);
+  }
+
+  if (command === "trajectory") {
+    return runTrajectoryCommand(rest);
   }
 
   if (command === "chat") {

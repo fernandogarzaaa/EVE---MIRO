@@ -1,9 +1,11 @@
 # Experience
 
-EVE sits behind the `ExperienceEngine` protocol. The default runtime still
-uses `StubExperienceEngine` underneath `EVEExperienceEngine` until
-`EVE_MIRO_ENGINES=in-tree` and the CLI can actually run. Tests never need
-LLM keys or a node build.
+EVE sits behind the `ExperienceEngine` protocol. `get_experience_engine()`
+returns `StubExperienceEngine` only when `EVE_MIRO_ENGINES=stub` (pytest).
+Otherwise `EVEExperienceEngine.validate()` invokes `eve trajectory --stdin`
+(HeuristicCognition). There is no `POST /validate`. A missing CLI raises
+`EngineNotConfigured` — never a silent stub. Tests mock the process or force
+stub mode and never need a node build.
 
 ## Layers
 

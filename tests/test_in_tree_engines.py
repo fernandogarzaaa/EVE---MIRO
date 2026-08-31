@@ -34,7 +34,9 @@ def test_paths_resolve_to_repo():
     assert EVE_ROOT.is_dir()
 
 
-def test_adapters_report_in_tree_available():
+def test_adapters_report_in_tree_available(monkeypatch):
+    monkeypatch.delenv("MIROFISH_URL", raising=False)
+    monkeypatch.delenv("EVE_URL", raising=False)
     assert mirofish_in_tree() is True
     assert eve_in_tree() is True
     assert MiroFishEngine().using_remote is False

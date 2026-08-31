@@ -37,8 +37,17 @@ def eve_root() -> Path:
 
 
 def engines_mode() -> str:
-    """``stub`` (default) or ``in-tree``. Runtime still stubs until an engine can run."""
-    raw = os.environ.get("EVE_MIRO_ENGINES", "stub").strip().lower().replace("_", "-")
-    if raw in {"in-tree", "intree"}:
-        return "in-tree"
-    return "stub"
+    """``in-tree`` (default, fail closed) or ``stub`` (pytest / offline).
+
+    Unset ``EVE_MIRO_ENGINES`` means in-tree for API/closed-loop. Pytest
+    ``conftest.py`` forces ``stub`` so unit tests stay offline.
+    """
+    raw = os.environ.get("EVE_MIRO_ENGINES", "in-tree").strip().lower().replace("_", "-")
+    if raw in {"stub", "stubs"}:
+        return "stub"
+    return "in-tree"
+
+
+def fail_closed() -> bool:
+    """True when missing keys / HTTP / CLI failure must raise, not stub."""
+    return engines_mode() != "stub"

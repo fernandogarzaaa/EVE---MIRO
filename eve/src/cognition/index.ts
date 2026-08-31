@@ -47,3 +47,5 @@ export {
   wantsVerification,
 } from "./utility.js";
 export { UtilityCognition } from "./utilityCognition.js";
+export { validateTrajectory } from "./trajectoryPolicy.js";
+export type { TrajectoryInput, ValidatedExperienceShape } from "./trajectoryPolicy.js";

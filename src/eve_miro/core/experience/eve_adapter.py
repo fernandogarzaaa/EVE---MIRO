@@ -1,12 +1,7 @@
 """In-tree EVE adapter behind ExperienceEngine.
 
-This repo contains EVE at ``eve/`` (first-party, MIT). The default runtime
-still uses ``StubExperienceEngine`` until ``EVE_MIRO_ENGINES=in-tree`` *and*
-the engine can actually run. Tests never call the CLI.
-
-``EVE_URL`` is an optional override to a running local HTTP service.
-``EVE_BIN`` defaults to the in-tree CLI entry when that file exists.
-EVE is CLI-first; there is no required HTTP port.
+Invokes ``eve trajectory --stdin`` (HeuristicCognition). There is no POST
+/validate. Missing CLI raises EngineNotConfigured — never StubExperienceEngine.
 
 Counterfactuals are always labeled model-generated, not fact.
 """
@@ -22,9 +17,11 @@ from eve_miro.core.experience.counterfactual import Counterfactual
 from eve_miro.core.experience.engine import StubExperienceEngine
 from eve_miro.core.experience.validation import TransferResult, ValidatedExperience
 from eve_miro.core.world.events import ProvenanceKind
-from eve_miro.paths import engines_mode, eve_root
+from eve_miro.core.experience.eve_cli import eve_trajectory_command
+from eve_miro.errors import EngineNotConfigured
+from eve_miro.paths import eve_root
 
-_DEFAULT_TIMEOUT = 1.5
+_DEFAULT_TIMEOUT = 30.0
 
 
 def _env(name: str) -> str | None:
@@ -54,7 +51,7 @@ def _eve_can_run() -> bool:
 
 
 class EVEExperienceEngine:
-    """ExperienceEngine for the in-tree EVE copy; stubs until configured."""
+    """ExperienceEngine for the in-tree EVE copy. Fail closed on validate()."""
 
     name = "eve"
 
@@ -63,13 +60,13 @@ class EVEExperienceEngine:
         *,
         url: str | None = None,
         bin_path: str | None = None,
-        timeout: float = _DEFAULT_TIMEOUT,
+        timeout: float | None = None,
     ) -> None:
         self.url = url if url is not None else _env("EVE_URL")
         explicit_bin = bin_path if bin_path is not None else _env("EVE_BIN")
         self.bin = explicit_bin or default_eve_bin()
         self._invoke_bin = bool(explicit_bin)
-        self.timeout = timeout
+        self.timeout = float(timeout if timeout is not None else _DEFAULT_TIMEOUT)
         self._stub = StubExperienceEngine()
         self.last_notes: str | None = None
 
@@ -83,37 +80,19 @@ class EVEExperienceEngine:
         return await self._stub.observe(trajectory)
 
     async def validate(self, experience: ExperienceCandidate) -> ValidatedExperience:
-        if self.url:
-            try:
-                remote = await self._post_validate(experience)
-                mapped = self._map_remote(experience, remote)
-                if mapped is not None:
-                    self.last_notes = "eve"
-                    return mapped
-                raise ValueError("unmappable eve response")
-            except Exception:
-                self.last_notes = "eve_unavailable"
-                return await self._stub.validate(experience)
-        if engines_mode() == "in-tree" and (
-            not in_tree_available() or not _eve_can_run() or not self.bin
-        ):
-            self.last_notes = "eve_in_tree_not_configured"
-            return await self._stub.validate(experience)
-        use_cli = self._invoke_bin or (
-            engines_mode() == "in-tree" and _eve_can_run()
-        )
-        if use_cli and self.bin:
-            try:
-                remote = self._bin_validate(experience)
-                mapped = self._map_remote(experience, remote)
-                if mapped is not None:
-                    self.last_notes = "eve"
-                    return mapped
-                raise ValueError("unmappable eve binary response")
-            except Exception:
-                self.last_notes = "eve_unavailable"
-                return await self._stub.validate(experience)
-        return await self._stub.validate(experience)
+        try:
+            remote = self._bin_validate(experience)
+        except EngineNotConfigured:
+            raise
+        except FileNotFoundError as exc:
+            raise EngineNotConfigured("EVE CLI is not built") from exc
+        except Exception as exc:
+            raise EngineNotConfigured(f"eve trajectory failed: {exc}") from exc
+        mapped = self._map_remote(experience, remote)
+        if mapped is None:
+            raise EngineNotConfigured("eve trajectory returned unmappable JSON")
+        self.last_notes = "eve"
+        return mapped
 
     async def select(self, experiences: list[ValidatedExperience], budget: int) -> list[ValidatedExperience]:
         return await self._stub.select(experiences, budget)
@@ -124,36 +103,25 @@ class EVEExperienceEngine:
     async def evaluate_transfer(self, experience: ValidatedExperience, context: dict[str, Any]) -> TransferResult:
         return await self._stub.evaluate_transfer(experience, context)
 
-    async def _post_validate(self, experience: ExperienceCandidate) -> dict[str, Any]:
-        import httpx
-
-        base = str(self.url).rstrip("/")
-        payload = experience.model_dump(mode="json")
-        timeout = httpx.Timeout(self.timeout)
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(f"{base}/validate", json=payload)
-            response.raise_for_status()
-            data = response.json()
-            if not isinstance(data, dict):
-                raise ValueError("eve response is not an object")
-            return data
-
     def _bin_validate(self, experience: ExperienceCandidate) -> dict[str, Any]:
         import subprocess
 
         raw = json.dumps(experience.model_dump(mode="json")).encode("utf-8")
         proc = subprocess.run(
-            [str(self.bin)],
+            eve_trajectory_command(),
             input=raw,
             capture_output=True,
             timeout=self.timeout,
             check=False,
         )
         if proc.returncode != 0:
-            raise RuntimeError("eve_bin_failed")
-        data = json.loads(proc.stdout.decode("utf-8") or "{}")
+            raise EngineNotConfigured("eve trajectory failed")
+        try:
+            data = json.loads(proc.stdout.decode("utf-8") or "{}")
+        except json.JSONDecodeError as exc:
+            raise EngineNotConfigured("eve trajectory returned non-JSON") from exc
         if not isinstance(data, dict):
-            raise ValueError("eve binary response is not an object")
+            raise EngineNotConfigured("eve trajectory response is not an object")
         return data
 
     def _map_remote(self, experience: ExperienceCandidate, remote: dict[str, Any]) -> ValidatedExperience | None:

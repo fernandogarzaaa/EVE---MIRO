@@ -44,7 +44,7 @@ reactions are SIMULATED statistical investor personas (not real people).
 
 ## Engines
 
-Default runtime is the in-tree adapters, which stub until configured.
-`EVE_MIRO_ENGINES=in-tree` plus a runnable engine uses MiroFish/EVE in this
-repo. `MIROFISH_URL` / `EVE_URL` / `EVE_BIN` override to a local service.
-Failures fall back to the stub with provenance notes.
+Default runtime is in-tree MiroFish/EVE. `EVE_MIRO_ENGINES=stub` (pytest)
+keeps the offline suite on stubs. Missing keys, a down Flask server, or an
+unbuilt EVE CLI raise `EngineNotConfigured` instead of falling back.
+`MIROFISH_URL` / `EVE_URL` / `EVE_BIN` override to a local service.

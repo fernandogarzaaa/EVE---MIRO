@@ -63,10 +63,9 @@ Five working views against FastAPI:
 
 ## Engines are in-tree
 
-`SimulationEngine` and `ExperienceEngine` are protocols. Factories prefer the
-in-tree adapters (`MiroFishEngine`, `EVEExperienceEngine`), which stub until
-`EVE_MIRO_ENGINES=in-tree` and the engine can actually run. Trees live at
-`mirofish/` and `eve/`.
+`SimulationEngine` and `ExperienceEngine` are protocols. Default
+`EVE_MIRO_ENGINES` is `in-tree` (fail closed: `EngineNotConfigured`, never a
+silent stub). Pytest forces `stub`. Trees live at `mirofish/` and `eve/`.
 
 `MIROFISH_URL` / `EVE_URL` / `EVE_BIN` override to a running local service
 (including `docker compose --profile engines`). They are not GitHub install URLs.
