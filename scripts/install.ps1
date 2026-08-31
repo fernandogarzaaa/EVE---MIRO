@@ -1,3 +1,5 @@
+# In-tree Windows bootstrap: forwards args to scripts/bootstrap.py.
+# One-liner installer (clone + shim) lives at repo-root install.ps1.
 # Universal Windows install for EVE-MIRO. Forwards args to bootstrap.py.
 # Example: .\scripts\install.ps1 --dry-run
 $ErrorActionPreference = "Stop"

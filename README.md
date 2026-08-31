@@ -27,10 +27,10 @@ A 1-round slice at simulated hour 0 is OASIS off-peak, so `actions_n` can be
 0. MiroFish social output does not currently map onto `wind_speed_10m`, so
 weather MAE can be empty. That is a mapping gap, not a silent stub.
 
-Still open: peak-hour / multi-round OASIS so agents actually post, mapping
-social timeline onto weather and mobility for alignment, and a split Python
-3.11 venv in bootstrap (OASIS cannot install on 3.12+). Several providers
-remain stubs.
+Still open: peak-hour / multi-round OASIS so agents actually post, and mapping
+social timeline onto weather and mobility for alignment. OASIS stays on a
+split Python 3.11 venv (`mirofish/.venv`); it cannot install on 3.12+. Several
+providers remain stubs.
 
 ## Layout
 
@@ -124,16 +124,40 @@ Historical replay refuses any event after the cutoff.
 
 ## How to run
 
-Python versions are split on purpose:
+```bash
+curl -fsSL https://raw.githubusercontent.com/fernandogarzaaa/EVE---MIRO/main/install.sh | bash
+```
 
-- Fabric (this API, tests, closed loop): Python **3.12** (3.13 is fine for tests).
+```powershell
+iex (irm https://raw.githubusercontent.com/fernandogarzaaa/EVE---MIRO/main/install.ps1)
+```
+
+That clones this repo to `~/.eve-miro/src` (Windows `%USERPROFILE%\.eve-miro\src`),
+creates the fabric venv + EVE CLI build, installs a PATH shim (`eve-miro`), and
+installs OASIS into `mirofish/.venv` **when Python 3.11 is on PATH**. Piped
+installs stay non-interactive (no TTY prompts, no invented API keys). Then:
+
+```bash
+eve-miro           # help
+eve-miro setup     # LLM keys (--provider ollama|openai|grok|deepseek|openrouter|azure|custom)
+eve-miro doctor    # 3.11 OASIS import, node, eve.js (flask/ollama optional)
+eve-miro serve     # MiroFish Flask :5001
+eve-miro run       # tiny live loop, fail closed
+eve-miro api       # uvicorn eve_miro.api.main:app :8000
+```
+
+Python versions are split on purpose — this is not a single venv:
+
+- Fabric (this API, tests, closed loop, `eve-miro` CLI): Python **3.12+** at
+  `<src>/.venv`. 3.13 is fine for tests.
 - MiroFish OASIS (`camel-oasis==0.2.5`): Python **3.10 or 3.11 only**. It will
-  not install on 3.12+. Use `mirofish/.venv` on 3.11 for Flask. Pin `mcp>=1.6,<2`
-  so camel-ai 0.2.78 can import `FastMCP`.
+  **not** install on 3.12+. Use `mirofish/.venv` on 3.11 for Flask. Pin
+  `mcp>=1.6,<2` so camel-ai 0.2.78 can import `FastMCP`. If the installer only
+  finds one Python, it uses it for fabric and **warns** that OASIS needs 3.11.
 
 Tests do **not** need Docker, the network, LLM keys, OASIS, or a node build.
 
-**First-time clone — fabric + EVE CLI:**
+**Already cloned — fabric + EVE CLI:**
 
 ```bash
 cd eve-miro
@@ -142,14 +166,17 @@ make install
 # Windows PowerShell: .\scripts\install.ps1
 ```
 
-`make install-dev` is pip-only (`pip install -e ".[dev]"`) for the offline
-test suite.
+`make install` still works. It creates the repo-root `.venv` (3.12+), builds
+the EVE CLI, copies env examples only when missing, and creates
+`mirofish/.venv` when `python3.11` exists. `make install-dev` is pip-only
+(`pip install -e ".[dev]"`) for the offline test suite.
 
 Then:
 
 ```bash
 python3 -m pytest -q
-FIXTURES=1 python3 -m uvicorn eve_miro.api.main:app --port 8000
+eve-miro api
+# or: FIXTURES=1 python3 -m uvicorn eve_miro.api.main:app --port 8000
 # dashboard: http://127.0.0.1:8000/
 ```
 
@@ -162,13 +189,13 @@ Layout folder `apps/api` is a pointer — see that README.
 returns **503** `{"error":"engine_not_configured","detail":...}` instead of
 running the typhoon stub.
 
-`make install` / `python3 scripts/bootstrap.py` creates the repo-root `.venv`,
-installs `.[all]` + MiroFish requirements, builds the EVE CLI, and copies
+The one-liner and `make install` / `python3 scripts/bootstrap.py` copy
 `.env.example` -> `.env` and `mirofish/.env.example` -> `mirofish/.env`
-when those files were missing (never overwritten, never invents API keys).
-Bootstrap prefers **one** `.venv` at repo root. That is **not** enough for
-OASIS: create a second venv on 3.11 at `mirofish/.venv` and install
-`mirofish/backend/requirements.txt` there.
+only when those files were missing (never overwritten, never invents API keys).
+Fabric lives in repo-root `.venv` on 3.12+. OASIS is a **second** venv at
+`mirofish/.venv` on 3.11 (`pip install -r mirofish/backend/requirements.txt`).
+If 3.11 is missing, that step is skipped with a warning — Flask/OASIS will not
+run until you add 3.11.
 
 After install, boot the engines:
 
@@ -185,16 +212,16 @@ After install, boot the engines:
    JSON graph under `mirofish/backend/uploads/local_graphs/`. It is not
    Zep Cloud and not a stub. Missing ZEP with local memory **off** still
    fail-closes (HTTP 500).
-3. **MiroFish Flask** from the 3.11 venv:
+3. **MiroFish Flask** (`eve-miro serve`) from the 3.11 venv:
    `mirofish/.venv/Scripts/python.exe mirofish/backend/run.py` (Windows)
    or `mirofish/.venv/bin/python mirofish/backend/run.py`.
    Listens on http://127.0.0.1:5001
 4. **EVE CLI:** `eve/bin/eve.js` and `eve/dist/cli/main.js` from the
    bootstrap build. The adapter calls `node eve/bin/eve.js trajectory --stdin`.
    There is no HTTP `POST /validate`.
-5. Fabric API:
-   `FIXTURES=1 EVE_MIRO_ENGINES=in-tree python3 -m uvicorn eve_miro.api.main:app --port 8000`
-6. Tiny live closed loop (needs steps 1–4):
+5. Fabric API: `eve-miro api`
+   (`FIXTURES=1 EVE_MIRO_ENGINES=in-tree python3 -m uvicorn eve_miro.api.main:app --port 8000`)
+6. Tiny live closed loop (needs steps 1–4): `eve-miro run`
 
 ```bash
 export EVE_MIRO_ENGINES=in-tree

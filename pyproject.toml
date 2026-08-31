@@ -49,7 +49,7 @@ all = [
 ]
 
 [project.scripts]
-eve-miro = "eve_miro.api.main:run"
+eve-miro = "eve_miro.cli.main:main"
 
 [build-system]
 requires = ["setuptools>=69", "wheel"]

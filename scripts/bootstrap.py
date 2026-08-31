@@ -4,9 +4,9 @@
 Stdlib-first. Python 3.12+.
 
 Installs, in one command:
-  * repo-root .venv (created if missing; one venv unless documented)
-  * pip install -e ".[all]" (dev + engines extras)
-  * pip install -r mirofish/backend/requirements.txt into that venv
+  * repo-root .venv on Python 3.12+ (fabric + tests via pip install -e ".[dev]")
+  * mirofish/.venv on Python 3.11 when available (engines / camel-oasis)
+  * pip install -r mirofish/backend/requirements.txt into the 3.11 venv
   * EVE CLI build (eve/bin/eve.js / eve/dist/cli/main.js)
   * env copy: .env.example -> .env and mirofish/.env.example -> mirofish/.env
     only when the destination is missing (never overwrite, never invent API keys)
@@ -91,20 +91,34 @@ def capture(cmd: list[str], *, cwd: Path | None = None) -> str | None:
     return proc.stdout.strip()
 
 
-def find_python312() -> Path | None:
-    """Locate a 3.12 interpreter when the current one is 3.13+."""
-    exe = find_tool("python3.12") or find_tool("python312")
-    if exe:
-        return Path(exe)
+def find_python_minor(minor: int) -> Path | None:
+    """Locate python3.<minor> on PATH or the Windows py launcher."""
+    names = ("python3.%s" % minor, "python3%s" % minor)
+    for name in names:
+        exe = find_tool(name)
+        if exe:
+            return Path(exe)
     if sys.platform == "win32":
         launcher = find_tool("py")
         if launcher:
-            out = capture([launcher, "-3.12", "-c", "import sys; print(sys.executable)"])
+            out = capture([launcher, "-3.%s" % minor, "-c", "import sys; print(sys.executable)"])
             if out:
-                p = Path(out)
-                if p.is_file():
-                    return p
+                found = Path(out)
+                if found.is_file():
+                    return found
+    if sys.version_info[:2] == (3, minor):
+        return Path(sys.executable)
     return None
+
+
+def find_python312() -> Path | None:
+    """Locate a 3.12 interpreter when the current one is 3.13+."""
+    return find_python_minor(12)
+
+
+def find_python311() -> Path | None:
+    """Locate a 3.11 interpreter for OASIS (camel-oasis needs 3.10-3.11)."""
+    return find_python_minor(11)
 
 
 def pick_create_python() -> Path:
@@ -129,7 +143,7 @@ def pick_create_python() -> Path:
         log(
             "warning: python3.12 not on PATH; continuing with this interpreter. "
             "camel-oasis install is known-fragile on 3.13. Failure is loud. "
-            "Install Python 3.12 for the combined runtime (no split venv)."
+            "Install Python 3.12 for fabric; OASIS still needs 3.11 at mirofish/.venv."
         )
     return current
 
@@ -215,20 +229,61 @@ def ensure_venv(root: Path, create_py: Path, *, dry_run: bool) -> Path:
     return vpy
 
 
+def run_ok(cmd: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> bool:
+    log("+ " + " ".join(cmd))
+    try:
+        subprocess.run(cmd, cwd=cwd, check=True, env=env)
+        return True
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return False
+
+
 def pip_install(root: Path, vpy: Path, *, dry_run: bool) -> None:
     req = root / "mirofish" / "backend" / "requirements.txt"
-    extra = ".[all]"
+    extra = ".[dev]"
     if dry_run:
         log("[dry-run] %s -m pip install -U pip setuptools wheel" % vpy)
-        log("[dry-run] %s -m pip install -e %s  (dev + engines extras)" % (vpy, extra))
-        log("[dry-run] %s -m pip install -r %s" % (vpy, req))
+        log("[dry-run] %s -m pip install -e %s  (fabric + tests)" % (vpy, extra))
+        log("[dry-run] engines extra / OASIS requirements go in mirofish/.venv on Python 3.11")
+        log("[dry-run] %s -m pip install -r %s  (into OASIS 3.11 venv when present)" % (vpy, req))
         return
     env = os.environ.copy()
     env.setdefault("PIP_DISABLE_PIP_VERSION_CHECK", "1")
     run([str(vpy), "-m", "pip", "install", "-U", "pip", "setuptools", "wheel"], cwd=root, env=env)
     run([str(vpy), "-m", "pip", "install", "-e", extra], cwd=root, env=env)
-    run([str(vpy), "-m", "pip", "install", "-r", str(req)], cwd=root, env=env)
+    if not run_ok([str(vpy), "-m", "pip", "install", "-e", ".[engines]"], cwd=root, env=env):
+        log("warning: engines extra failed in fabric venv (camel-oasis needs Python 3.11).")
+        log("  OASIS will be installed into mirofish/.venv when python3.11 exists.")
 
+
+
+def ensure_oasis_venv(root: Path, *, dry_run: bool) -> None:
+    req = root / "mirofish" / "backend" / "requirements.txt"
+    oasis_venv = root / "mirofish" / ".venv"
+    py311 = find_python311()
+    if dry_run:
+        log("[dry-run] engines / OASIS: if Python 3.11 exists, pip install -r %s into %s" % (req, oasis_venv))
+        if not py311:
+            log("[dry-run] warning: python3.11 not on PATH; camel-oasis needs 3.10-3.11")
+        return
+    if not py311:
+        log("warning: Python 3.11 not found. OASIS (camel-oasis==0.2.5) needs 3.10-3.11.")
+        log("  Create mirofish/.venv with 3.11 then: pip install -r mirofish/backend/requirements.txt")
+        return
+    vpy = venv_python_path(oasis_venv)
+    if not vpy.is_file():
+        log("creating OASIS venv %s with %s" % (oasis_venv, py311))
+        try:
+            subprocess.run([str(py311), "-m", "venv", str(oasis_venv)], check=True)
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            die("failed to create mirofish/.venv with %s" % py311)
+    if not vpy.is_file():
+        die("OASIS venv created but interpreter missing: %s" % vpy)
+    env = os.environ.copy()
+    env.setdefault("PIP_DISABLE_PIP_VERSION_CHECK", "1")
+    run([str(vpy), "-m", "pip", "install", "-U", "pip", "setuptools", "wheel"], cwd=root, env=env)
+    run([str(vpy), "-m", "pip", "install", "-r", str(req)], cwd=root, env=env)
+    log("OASIS venv ready: %s" % vpy)
 
 
 def build_eve(root: Path, *, dry_run: bool) -> None:
@@ -278,12 +333,16 @@ def recap(root: Path) -> None:
     log("")
     log("=== EVE-MIRO bootstrap complete ===")
     log("Activate: %s" % activate)
+    log("Python split: fabric .venv is 3.12+; OASIS is mirofish/.venv on 3.11.")
+    log("CLI: eve-miro / eve-miro setup / eve-miro doctor / eve-miro serve / eve-miro run")
     log("pytest (offline stubs via tests/conftest.py; no LLM / server / node build):")
     log("  python -m pytest -q")
     log("Boot MiroFish Flask on 5001:")
-    log("  python mirofish/backend/run.py")
+    log("  eve-miro serve")
+    log("  # or mirofish/.venv python mirofish/backend/run.py")
     log("Boot EVE-MIRO API on 8000:")
-    log("  FIXTURES=1 EVE_MIRO_ENGINES=in-tree python -m uvicorn eve_miro.api.main:app --port 8000")
+    log("  eve-miro api")
+    log("  # or FIXTURES=1 EVE_MIRO_ENGINES=in-tree python -m uvicorn eve_miro.api.main:app --port 8000")
     log("Fail-closed: POST /experiments/run returns 503 without LLM keys or a")
     log("  running MiroFish server / built EVE CLI (never a silent stub).")
     log("Pytest stays stub via tests/conftest.py (EVE_MIRO_ENGINES=stub).")
@@ -328,6 +387,7 @@ def main(argv: list[str] | None = None) -> int:
     create_py = pick_create_python()
     vpy = ensure_venv(root, create_py, dry_run=dry)
     pip_install(root, vpy, dry_run=dry)
+    ensure_oasis_venv(root, dry_run=dry)
     build_eve(root, dry_run=dry)
     copy_env_if_missing(root / ".env.example", root / ".env", dry_run=dry)
     copy_env_if_missing(

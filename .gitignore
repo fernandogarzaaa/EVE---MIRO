@@ -25,3 +25,6 @@ models/*.gguf
 models/**/*.gguf
 mirofish/.venv/
 mirofish/backend/uploads/local_graphs/
+
+# Live loop output (not source)
+data/live_loop_result.json
