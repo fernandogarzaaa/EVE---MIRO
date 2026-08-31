@@ -11,6 +11,10 @@ from flask import request, jsonify, send_file
 from . import simulation_bp
 from ..config import Config
 from ..services.zep_entity_reader import ZepEntityReader
+from ..services.local_graph_store import (
+    LocalEntityReader,
+    should_use_local_graph,
+)
 from ..services.oasis_profile_generator import OasisProfileGenerator
 from ..services.simulation_manager import SimulationManager, SimulationStatus
 from ..services.simulation_runner import (
@@ -73,6 +77,22 @@ def optimize_interview_prompt(prompt: str) -> str:
     return f"{INTERVIEW_PROMPT_PREFIX}{prompt}"
 
 
+
+def _entity_reader_or_error(graph_id: str):
+    """Return (reader, error_response). Local JSON store when memory is local."""
+    if should_use_local_graph(graph_id):
+        return LocalEntityReader(), None
+    if not Config.ZEP_API_KEY:
+        return None, (
+            jsonify({
+                "success": False,
+                "error": t('api.zepApiKeyMissing')
+            }),
+            500,
+        )
+    return ZepEntityReader(), None
+
+
 # ============== 实体读取接口 ==============
 
 @simulation_bp.route('/entities/<graph_id>', methods=['GET'])
@@ -87,11 +107,9 @@ def get_graph_entities(graph_id: str):
         enrich: 是否获取相关边信息（默认true）
     """
     try:
-        if not Config.ZEP_API_KEY:
-            return jsonify({
-                "success": False,
-                "error": t('api.zepApiKeyMissing')
-            }), 500
+        reader, error_response = _entity_reader_or_error(graph_id)
+        if error_response:
+            return error_response
         
         entity_types_str = request.args.get('entity_types', '')
         entity_types = [t.strip() for t in entity_types_str.split(',') if t.strip()] if entity_types_str else None
@@ -99,7 +117,6 @@ def get_graph_entities(graph_id: str):
         
         logger.info(f"获取图谱实体: graph_id={graph_id}, entity_types={entity_types}, enrich={enrich}")
         
-        reader = ZepEntityReader()
         result = reader.filter_defined_entities(
             graph_id=graph_id,
             defined_entity_types=entity_types,
@@ -124,13 +141,10 @@ def get_graph_entities(graph_id: str):
 def get_entity_detail(graph_id: str, entity_uuid: str):
     """获取单个实体的详细信息"""
     try:
-        if not Config.ZEP_API_KEY:
-            return jsonify({
-                "success": False,
-                "error": t('api.zepApiKeyMissing')
-            }), 500
+        reader, error_response = _entity_reader_or_error(graph_id)
+        if error_response:
+            return error_response
         
-        reader = ZepEntityReader()
         entity = reader.get_entity_with_context(graph_id, entity_uuid)
         
         if not entity:
@@ -157,15 +171,12 @@ def get_entity_detail(graph_id: str, entity_uuid: str):
 def get_entities_by_type(graph_id: str, entity_type: str):
     """获取指定类型的所有实体"""
     try:
-        if not Config.ZEP_API_KEY:
-            return jsonify({
-                "success": False,
-                "error": t('api.zepApiKeyMissing')
-            }), 500
+        reader, error_response = _entity_reader_or_error(graph_id)
+        if error_response:
+            return error_response
         
         enrich = request.args.get('enrich', 'true').lower() == 'true'
         
-        reader = ZepEntityReader()
         entities = reader.get_entities_by_type(
             graph_id=graph_id,
             entity_type=entity_type,
@@ -502,7 +513,7 @@ def prepare_simulation():
         # 这样前端在调用prepare后立即就能获取到预期Agent总数
         try:
             logger.info(f"同步获取实体数量: graph_id={state.graph_id}")
-            reader = ZepEntityReader()
+            reader = LocalEntityReader() if should_use_local_graph(state.graph_id) else ZepEntityReader()
             # 快速读取实体（不需要边信息，只统计数量）
             filtered_preview = reader.filter_defined_entities(
                 graph_id=state.graph_id,
@@ -1451,7 +1462,7 @@ def generate_profiles():
         use_llm = data.get('use_llm', True)
         platform = data.get('platform', 'reddit')
         
-        reader = ZepEntityReader()
+        reader = LocalEntityReader() if should_use_local_graph(graph_id) else ZepEntityReader()
         filtered = reader.filter_defined_entities(
             graph_id=graph_id,
             defined_entity_types=entity_types,
@@ -1594,6 +1605,17 @@ def start_simulation():
                 "success": False,
                 "error": t('api.simulationNotFound', id=simulation_id)
             }), 404
+
+        # Local on-disk graphs have no Zep Cloud updater.
+        if should_use_local_graph(state.graph_id) or Config.use_local_graph_memory():
+            if enable_graph_memory_update:
+                logger.info(
+                    "Local graph memory: forcing enable_graph_memory_update off "
+                    "(simulation_id=%s, graph_id=%s)",
+                    simulation_id,
+                    state.graph_id,
+                )
+            enable_graph_memory_update = False
 
         force_restarted = False
         

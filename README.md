@@ -151,7 +151,8 @@ After install, boot the engines:
    local OpenAI-compatible GGUF server:
    `LLM_API_KEY=local`, `LLM_BASE_URL=http://127.0.0.1:8088/v1`,
    `LLM_MODEL_NAME=qwen2.5-0.5b-instruct`, plus `MIROFISH_MEMORY=local`
-   (skips Zep Cloud; does **not** fake Zep).
+   (skips Zep Cloud; does **not** fake Zep). Local memory builds an on-disk
+   graph under `mirofish/backend/uploads/local_graphs/`; it is not Zep Cloud.
    Weights path: `models/qwen2.5-0.5b-instruct-q4_k_m.gguf`
    (see `scripts/local_llm_server.py`).
 3. `python mirofish/backend/run.py` listens on http://127.0.0.1:5001

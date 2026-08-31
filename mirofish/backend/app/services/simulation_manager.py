@@ -15,6 +15,7 @@ from enum import Enum
 from ..config import Config
 from ..utils.logger import get_logger
 from .zep_entity_reader import ZepEntityReader, FilteredEntities
+from .local_graph_store import LocalEntityReader, should_use_local_graph
 from .oasis_profile_generator import OasisProfileGenerator, OasisAgentProfile
 from .simulation_config_generator import SimulationConfigGenerator, SimulationParameters
 from ..utils.locale import t
@@ -291,7 +292,10 @@ class SimulationManager:
             if progress_callback:
                 progress_callback("reading", 0, t('progress.connectingZepGraph'))
             
-            reader = ZepEntityReader()
+            if should_use_local_graph(state.graph_id):
+                reader = LocalEntityReader()
+            else:
+                reader = ZepEntityReader()
             
             if progress_callback:
                 progress_callback("reading", 30, t('progress.readingNodeData'))

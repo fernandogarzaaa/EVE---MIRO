@@ -15,6 +15,7 @@ from . import graph_bp
 from ..config import Config
 from ..services.ontology_generator import OntologyGenerator
 from ..services.graph_builder import BatchSubmission, GraphBuilderService
+from ..services.local_graph_store import LocalGraphStore, should_use_local_graph
 from ..services.text_processor import TextProcessor
 from ..utils.file_parser import FileParser
 from ..utils.logger import get_logger
@@ -88,6 +89,9 @@ def _delete_cloud_graph_if_present(graph_id: str | None) -> None:
                 f"Graph {graph_id} is in use by active consumer(s): "
                 f"{', '.join(active_simulations)}"
             )
+        if should_use_local_graph(graph_id) or LocalGraphStore.exists(graph_id):
+            LocalGraphStore.delete(graph_id)
+            return
         try:
             GraphBuilderService(api_key=Config.ZEP_API_KEY).delete_graph(graph_id)
         except NotFoundError:
@@ -482,9 +486,9 @@ def _build_graph_impl():
     try:
         logger.info("=== 开始构建图谱 ===")
         
-        # 检查配置
+        # 检查配置。Local memory builds an on-disk graph and does not call Zep Cloud.
         errors = []
-        if not Config.ZEP_API_KEY:
+        if not Config.ZEP_API_KEY and not Config.local_memory_allowed():
             errors.append(t('api.zepApiKeyMissing'))
         if errors:
             logger.error(f"配置错误: {errors}")
@@ -882,7 +886,7 @@ def get_graph_data(graph_id: str):
     获取图谱数据（节点和边）
     """
     try:
-        if not Config.ZEP_API_KEY:
+        if not Config.ZEP_API_KEY and not should_use_local_graph(graph_id):
             return jsonify({
                 "success": False,
                 "error": t('api.zepApiKeyMissing')
@@ -910,7 +914,7 @@ def delete_graph(graph_id: str):
     删除Zep图谱
     """
     try:
-        if not Config.ZEP_API_KEY:
+        if not Config.ZEP_API_KEY and not should_use_local_graph(graph_id):
             return jsonify({
                 "success": False,
                 "error": t('api.zepApiKeyMissing')

@@ -24,3 +24,4 @@ node_modules/
 models/*.gguf
 models/**/*.gguf
 mirofish/.venv/
+mirofish/backend/uploads/local_graphs/

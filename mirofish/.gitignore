@@ -58,3 +58,4 @@ backend/uploads/
 
 # Docker 数据
 data/
+backend/uploads/local_graphs/

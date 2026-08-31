@@ -26,6 +26,7 @@ from ..utils.zep import (
     ZEP_INGESTION_WAIT_TIMEOUT_SECONDS,
 )
 from .zep_graph_memory_updater import ZepGraphMemoryManager
+from .local_graph_store import should_use_local_graph
 from .simulation_ipc import SimulationIPCClient, CommandType, IPCResponse
 
 logger = get_logger('mirofish.simulation_runner')
@@ -437,6 +438,18 @@ class SimulationRunner:
                 raise ValueError(f"模拟已在运行或结束处理中: {simulation_id}")
             cls._save_run_state(state)
         
+        # Local on-disk graphs never write back to Zep Cloud.
+        if enable_graph_memory_update and (
+            Config.use_local_graph_memory() or should_use_local_graph(graph_id)
+        ):
+            logger.info(
+                "Skipping ZepGraphMemoryUpdater in local memory mode "
+                "(simulation_id=%s, graph_id=%s)",
+                simulation_id,
+                graph_id,
+            )
+            enable_graph_memory_update = False
+
         # 如果启用图谱记忆更新，创建更新器
         if enable_graph_memory_update:
             if not graph_id:

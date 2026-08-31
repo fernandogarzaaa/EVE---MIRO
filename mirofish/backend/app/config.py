@@ -74,6 +74,15 @@ class Config:
         return flag in {"1", "true", "yes", "on"}
 
     @classmethod
+    def zep_api_key(cls) -> str:
+        return (getattr(cls, "ZEP_API_KEY", None) or "").strip()
+
+    @classmethod
+    def use_local_graph_memory(cls) -> bool:
+        """On-disk graph memory: local allowed and no Zep Cloud key present."""
+        return cls.local_memory_allowed() and not cls.zep_api_key()
+
+    @classmethod
     def validate(cls) -> list[str]:
         """验证必要配置"""
         errors: list[str] = []

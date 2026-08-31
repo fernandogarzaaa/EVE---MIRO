@@ -28,6 +28,7 @@ from ..utils.zep import (
     is_retryable_zep_error,
 )
 from .text_processor import TextProcessor
+from .local_graph_store import LocalGraphStore
 from ..utils.locale import t, get_locale, set_locale
 
 
@@ -66,11 +67,15 @@ class GraphBuilderService:
     
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or Config.ZEP_API_KEY
-        if not self.api_key:
-            raise ValueError("ZEP_API_KEY 未配置")
-        
-        self.client = get_zep_client(self.api_key)
         self.task_manager = TaskManager()
+        self._local = False
+        self.client = None
+        if not self.api_key:
+            if Config.local_memory_allowed():
+                self._local = True
+                return
+            raise ValueError("ZEP_API_KEY 未配置")
+        self.client = get_zep_client(self.api_key)
     
     def build_graph_async(
         self,
@@ -224,6 +229,13 @@ class GraphBuilderService:
     ) -> str:
         """Create a graph with a caller-durable ID and reconcile lost replies."""
 
+        if self._local:
+            graph_id = graph_id or f"local_{uuid.uuid4().hex[:16]}"
+            if graph_id_callback:
+                graph_id_callback(graph_id)
+            LocalGraphStore.create(graph_id, name)
+            return graph_id
+
         graph_id = graph_id or f"mirofish_{uuid.uuid4().hex[:16]}"
         # Persist the client-generated ID before the non-idempotent POST so a
         # later reset can clean up a graph whose successful response was lost.
@@ -312,6 +324,10 @@ class GraphBuilderService:
     
     def set_ontology(self, graph_id: str, ontology: Dict[str, Any]):
         """设置图谱本体（公开方法）"""
+        if self._local:
+            LocalGraphStore.set_ontology(graph_id, ontology)
+            return
+
         import warnings
         from typing import Optional
         from pydantic import Field
@@ -423,6 +439,26 @@ class GraphBuilderService:
         if not graph_id:
             raise ValueError("graph_id is required")
         self.validate_batch_chunks(chunks, batch_size=batch_size)
+
+        if self._local:
+            total_chunks = len(chunks)
+            operation_id = self.build_operation_id(graph_id, chunks)
+            batch_id = f"local_batch_{uuid.uuid4().hex[:12]}"
+            if batch_created_callback:
+                batch_created_callback(None, operation_id)
+                batch_created_callback(batch_id, operation_id)
+            if progress_callback:
+                progress_callback(
+                    t('progress.sendingBatch', current=1, total=1, chunks=total_chunks),
+                    1.0,
+                )
+            LocalGraphStore.add_chunks(graph_id, chunks)
+            return BatchSubmission(
+                batch_id=batch_id,
+                operation_id=operation_id,
+                episode_uuids=[],
+                item_count=total_chunks,
+            )
 
         total_chunks = len(chunks)
         operation_id = self.build_operation_id(graph_id, chunks)
@@ -623,6 +659,13 @@ class GraphBuilderService:
     def get_batch_summary(self, batch_id: str) -> Any:
         """Read a persisted batch identity for restart reconciliation."""
 
+        if self._local or str(batch_id or "").startswith("local_batch_"):
+            from types import SimpleNamespace
+            return SimpleNamespace(
+                status="succeeded",
+                progress=SimpleNamespace(percent_complete=100, succeeded_items=0),
+            )
+
         return call_zep_read_with_retry(
             lambda: self.client.batch.get(batch_id=batch_id),
             operation_name=f"get batch {batch_id}",
@@ -635,6 +678,18 @@ class GraphBuilderService:
         timeout: int | None = None,
     ) -> List[str]:
         """Wait for a Batch API terminal state and validate every item."""
+
+        if self._local or str(submission.batch_id or "").startswith("local_batch_"):
+            if progress_callback:
+                progress_callback(
+                    t(
+                        'progress.processingComplete',
+                        completed=submission.item_count,
+                        total=submission.item_count,
+                    ),
+                    1.0,
+                )
+            return list(submission.episode_uuids)
 
         timeout = timeout or ZEP_INGESTION_WAIT_TIMEOUT_SECONDS
         start_time = time.time()
@@ -776,6 +831,20 @@ class GraphBuilderService:
     
     def _get_graph_info(self, graph_id: str) -> GraphInfo:
         """获取图谱信息"""
+        if self._local or LocalGraphStore.exists(graph_id):
+            data = LocalGraphStore.get_graph_data(graph_id)
+            entity_types = set()
+            for node in data.get("nodes") or []:
+                for label in node.get("labels") or []:
+                    if label not in ["Entity", "Node"]:
+                        entity_types.add(label)
+            return GraphInfo(
+                graph_id=graph_id,
+                node_count=data.get("node_count", 0),
+                edge_count=data.get("edge_count", 0),
+                entity_types=list(entity_types),
+            )
+
         # 获取节点（分页）
         nodes = fetch_all_nodes(self.client, graph_id)
 
@@ -807,6 +876,9 @@ class GraphBuilderService:
         Returns:
             包含nodes和edges的字典，包括时间信息、属性等详细数据
         """
+        if self._local or LocalGraphStore.exists(graph_id):
+            return LocalGraphStore.get_graph_data(graph_id)
+
         nodes = fetch_all_nodes(self.client, graph_id)
         edges = fetch_all_edges(self.client, graph_id)
 
@@ -876,4 +948,7 @@ class GraphBuilderService:
     
     def delete_graph(self, graph_id: str):
         """删除图谱"""
+        if self._local or LocalGraphStore.exists(graph_id) or str(graph_id or "").startswith("local_"):
+            LocalGraphStore.delete(graph_id)
+            return
         self.client.graph.delete(graph_id=graph_id)
