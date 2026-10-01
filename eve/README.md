@@ -2,7 +2,7 @@
 
 > **AI that experiences software like a human.**
 
-[![CI](https://github.com/fernandogarzaaa/experience-validation-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/fernandogarzaaa/experience-validation-engine/actions/workflows/ci.yml)
+[![CI](https://github.com/fernandogarzaaa/EVE---MIRO/actions/workflows/ci.yml/badge.svg)](https://github.com/fernandogarzaaa/EVE---MIRO/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 EVE is **not** another testing framework, browser-automation tool, or
