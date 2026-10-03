@@ -57,7 +57,8 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["src", "."]
+include = ["eve_miro*", "marketsim"]
 
 [tool.setuptools.package-data]
 eve_miro = ["api/static/*"]
@@ -65,7 +66,7 @@ eve_miro = ["api/static/*"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 testpaths = ["tests"]
 filterwarnings = [
   "ignore::DeprecationWarning",

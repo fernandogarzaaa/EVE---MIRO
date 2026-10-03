@@ -101,12 +101,25 @@ def get_simulation_engine(
     *,
     artifacts: list[dict[str, Any]] | None = None,
 ) -> SimulationEngine:
-    """Stub only when ``EVE_MIRO_ENGINES=stub``. Otherwise fail closed."""
-    from eve_miro.core.simulation.mirofish_adapter import MiroFishEngine
+    """Stub only when ``EVE_MIRO_ENGINES=stub``. Otherwise fail closed.
+
+    Market scenarios (``scenario.type == "market"``) route to the in-tree
+    MarketSimEngine. Everything else keeps the previous behavior.
+    """
     from eve_miro.paths import engines_mode
 
     if engines_mode() == "stub":
         return StubSimulationEngine(scenario=scenario, artifacts=artifacts)
+    if scenario is not None and getattr(scenario, "type", None) == "market":
+        try:
+            from marketsim.engine import MarketSimEngine
+        except ImportError as exc:
+            from eve_miro.errors import EngineNotConfigured
+
+            raise EngineNotConfigured(f"marketsim engine not installed: {exc}") from exc
+        return MarketSimEngine(scenario=scenario, artifacts=artifacts)
+    from eve_miro.core.simulation.mirofish_adapter import MiroFishEngine
+
     return MiroFishEngine(scenario=scenario, artifacts=artifacts)
 
 

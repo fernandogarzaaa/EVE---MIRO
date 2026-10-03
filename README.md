@@ -35,6 +35,7 @@ Live OASIS still needs Python **3.11** (`mirofish/.venv`) plus an OpenAI-compati
 eve-miro/          data fabric, world state, API, dashboard (MIT)
 mirofish/          swarm simulation engine (AGPL-3.0, first-party)
 eve/               experience validation engine (MIT, first-party)
+marketsim/         market simulation engine (MIT, first-party)
 ```
 
 See `NOTICE.md` for the license split. Combined distribution that includes
