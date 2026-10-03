@@ -1,0 +1,65 @@
+# earn_gap_down_001: earnings shock with permanent impairment.
+#
+# Source event: Intel (INTC), 2024-08-02. Q2 earnings disaster after the
+# close on 2024-08-01: revenue/EPS miss, weak guidance, 15% workforce cut,
+# dividend suspended. Next session close-to-close -26.06%, abnormal z -6.60
+# vs trailing 60d, volume 4.1x the 20d average. No snapback: +1d -6.38%,
+# +5d -8.24% (kept drifting). Statistics measured from the Signal Lab price
+# store with the analogues event-detection pipeline; event identity
+# cross-checked against contemporaneous reporting.
+#
+# Template structure: an overnight gap (single market sell at the open),
+# sustained liquidation pressure through the session and beyond, and a
+# permanent fair-value impairment (the guidance/dividend cut reprices what
+# fundamentals will pay). The simulated magnitude is the engine's response
+# at these parameters, NOT a replay of -26.06%.
+#
+# SIMULATED. Stress-test template shaped like a past shock, not a replay
+# and not a prediction. Agent-based scenario projection under stated
+# assumptions, never a forecast of market prices.
+name: market_earn_gap_down_001
+type: market
+disclaimer: >-
+  SIMULATED. Agent-based scenario projection under stated assumptions,
+  not a forecast of market prices. Earnings shock with permanent
+  impairment, shaped like INTC 2024-08-02: overnight gap, sustained
+  liquidation, fundamentals reprice lower and do not buy the dip.
+initial_world:
+  source: world_state
+  timestamp: "2024-11-04T00:00:00Z"
+  region: global
+duration:
+  simulated_hours: 120
+agents:
+  population: 60
+conditions:
+  symbols:
+    - ACME
+  initial_prices:
+    ACME: 100.0
+  agent_mix:
+    market_maker: 0.10
+    momentum: 0.30
+    noise: 0.40
+    fundamental: 0.20
+interventions:
+  - type: sell_shock
+    timestamp: "+6h"
+    extra:
+      symbol: ACME
+      quantity: 2000.0
+      duration_hours: 1
+  - type: sell_shock
+    timestamp: "+7h"
+    extra:
+      symbol: ACME
+      quantity: 90000.0
+      duration_hours: 30
+  - type: rate_shock
+    timestamp: "+6h"
+    extra:
+      fair_value_pct_change: -0.25
+      symbols:
+        - ACME
+random_seed: 202411
+information_cutoff: "2024-11-04T00:00:00Z"

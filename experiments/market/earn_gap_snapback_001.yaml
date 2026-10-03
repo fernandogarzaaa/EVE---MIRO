@@ -1,0 +1,61 @@
+# earn_gap_snapback_001: earnings shock WITHOUT permanent impairment.
+#
+# Source event: Palo Alto Networks (PANW), 2024-02-21. Q2 FY2024 earnings
+# beat on revenue (+19%) and EPS (+39%) but management cut full-year
+# guidance and announced a strategy shift. Close-to-close -28.44%,
+# abnormal z -6.74 vs trailing 60d, volume 7.8x the 20d average. Sharp
+# V-recovery: +1d +2.23%, +5d +20.68%. Statistics measured from the Signal
+# Lab price store with the analogues event-detection pipeline; event
+# identity cross-checked against contemporaneous reporting.
+#
+# Template structure: the same overnight gap and liquidation pressure as
+# earn_gap_down_001, but fair value is left intact (the business beat;
+# only the guide moved). Fundamental agents buy the dislocation and the
+# path snaps back. The pair (gap_down vs gap_snapback) isolates the
+# impairment channel: identical flow shock, different fundamental anchor.
+# The simulated magnitude is the engine's response at these parameters,
+# NOT a replay of -28.44%.
+#
+# SIMULATED. Stress-test template shaped like a past shock, not a replay
+# and not a prediction. Agent-based scenario projection under stated
+# assumptions, never a forecast of market prices.
+name: market_earn_gap_snapback_001
+type: market
+disclaimer: >-
+  SIMULATED. Agent-based scenario projection under stated assumptions,
+  not a forecast of market prices. Earnings shock with intact
+  fundamentals, shaped like PANW 2024-02-21: sharp gap down, then
+  dip-buying drives a V-shaped recovery.
+initial_world:
+  source: world_state
+  timestamp: "2024-11-04T00:00:00Z"
+  region: global
+duration:
+  simulated_hours: 120
+agents:
+  population: 60
+conditions:
+  symbols:
+    - ACME
+  initial_prices:
+    ACME: 100.0
+  agent_mix:
+    market_maker: 0.10
+    momentum: 0.30
+    noise: 0.40
+    fundamental: 0.20
+interventions:
+  - type: sell_shock
+    timestamp: "+6h"
+    extra:
+      symbol: ACME
+      quantity: 2000.0
+      duration_hours: 1
+  - type: sell_shock
+    timestamp: "+7h"
+    extra:
+      symbol: ACME
+      quantity: 36000.0
+      duration_hours: 12
+random_seed: 202411
+information_cutoff: "2024-11-04T00:00:00Z"
