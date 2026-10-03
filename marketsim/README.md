@@ -22,8 +22,8 @@ world models.
 ## How a run works
 
 1. `MarketSimEngine.initialize(world, population)` reads the market slice
-   at `WorldState` `Economy.indicators["markets"]` (ticker -> price,
-   realized vol) via `read_market_slice()`. When that slice is absent, the
+   at `WorldState` `Economy.indicators["market_snapshot"]["tickers"]`
+   (ticker -> latest close, realized vol windows) via `read_market_slice()`. When that slice is absent, the
    Scenario's `conditions.symbols` and `conditions.initial_prices` supply
    the instruments instead. With neither, it raises `EngineNotConfigured`
    (fail closed, never a silent stub).

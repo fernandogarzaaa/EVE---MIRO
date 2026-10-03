@@ -1,7 +1,7 @@
 """MarketSimEngine: agent-based market simulator behind SimulationEngine.
 
 Builds instruments from the WorldState market slice
-(``Economy.indicators["markets"]``) and/or the Scenario, runs trader
+(``Economy.indicators["market_snapshot"]["tickers"]``) and/or the Scenario, runs trader
 archetypes against per-instrument limit order books, applies shock
 interventions, and finalizes SIMULATED price trajectories.
 
@@ -50,10 +50,13 @@ DEFAULT_AGENT_MIX = {
     "fundamental": 0.20,
 }
 
-# Phase 1 interface contract: WorldState Economy.indicators["markets"] maps
-# ticker -> {"price": float, "realized_vol": {window: float}}. If Phase 1's
-# merged field names differ, reconcile them here and nowhere else.
-MARKET_SLICE_KEY = "markets"
+# Canonical market snapshot: WorldState Economy.indicators["market_snapshot"]
+# (built by Phase 1's eve_miro.core.world.markets.build_market_snapshot).
+# Per-ticker entries live under ["tickers"] with fields like "latest_close",
+# "realized_vol_5d", "realized_vol_20d". This function is the single
+# reconciliation point: it maps that shape onto the engine's internal
+# {ticker: {"price": float, "realized_vol": {window: float}}}.
+MARKET_SNAPSHOT_KEY = "market_snapshot"
 
 
 def read_market_slice(world: WorldState) -> dict[str, dict[str, Any]]:
@@ -62,23 +65,29 @@ def read_market_slice(world: WorldState) -> dict[str, dict[str, Any]]:
     Single reconciliation point if the provider field names change.
     """
     try:
-        indicators = (world.economy.indicators or {}).get(MARKET_SLICE_KEY) or {}
+        indicators = world.economy.indicators or {}
     except AttributeError:
         return {}
-    out: dict[str, dict[str, Any]] = {}
     if not isinstance(indicators, dict):
         return {}
-    for ticker, entry in indicators.items():
+    snapshot = indicators.get(MARKET_SNAPSHOT_KEY) or {}
+    tickers = snapshot.get("tickers") if isinstance(snapshot, dict) else None
+    if not isinstance(tickers, dict):
+        return {}
+    out: dict[str, dict[str, Any]] = {}
+    for ticker, entry in tickers.items():
         if not isinstance(entry, dict):
             continue
-        price = entry.get("price")
+        price = entry.get("latest_close")
         if price is None:
             continue
+        vols: dict[str, float] = {}
+        for window in ("5d", "20d"):
+            v = entry.get(f"realized_vol_{window}")
+            if isinstance(v, (int, float)) and v is not None:
+                vols[window] = float(v)
         try:
-            out[str(ticker)] = {
-                "price": float(price),
-                "realized_vol": dict(entry.get("realized_vol") or {}),
-            }
+            out[str(ticker)] = {"price": float(price), "realized_vol": vols}
         except (TypeError, ValueError):
             continue
     return out
@@ -144,7 +153,7 @@ class MarketSimEngine:
         if not symbols:
             raise EngineNotConfigured(
                 "marketsim: no instruments: WorldState has no "
-                f"Economy.indicators[{MARKET_SLICE_KEY!r}] and the scenario "
+                f"Economy.indicators[{MARKET_SNAPSHOT_KEY!r}] and the scenario "
                 "provides no conditions.symbols"
             )
 

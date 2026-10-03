@@ -14,8 +14,10 @@ from marketsim.engine import MarketSimEngine, read_market_slice
 from marketsim.scenarios import RATE_SHOCK, SELL_SHOCK, VOLATILITY_SPIKE, market_scenario
 
 
-def _world(markets: dict | None = None) -> WorldState:
-    indicators = {"markets": markets} if markets is not None else {}
+def _world(tickers: dict | None = None) -> WorldState:
+    # Phase 1 canonical shape: Economy.indicators["market_snapshot"]["tickers"],
+    # each ticker like {"latest_close": float, "realized_vol_5d": float, ...}.
+    indicators = {"market_snapshot": {"tickers": tickers}} if tickers is not None else {}
     return WorldState(
         world_id="w_test",
         timestamp="2024-11-04T00:00:00Z",
@@ -35,23 +37,28 @@ async def _run(engine: MarketSimEngine, world: WorldState, pop: Population, hour
 
 
 def test_read_market_slice_extracts_prices():
-    world = _world({"ACME": {"price": 100.0, "realized_vol": {"5d": 0.02}}, "JUNK": {"nope": 1}})
+    world = _world(
+        {
+            "ACME": {"latest_close": 100.0, "realized_vol_5d": 0.02, "realized_vol_20d": 0.03},
+            "JUNK": {"nope": 1},
+        }
+    )
     out = read_market_slice(world)
     assert out["ACME"]["price"] == 100.0
-    assert out["ACME"]["realized_vol"] == {"5d": 0.02}
+    assert out["ACME"]["realized_vol"] == {"5d": 0.02, "20d": 0.03}
     assert "JUNK" not in out
 
 
 def test_read_market_slice_absent_is_empty():
     assert read_market_slice(_world(None)) == {}
-    assert read_market_slice(_world({"ACME": {"price": None}})) == {}
+    assert read_market_slice(_world({"ACME": {"latest_close": None}})) == {}
 
 
 @pytest.mark.asyncio
 async def test_initialize_uses_world_slice_and_scenario():
     sc = market_scenario("t1", ["ACME", "BETA"], population=20, simulated_hours=6)
     engine = MarketSimEngine(scenario=sc)
-    sim = await engine.initialize(_world({"ACME": {"price": 120.0, "realized_vol": {}}}), _pop(20))
+    sim = await engine.initialize(_world({"ACME": {"latest_close": 120.0}}), _pop(20))
     assert sim.scenario_type == "market"
     assert sim.population_n == 20
     state = engine._states[sim.id]
