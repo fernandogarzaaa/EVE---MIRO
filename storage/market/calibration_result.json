@@ -1,0 +1,277 @@
+{
+  "prereg": "/home/hatch/workspace/eve-miro-work-msm/experiments/market/calibration_prereg.json",
+  "targets": "/home/hatch/workspace/eve-miro-research/calibration/targets_fit.json",
+  "fit_ticker": "SPY",
+  "disclaimer": "CALIBRATION OUTPUT. Agent parameters fitted by simulated method of moments against historical statistics. Not a forecast of market prices. See docs/market-calibration.md for limits.",
+  "best": {
+    "params": {
+      "mm_spread_bps": 63.72120944924216,
+      "mm_skew_k": 6.309381464304219,
+      "mm_size": 184.08372161185204,
+      "noise_trade_prob": 0.8161560750606968,
+      "noise_size": 115.47907595916409,
+      "momentum_lookback": 17.0,
+      "momentum_threshold": 0.017718567435470657,
+      "fund_tolerance": 0.032006705390157306,
+      "noise_frac": 0.8058373771554181
+    },
+    "objective": 3.7122040798667393,
+    "n_evaluations": 897,
+    "converged": false,
+    "moments": {
+      "log_return.mean": 0.0001092584136513608,
+      "log_return.std": 0.012010576376472012,
+      "log_return.skew": 0.14011940133092102,
+      "log_return.excess_kurtosis": 0.8574683255224533,
+      "abs_return_autocorr.lag1": 0.28638885478033765,
+      "abs_return_autocorr.lag5": 0.19043914188573288,
+      "abs_return_autocorr.lag10": 0.1021745572815132,
+      "abs_return_autocorr.lag20": -0.0002986116165375752,
+      "realized_vol_annualized.rv5.mean": 0.14918407213163035,
+      "realized_vol_annualized.rv5.std": 0.0756906474556767,
+      "realized_vol_annualized.rv20.mean": 0.1796654612928853,
+      "realized_vol_annualized.rv20.std": 0.04465465442143231,
+      "hill_tail_index.left_5pct": 4.816824747613272,
+      "hill_tail_index.right_5pct": 3.759529090033549
+    },
+    "percentile_grids": {
+      "realized_vol_annualized.rv5.percentiles": {
+        "p5": 0.03039969271537273,
+        "p25": 0.09221605050457089,
+        "p50": 0.14510775668632228,
+        "p75": 0.19110866600967563,
+        "p95": 0.28742909631941954
+      },
+      "realized_vol_annualized.rv20.percentiles": {
+        "p5": 0.10362532334874283,
+        "p25": 0.14673625066939466,
+        "p50": 0.18229934010374274,
+        "p75": 0.21430973081179688,
+        "p95": 0.24577935728219455
+      }
+    },
+    "errors": {
+      "log_return.std": -0.09565181081278804,
+      "log_return.excess_kurtosis": -0.9309469004813687,
+      "log_return.skew": 0.9614053676425491,
+      "abs_return_autocorr.lag1": -0.24910709743357398,
+      "abs_return_autocorr.lag5": -0.4812548134315957,
+      "abs_return_autocorr.lag10": -0.6683370882219218,
+      "abs_return_autocorr.lag20": -1.0015337688572996,
+      "realized_vol_annualized.rv5.mean": -0.09358370878820645,
+      "realized_vol_annualized.rv5.std": -0.45173434139956653,
+      "realized_vol_annualized.rv20.mean": 0.02910319601679361,
+      "realized_vol_annualized.rv20.std": -0.6289468730895649,
+      "realized_vol_annualized.rv5.percentile_mae": 0.1517334577186163,
+      "realized_vol_annualized.rv20.percentile_mae": 0.216195770300883,
+      "hill_tail_index.left_5pct": 1.040716394413204,
+      "hill_tail_index.right_5pct": 0.4004028786103954,
+      "log_return.mean": -0.04662921929889515
+    }
+  },
+  "starts": [
+    {
+      "start_index": 0,
+      "params": {
+        "mm_spread_bps": 25.338976779922156,
+        "mm_skew_k": 1.6115691846149514,
+        "mm_size": 37.86848537416431,
+        "noise_trade_prob": 0.616551362933768,
+        "noise_size": 25.72397964902507,
+        "momentum_lookback": 3.0,
+        "momentum_threshold": 0.0021079096970138397,
+        "fund_tolerance": 0.01109062701829634,
+        "noise_frac": 0.8561349672447698
+      },
+      "objective": 5.3858019674738085,
+      "n_evaluations": 1157,
+      "converged": false
+    },
+    {
+      "start_index": 1,
+      "params": {
+        "mm_spread_bps": 23.28125141079662,
+        "mm_skew_k": 2.3001249778866697,
+        "mm_size": 27.80930613679457,
+        "noise_trade_prob": 0.35660929493092675,
+        "noise_size": 54.73147694483885,
+        "momentum_lookback": 11.0,
+        "momentum_threshold": 0.004236309246265911,
+        "fund_tolerance": 0.0075266848224562494,
+        "noise_frac": 0.5665833226250062
+      },
+      "objective": 5.856502004648442,
+      "n_evaluations": 1238,
+      "converged": false
+    },
+    {
+      "start_index": 2,
+      "params": {
+        "mm_spread_bps": 63.72120944924216,
+        "mm_skew_k": 6.309381464304219,
+        "mm_size": 184.08372161185204,
+        "noise_trade_prob": 0.8161560750606968,
+        "noise_size": 115.47907595916409,
+        "momentum_lookback": 17.0,
+        "momentum_threshold": 0.017718567435470657,
+        "fund_tolerance": 0.032006705390157306,
+        "noise_frac": 0.8058373771554181
+      },
+      "objective": 3.7122040798667393,
+      "n_evaluations": 897,
+      "converged": false
+    }
+  ],
+  "degeneracy": {
+    "n_starts": 3,
+    "best_index": 2,
+    "best_value": 3.7122040798667393,
+    "objective_rel_range": 0.5776347093661616,
+    "param_unit_spread": 2.001207002342179,
+    "per_param_unit_range": {
+      "mm_spread_bps": 1.8137139842795915,
+      "mm_skew_k": 2.1858886976947423,
+      "mm_size": 4.44194496284571,
+      "noise_trade_prob": 2.784683177796929,
+      "noise_size": 2.2996977941941594,
+      "momentum_lookback": 4.442651256490317,
+      "momentum_threshold": 4.43060846227166,
+      "fund_tolerance": 2.550709557273229,
+      "noise_frac": 3.0841200448842283
+    },
+    "degenerate": true,
+    "degenerate_pairs": [
+      {
+        "starts": [
+          0,
+          1
+        ],
+        "values": [
+          5.3858019674738085,
+          5.856502004648442
+        ],
+        "unit_distance": 4.706503742691397
+      }
+    ],
+    "note": "DEGENERATE: starts 0 and 1 reach J=5.3858 and J=5.8565 (within 10%) but sit 4.71 apart in unit parameter space. Do not treat the point estimate as identified."
+  },
+  "fit_target_moments": {
+    "log_return.std": 0.013280920468549381,
+    "log_return.excess_kurtosis": 12.417521175730862,
+    "log_return.skew": -0.8212859663116281,
+    "abs_return_autocorr.lag1": 0.38139773834791696,
+    "abs_return_autocorr.lag5": 0.3671150052408643,
+    "abs_return_autocorr.lag10": 0.3080674795193263,
+    "abs_return_autocorr.lag20": 0.19469140680253957,
+    "realized_vol_annualized.rv5.mean": 0.16458670654759,
+    "realized_vol_annualized.rv5.std": 0.13805469350185717,
+    "realized_vol_annualized.rv20.mean": 0.1745844945271683,
+    "realized_vol_annualized.rv20.std": 0.1203457165103235,
+    "realized_vol_annualized.rv5.percentile_mae": {
+      "p5": 0.04691561173752778,
+      "p25": 0.08522828718765119,
+      "p50": 0.1337876704608635,
+      "p75": 0.2023005217445135,
+      "p95": 0.3683511380535596
+    },
+    "realized_vol_annualized.rv20.percentile_mae": {
+      "p5": 0.07244869423628189,
+      "p25": 0.10607231934786684,
+      "p50": 0.1462536634104324,
+      "p75": 0.20528980899299945,
+      "p95": 0.31062718082905344
+    },
+    "hill_tail_index.left_5pct": 2.3603597054446763,
+    "hill_tail_index.right_5pct": 2.68460537139433,
+    "log_return.mean": 0.0005755506066403123
+  },
+  "moment_specs": [
+    {
+      "key": "log_return.std",
+      "scale": "abs_target",
+      "weight": 1.0
+    },
+    {
+      "key": "log_return.excess_kurtosis",
+      "scale": "max(abs_target, 1.0)",
+      "weight": 1.0
+    },
+    {
+      "key": "log_return.skew",
+      "scale": "1.0",
+      "weight": 0.5
+    },
+    {
+      "key": "abs_return_autocorr.lag1",
+      "scale": "max(abs_target, 0.05)",
+      "weight": 1.0
+    },
+    {
+      "key": "abs_return_autocorr.lag5",
+      "scale": "max(abs_target, 0.05)",
+      "weight": 1.0
+    },
+    {
+      "key": "abs_return_autocorr.lag10",
+      "scale": "max(abs_target, 0.05)",
+      "weight": 0.7
+    },
+    {
+      "key": "abs_return_autocorr.lag20",
+      "scale": "max(abs_target, 0.05)",
+      "weight": 0.5
+    },
+    {
+      "key": "realized_vol_annualized.rv5.mean",
+      "scale": "abs_target",
+      "weight": 1.0
+    },
+    {
+      "key": "realized_vol_annualized.rv5.std",
+      "scale": "abs_target",
+      "weight": 1.0
+    },
+    {
+      "key": "realized_vol_annualized.rv20.mean",
+      "scale": "abs_target",
+      "weight": 1.0
+    },
+    {
+      "key": "realized_vol_annualized.rv20.std",
+      "scale": "abs_target",
+      "weight": 1.0
+    },
+    {
+      "key": "realized_vol_annualized.rv5.percentile_mae",
+      "scale": "abs_target_mean",
+      "weight": 0.5
+    },
+    {
+      "key": "realized_vol_annualized.rv20.percentile_mae",
+      "scale": "abs_target_mean",
+      "weight": 0.5
+    },
+    {
+      "key": "hill_tail_index.left_5pct",
+      "scale": "abs_target",
+      "weight": 0.5
+    },
+    {
+      "key": "hill_tail_index.right_5pct",
+      "scale": "abs_target",
+      "weight": 0.5
+    },
+    {
+      "key": "log_return.mean",
+      "scale": "0.01",
+      "weight": 0.25
+    }
+  ],
+  "drawdown_diagnostic": {
+    "simulated_252d_max_drawdown": -0.07555484886580299,
+    "target_252d_mean": -0.18880606030244396,
+    "target_252d_p5": -0.3371726378600284,
+    "target_252d_p95": -0.05114146187987312,
+    "note": "Diagnostic only: drawdown was not in the optimized moment set."
+  }
+}
