@@ -8,8 +8,13 @@ from eve_miro.providers.disasters import GDACSProvider
 from eve_miro.providers.earthquakes import USGSProvider
 from eve_miro.providers.finance import CoinGeckoProvider
 from eve_miro.providers.geospatial import OSMProvider
+from eve_miro.providers.macro_fred import MacroFREDProvider
+from eve_miro.providers.market_vol import MarketVolProvider
+from eve_miro.providers.markets_bars import MarketsBarsProvider
+from eve_miro.providers.markets_options import MarketsOptionsProvider
 from eve_miro.providers.nasa import NASAProvider
 from eve_miro.providers.news import GDELTProvider
+from eve_miro.providers.news_markets import GDELTMarketsProvider
 from eve_miro.providers.opensky import OpenSkyProvider
 from eve_miro.providers.protocol import DataProvider
 from eve_miro.providers.satellites import CelestrakProvider
@@ -28,6 +33,11 @@ _PROVIDERS: dict[str, DataProvider] = {
     "nasa": NASAProvider(),
     "celestrak": CelestrakProvider(),
     "coingecko": CoinGeckoProvider(),
+    "markets_bars": MarketsBarsProvider(),
+    "markets_options": MarketsOptionsProvider(),
+    "macro_fred": MacroFREDProvider(),
+    "market_vol": MarketVolProvider(),
+    "gdelt_markets": GDELTMarketsProvider(),
     "worldbank": WorldBankProvider(),
     "spaceweather": SpaceWeatherProvider(),
 }

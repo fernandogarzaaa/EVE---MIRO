@@ -7,6 +7,7 @@ from typing import Iterable
 
 from eve_miro.config import PHILIPPINES
 from eve_miro.core.world.events import ProvenanceKind, WorldEvent
+from eve_miro.core.world.markets import build_market_snapshot
 from eve_miro.core.world.provenance import ProvenanceEdge, ProvenanceGraph, ProvenanceNode
 from eve_miro.core.world.state import (
     Economy,
@@ -169,6 +170,21 @@ def project_world_state(
     if weather_series:
         weather_out["series"] = weather_series[-48:]
 
+    market_snapshot = build_market_snapshot(chosen)
+    indicators = (
+        {
+            "market": {
+                "latest": market_series[-1] if market_series else None,
+                "series": market_series[-48:],
+                "n": len(market_series),
+                "kind": market_series[-1]["kind"] if market_series else None,
+            },
+            "market_snapshot": market_snapshot,
+        }
+        if market_series
+        else {}
+    )
+
     return WorldState(
         world_id=world_id,
         timestamp=as_utc(at),
@@ -178,18 +194,7 @@ def project_world_state(
             bbox=(PHILIPPINES.min_lat, PHILIPPINES.max_lat, PHILIPPINES.min_lon, PHILIPPINES.max_lon),
         ),
         environment=Environment(weather=weather_out, seismic=seismic, hazards=quakes),
-        economy=Economy(
-            indicators={
-                "market": {
-                    "latest": market_series[-1] if market_series else None,
-                    "series": market_series[-48:],
-                    "n": len(market_series),
-                    "kind": market_series[-1]["kind"] if market_series else None,
-                }
-            }
-            if market_series
-            else {}
-        ),
+        economy=Economy(indicators=indicators),
         infrastructure=Infrastructure(),
         mobility=Mobility(aircraft_count=aircraft, vessel_count=vessels, samples=samples[:20]),
         information=InformationLayer(alerts=alerts),

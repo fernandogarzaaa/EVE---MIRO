@@ -1,0 +1,164 @@
+{
+  "chains": [
+    {
+      "ticker": "SPY",
+      "expiry": "2026-10-16",
+      "calls": [
+        {
+          "expiry": "2026-10-16",
+          "option_type": "call",
+          "strike": 650,
+          "last_price": 6.0,
+          "bid": 5.7,
+          "ask": 6.3,
+          "volume": 1850,
+          "open_interest": 6700,
+          "implied_volatility": 0.1676,
+          "in_the_money": true
+        },
+        {
+          "expiry": "2026-10-16",
+          "option_type": "call",
+          "strike": 660,
+          "last_price": 2.0,
+          "bid": 1.9,
+          "ask": 2.1,
+          "volume": 1860,
+          "open_interest": 6720,
+          "implied_volatility": 0.16,
+          "in_the_money": false
+        },
+        {
+          "expiry": "2026-10-16",
+          "option_type": "call",
+          "strike": 670,
+          "last_price": 6.0,
+          "bid": 5.7,
+          "ask": 6.3,
+          "volume": 1870,
+          "open_interest": 6740,
+          "implied_volatility": 0.1676,
+          "in_the_money": false
+        }
+      ],
+      "puts": [
+        {
+          "expiry": "2026-10-16",
+          "option_type": "put",
+          "strike": 650,
+          "last_price": 6.0,
+          "bid": 5.7,
+          "ask": 6.3,
+          "volume": 1850,
+          "open_interest": 6700,
+          "implied_volatility": 0.1676,
+          "in_the_money": false
+        },
+        {
+          "expiry": "2026-10-16",
+          "option_type": "put",
+          "strike": 660,
+          "last_price": 2.0,
+          "bid": 1.9,
+          "ask": 2.1,
+          "volume": 1860,
+          "open_interest": 6720,
+          "implied_volatility": 0.16,
+          "in_the_money": false
+        },
+        {
+          "expiry": "2026-10-16",
+          "option_type": "put",
+          "strike": 670,
+          "last_price": 6.0,
+          "bid": 5.7,
+          "ask": 6.3,
+          "volume": 1870,
+          "open_interest": 6740,
+          "implied_volatility": 0.1676,
+          "in_the_money": true
+        }
+      ]
+    },
+    {
+      "ticker": "SPY",
+      "expiry": "2026-12-18",
+      "calls": [
+        {
+          "expiry": "2026-12-18",
+          "option_type": "call",
+          "strike": 650,
+          "last_price": 6.0,
+          "bid": 5.7,
+          "ask": 6.3,
+          "volume": 1850,
+          "open_interest": 6700,
+          "implied_volatility": 0.1676,
+          "in_the_money": true
+        },
+        {
+          "expiry": "2026-12-18",
+          "option_type": "call",
+          "strike": 660,
+          "last_price": 2.0,
+          "bid": 1.9,
+          "ask": 2.1,
+          "volume": 1860,
+          "open_interest": 6720,
+          "implied_volatility": 0.16,
+          "in_the_money": false
+        },
+        {
+          "expiry": "2026-12-18",
+          "option_type": "call",
+          "strike": 670,
+          "last_price": 6.0,
+          "bid": 5.7,
+          "ask": 6.3,
+          "volume": 1870,
+          "open_interest": 6740,
+          "implied_volatility": 0.1676,
+          "in_the_money": false
+        }
+      ],
+      "puts": [
+        {
+          "expiry": "2026-12-18",
+          "option_type": "put",
+          "strike": 650,
+          "last_price": 6.0,
+          "bid": 5.7,
+          "ask": 6.3,
+          "volume": 1850,
+          "open_interest": 6700,
+          "implied_volatility": 0.1676,
+          "in_the_money": false
+        },
+        {
+          "expiry": "2026-12-18",
+          "option_type": "put",
+          "strike": 660,
+          "last_price": 2.0,
+          "bid": 1.9,
+          "ask": 2.1,
+          "volume": 1860,
+          "open_interest": 6720,
+          "implied_volatility": 0.16,
+          "in_the_money": false
+        },
+        {
+          "expiry": "2026-12-18",
+          "option_type": "put",
+          "strike": 670,
+          "last_price": 6.0,
+          "bid": 5.7,
+          "ask": 6.3,
+          "volume": 1870,
+          "open_interest": 6740,
+          "implied_volatility": 0.1676,
+          "in_the_money": true
+        }
+      ]
+    }
+  ]
+}

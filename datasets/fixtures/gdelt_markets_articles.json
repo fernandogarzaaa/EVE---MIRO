@@ -1,0 +1,22 @@
+{
+  "articles": [
+    {
+      "title": "S&P 500 closes higher as tech shares rally",
+      "url": "https://example.com/a1",
+      "seendate": "20261002T143000Z",
+      "sourcecountry": "United States"
+    },
+    {
+      "title": "Federal Reserve holds rates steady, signals patience",
+      "url": "https://example.com/a2",
+      "seendate": "20261002T151500Z",
+      "sourcecountry": "United States"
+    },
+    {
+      "title": "Treasury yields slip after soft inflation data",
+      "url": "https://example.com/a3",
+      "seendate": "20261002T160000Z",
+      "sourcecountry": "United Kingdom"
+    }
+  ]
+}
