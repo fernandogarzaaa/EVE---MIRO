@@ -190,7 +190,8 @@ class MarketSimEngine:
             )
 
         mix = dict(conditions.get("agent_mix") or DEFAULT_AGENT_MIX)
-        agents = self._build_agents(symbols, n, seed, mix)
+        agent_kwargs = dict(conditions.get("agent_kwargs") or {})
+        agents = self._build_agents(symbols, n, seed, mix, agent_kwargs, fair_values)
 
         sim_id = f"marketsim_{world.world_id}_{seed}"
         self._states[sim_id] = _SimState(
@@ -229,8 +230,20 @@ class MarketSimEngine:
         )
 
     def _build_agents(
-        self, symbols: list[str], n: int, seed: int, mix: dict[str, float]
+        self,
+        symbols: list[str],
+        n: int,
+        seed: int,
+        mix: dict[str, float],
+        agent_kwargs: dict[str, dict[str, Any]] | None = None,
+        fair_values: dict[str, float] | None = None,
     ) -> list[TraderAgent]:
+        """Build the archetype population.
+
+        agent_kwargs maps archetype kind to constructor kwargs (e.g. the
+        Phase 5 calibrated parameters). Fundamental agents get the
+        symbol's fair value unless the kwargs already set one.
+        """
         kinds = [k for k in ARCHETYPES if mix.get(k, 0) > 0] or ["noise"]
         weights = [max(mix.get(k, 0.0), 0.0) for k in kinds]
         total = sum(weights) or 1.0
@@ -254,10 +267,20 @@ class MarketSimEngine:
         seq = seq[:n]
         rng = random.Random(seed ^ 0x5EED)
         rng.shuffle(seq)
+        kw_by_kind = dict(agent_kwargs or {})
+        fv = dict(fair_values or {})
         agents: list[TraderAgent] = []
         for i, kind in enumerate(seq):
             symbol = symbols[i % len(symbols)]
-            agents.append(ARCHETYPES[kind](f"{kind}-{i:04d}", symbol, seed=seed + i * 131))
+            kw = dict(kw_by_kind.get(kind, {}))
+            if kind == "fundamental":
+                kw.setdefault("fair_value", fv.get(symbol, 100.0))
+            try:
+                agents.append(ARCHETYPES[kind](f"{kind}-{i:04d}", symbol, seed=seed + i * 131, **kw))
+            except TypeError as exc:
+                raise EngineNotConfigured(
+                    f"marketsim: agent_kwargs for {kind!r} rejected by constructor: {exc}"
+                ) from exc
         return agents
 
     # -- stepping ---------------------------------------------------------
