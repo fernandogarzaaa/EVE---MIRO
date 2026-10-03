@@ -25,10 +25,20 @@ from eve_miro.core.orchestration.experiment import (
     parse_horizon,
 )
 from eve_miro.core.orchestration.miro_to_eve import observe_and_validate
+from eve_miro.core.orchestration.market_alignment import (
+    MarketAlignment,
+    observed_price_series,
+    record_market_alignment,
+)
 from eve_miro.core.orchestration.reality_alignment import Alignment, RealityAligner
 from eve_miro.core.orchestration.world_to_miro import MiroWorldAdapter
 from eve_miro.core.reality.ledger import RealityLedger
-from eve_miro.core.reality.trust_profile import TrustProfile, trust_profile_from_ledger
+from eve_miro.core.reality.trust_profile import (
+    TrustProfile,
+    ScenarioTrust,
+    scenario_trust_from_ledger,
+    trust_profile_from_ledger,
+)
 from eve_miro.core.simulation.engine import get_simulation_engine
 from eve_miro.core.simulation.observation import perceive_population
 from eve_miro.core.simulation.scenarios import Intervention, Scenario
@@ -130,6 +140,8 @@ class ClosedLoopResult(BaseModel):
     seed_runs: list[SeedRun] = Field(default_factory=list)
     aggregates: dict[str, ScenarioAggregate] = Field(default_factory=dict)
     alignments: list[Alignment] = Field(default_factory=list)
+    market_alignments: list[MarketAlignment] = Field(default_factory=list)
+    scenario_trust: dict[str, ScenarioTrust] | None = None
     evaluations: list[dict[str, Any]] = Field(default_factory=list)
     ledger_record_ids: list[str] = Field(default_factory=list)
     trust_profile: TrustProfile | None = None
@@ -212,6 +224,9 @@ class ClosedLoop:
         seed_runs: list[SeedRun] = []
         engine_notes: dict[str, Any] = {}
 
+        sim_engine_name = str(getattr(spec.experiment.simulation, "engine", "") or "")
+        scenario_type = "market" if sim_engine_name == "marketsim" else "typhoon"
+
         for sc_spec in spec.scenarios:
             interventions: list[Intervention] = []
             raw_iv = sc_spec.intervention
@@ -227,7 +242,7 @@ class ClosedLoop:
             for seed in seed_list:
                 scenario = Scenario(
                     name=f"{spec.id}:{sc_spec.id}",
-                    type="typhoon",
+                    type=scenario_type,
                     initial_world={"timestamp": iso(cutoff)},
                     duration={"simulated_hours": hours},
                     agents={"population": n_agents},
@@ -390,9 +405,47 @@ class ClosedLoop:
                         if node.layer == "simulator_vs_reality":
                             self.graph.maybe_conflict_on_mae(node.id, al.mae)
 
+        # Market alignment: marketsim runs score simulated trajectories
+        # against the OBSERVED t1 market snapshot, tagged by scenario class.
+        market_alignments: list[MarketAlignment] = []
+        scenario_trust: dict[str, ScenarioTrust] | None = None
+        if str(engine_notes.get("simulation") or "") == "marketsim":
+            obs_series = observed_price_series(t1_events)
+            for sc_id, agg in aggregates.items():
+                seed_series = [
+                    r.predicted_series for r in seed_runs if r.scenario_id == sc_id
+                ]
+                symbols = sorted({k for s in seed_series for k in s})
+                mean_pred = {
+                    sym: mean_series([s.get(sym) or [] for s in seed_series])
+                    for sym in symbols
+                }
+                mean_pred = {k: v for k, v in mean_pred.items() if v}
+                if not mean_pred:
+                    continue
+                alignment, rec_ids, evals = record_market_alignment(
+                    self.ledger,
+                    experiment_id=spec.id,
+                    scenario_id=sc_id,
+                    engine_name="marketsim",
+                    seed=None,  # distribution over seeds, not a single run
+                    predicted=mean_pred,
+                    observed=obs_series,
+                    cutoff=cutoff,
+                    source_versions=source_versions,
+                    input_kinds=list(provenance_for_tag),
+                    n_seeds=agg.n_seeds,
+                )
+                market_alignments.append(alignment)
+                ledger_ids.extend(rec_ids)
+                evaluations.extend(evals)
+            scenario_trust = scenario_trust_from_ledger(
+                self.ledger.for_experiment(spec.id)
+            )
+
         # Ensure every listed domain has a ledger presence (empty → DO_NOT_USE).
         present_domains = {getattr(r, "domain", "") for r in self.ledger.for_experiment(spec.id)}
-        for domain in ("weather", "mobility", "population", "news"):
+        for domain in ("weather", "mobility", "population", "news", "market"):
             if domain in present_domains:
                 continue
             rec = self.ledger.record_prediction(
@@ -420,6 +473,8 @@ class ClosedLoop:
             seed_runs=seed_runs,
             aggregates=aggregates,
             alignments=alignments,
+            market_alignments=market_alignments,
+            scenario_trust=scenario_trust,
             evaluations=evaluations,
             ledger_record_ids=ledger_ids,
             trust_profile=profile,
@@ -432,6 +487,8 @@ class ClosedLoop:
 
 
 def _domain_for_metric(name: str) -> str:
+    if name.startswith("market"):
+        return "market"
     if name.startswith("wind") or name.startswith("precip") or name == "temperature_2m":
         return "weather"
     if name in {"congestion", "evacuation_rate"}:
