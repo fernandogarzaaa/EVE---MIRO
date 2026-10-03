@@ -227,6 +227,7 @@ def test_trust_scores_move_as_ledger_grows(tmp_path):
 
 def test_fred_absent_soft_skips(monkeypatch):
     monkeypatch.delenv("FRED_API_KEY", raising=False)
+    monkeypatch.delenv("FRED_MACRO_JSON", raising=False)
     assert asyncio.run(fetch_macro()) is None
 
 

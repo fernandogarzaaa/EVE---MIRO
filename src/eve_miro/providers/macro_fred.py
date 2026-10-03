@@ -2,12 +2,20 @@
 
 Fail-closed: live mode requires FRED_API_KEY (free key from stlouisfed.org).
 CI runs on the recorded fixture.
+
+Pre-fetched file mode: when FRED_MACRO_JSON points at a JSON file of the form
+{"DGS10": [{"date": "2026-10-01", "value": "5.24"}, ...], ...}, the file is
+used instead of the API. This exists for scheduled runs whose FRED credential
+lives outside the process environment (e.g. behind a credential vault): a
+local step pre-fetches observations into the file and the provider reads it.
 """
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime
+from pathlib import Path
 
 from eve_miro.config import PHILIPPINES, PROVIDER_INTERVALS, Region
 from eve_miro.core.world.events import (
@@ -26,6 +34,7 @@ FRED_URL = "https://api.stlouisfed.org/fred/series/observations"
 FIXTURE = "macro_fred.json"
 LIVE_FLAG = "MACRO_FRED_LIVE"
 KEY_ENV = "FRED_API_KEY"
+FILE_ENV = "FRED_MACRO_JSON"
 
 SERIES = {
     "DGS10": {"title": "10-Year Treasury Constant Maturity Rate", "units": "percent"},
@@ -40,6 +49,47 @@ def _to_float(value) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def read_file_payload(path: str) -> dict:
+    """Parse a pre-fetched macro JSON file into provider payload shape.
+
+    Schema: {"<series_id>": [{"date": "YYYY-MM-DD", "value": "<num>"}, ...], ...}.
+    Observation values may be strings (FRED's native form, "." for missing) or
+    numbers; unparseable values are dropped at normalize time.
+
+    Fail-closed: raises ValueError on corrupt content. The caller decides
+    whether that is fatal (provider.fetch) or a loud soft skip (the weekly
+    accumulation run).
+    """
+    try:
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"cannot read {path}: {exc}") from exc
+    if not isinstance(raw, dict) or not raw:
+        raise ValueError(
+            f"{path}: top level must be a non-empty object mapping series id to observations"
+        )
+    series: dict[str, dict] = {}
+    for series_id, obs_list in raw.items():
+        if not isinstance(series_id, str) or not series_id.strip():
+            raise ValueError(f"{path}: series id must be a non-empty string, got {series_id!r}")
+        if not isinstance(obs_list, list) or not obs_list:
+            raise ValueError(f"{path}: {series_id!r} observations must be a non-empty list")
+        observations = []
+        for obs in obs_list:
+            if not isinstance(obs, dict) or "date" not in obs or "value" not in obs:
+                raise ValueError(
+                    f"{path}: {series_id!r} each observation needs 'date' and 'value'"
+                )
+            observations.append({"date": str(obs["date"]), "value": obs["value"]})
+        meta = SERIES.get(series_id, {})
+        series[series_id] = {
+            "title": meta.get("title", series_id),
+            "units": meta.get("units", ""),
+            "observations": observations,
+        }
+    return {"series": series}
 
 
 async def _live_payload() -> dict:
@@ -85,7 +135,9 @@ class MacroFREDProvider:
             license="FRED terms of use",
             kind=ProvenanceKind.OBSERVED,
             homepage="https://fred.stlouisfed.org/",
-            notes="Monthly/quarterly macro series. Live mode needs a free FRED_API_KEY; fail-closed without it.",
+            notes="Monthly/quarterly macro series. Live mode needs a free FRED_API_KEY; "
+            "fail-closed without it. FRED_MACRO_JSON points at a pre-fetched JSON file "
+            "and takes precedence over the API key.",
         )
 
     async def health(self) -> ProviderHealth:
@@ -139,5 +191,13 @@ class MacroFREDProvider:
 
     async def fetch(self, window: TimeWindow, region: Region | None = None) -> list[WorldEvent]:
         _ = window, region or PHILIPPINES
+        file_path = (os.environ.get(FILE_ENV) or "").strip()
+        if file_path:
+            from eve_miro.errors import ProviderError
+
+            try:
+                return self.normalize(read_file_payload(file_path))
+            except (OSError, ValueError) as exc:
+                raise ProviderError(f"{FILE_ENV} unreadable: {exc}") from exc
         payload = await fetch_live_or_fixture(LIVE_FLAG, FIXTURE, _live_payload, key_env=KEY_ENV)
         return self.normalize(payload)
