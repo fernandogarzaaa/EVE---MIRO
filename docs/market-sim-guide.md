@@ -48,6 +48,18 @@ closed with a clear message instead of inventing data.
 The summary is printed to stdout and written to
 `storage/market/latest_market_run.json`, which feeds the dashboard.
 
+## Running from the dashboard
+
+The dashboard Market tab has a control row above the results: a
+scenario dropdown, an hours input, and a Run button. Pressing Run
+calls `POST /market/run` with the same shared run function the CLI
+uses, disables the button while the run executes (about 15 seconds
+for 72 hours), then refreshes the tab with the new results. The
+run's disclaimer renders at the bottom of the tab, and the
+SIMULATED/OBSERVED badges stay on every chart. On failure the tab
+shows the plain error message and the button re-enables; nothing is
+fabricated.
+
 ## Reading the trust output
 
 Example (abridged):

@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from eve_miro.cli.market_sim import SUMMARY_PATH, cmd_market_sim
+from eve_miro.cli.market_sim import cmd_market_sim, summary_path
 from eve_miro.cli.main import COMMANDS, main
 
 
@@ -32,8 +32,9 @@ def test_market_sim_happy_path_sell_shock():
     assert "aggregate alignment score" in out
     assert "scenario-class trust" in out
     assert "SIMULATED" in out
-    assert SUMMARY_PATH.is_file()
-    summary = json.loads(SUMMARY_PATH.read_text(encoding="utf-8"))
+    path = summary_path()
+    assert path.is_file()
+    summary = json.loads(path.read_text(encoding="utf-8"))
     assert summary["scenario"] == "sell_shock_001"
     assert summary["alignment"]["scenario_class"] == "sell_shock"
     assert "sell_shock" in summary["trust"]

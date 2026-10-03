@@ -506,6 +506,36 @@ async def market_latest():
     return JSONResponse(json.loads(path.read_text(encoding="utf-8")))
 
 
+class MarketRunBody(BaseModel):
+    scenario: str = "sell_shock_001"
+    hours: int = 120
+
+
+@app.post("/market/run")
+def market_run(body: MarketRunBody):
+    """Run a market scenario synchronously and record it for the dashboard.
+
+    Same computation as `eve-miro market-sim`: grounds WorldState(t0) from
+    fixtures, runs the marketsim scenario, aligns against the held-out
+    fixture window, writes storage/market/latest_market_run.json, and
+    returns the summary. 400 on bad input; 500 with a plain message on
+    any failure. Never fabricates: a failure surfaces as an error, never
+    as a made-up summary.
+    """
+    from eve_miro.cli.market_sim import run_market_scenario, write_market_summary
+
+    try:
+        summary = run_market_scenario(body.scenario, body.hours)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except (FileNotFoundError, EngineNotConfigured) as exc:
+        raise HTTPException(500, str(exc))
+    except Exception as exc:  # fail closed: never a fabricated result
+        raise HTTPException(500, f"market-sim failed: {exc}")
+    write_market_summary(summary)
+    return JSONResponse(summary)
+
+
 def run() -> None:
     import uvicorn
 

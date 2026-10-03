@@ -47,12 +47,25 @@ from eve_miro.paths import REPO_ROOT
 SCENARIOS = ("sell_shock_001", "vol_spike_001", "rate_shock_001")
 DEFAULT_HOURS = 120
 DEFAULT_SEEDS_OFFSET = 1
-SUMMARY_PATH = REPO_ROOT / "storage" / "market" / "latest_market_run.json"
+MIN_HOURS = 72
 
 
 def fail(msg: str) -> int:
     print(f"error: {msg}", file=sys.stderr)
     return 1
+
+
+def summary_path() -> Path:
+    from eve_miro.paths import REPO_ROOT
+
+    return REPO_ROOT / "storage" / "market" / "latest_market_run.json"
+
+
+def write_market_summary(summary: dict[str, Any]) -> Path:
+    path = summary_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    return path
 
 
 def _load_fixture_bars(fixture_dir: Path) -> list[dict[str, Any]]:
@@ -300,6 +313,35 @@ async def _run_scenario(
     }
 
 
+def run_market_scenario(
+    scenario: str,
+    hours: int,
+    fixture_dir: Path | None = None,
+) -> dict[str, Any]:
+    """Run a market scenario end-to-end and return the run summary dict.
+
+    Shared by the `eve-miro market-sim` CLI and the POST /market/run API.
+    Offline-only: grounds WorldState(t0) from fixture bars, runs the
+    marketsim scenario, aligns simulated daily paths against the held-out
+    fixture window (the observed t1), and returns the same summary dict
+    the dashboard file holds. Raises ValueError on bad input,
+    FileNotFoundError on missing fixtures, EngineNotConfigured when the
+    fixture cannot ground a run.
+    """
+    if scenario not in SCENARIOS:
+        raise ValueError(
+            f"unknown scenario {scenario!r} (expected one of {', '.join(SCENARIOS)})"
+        )
+    if hours < MIN_HOURS:
+        raise ValueError(
+            f"hours must be at least {MIN_HOURS} (needs 3 daily bars to align)"
+        )
+    from eve_miro.paths import REPO_ROOT
+
+    fdir = fixture_dir or (REPO_ROOT / "datasets" / "fixtures")
+    return asyncio.run(_run_scenario(scenario, hours, fdir))
+
+
 def cmd_market_sim(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="eve-miro market-sim")
     parser.add_argument(
@@ -321,8 +363,8 @@ def cmd_market_sim(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv if argv is not None else [])
 
-    if args.hours < 72:
-        return fail("--hours must be at least 72 (needs 3 daily bars to align)")
+    if args.hours < MIN_HOURS:
+        return fail(f"--hours must be at least {MIN_HOURS} (needs 3 daily bars to align)")
     fixture_dir = (
         Path(args.fixture_dir).expanduser()
         if args.fixture_dir
@@ -330,14 +372,15 @@ def cmd_market_sim(argv: list[str] | None = None) -> int:
     )
 
     try:
-        summary = asyncio.run(_run_scenario(args.scenario, args.hours, fixture_dir))
+        summary = run_market_scenario(args.scenario, args.hours, fixture_dir)
     except FileNotFoundError as exc:
         return fail(str(exc))
     except EngineNotConfigured as exc:
         return fail(str(exc))
+    except ValueError as exc:
+        return fail(str(exc))
 
-    SUMMARY_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SUMMARY_PATH.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    path = write_market_summary(summary)
 
     alignment = summary["alignment"]
     trust = summary["trust"]
@@ -359,6 +402,6 @@ def cmd_market_sim(argv: list[str] | None = None) -> int:
         print(f"  [{t['recommendation']}] {sclass}  score={t['score']:.4f}")
         print(f"    {t['describe']}")
         print(f"    {t['notes']}")
-    print(f"summary written to {SUMMARY_PATH}")
+    print(f"summary written to {path}")
     print(summary["disclaimer"])
     return 0

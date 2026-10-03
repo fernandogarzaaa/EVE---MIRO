@@ -112,7 +112,21 @@
       Scenario calibration against one realized window — not a forecast of market prices.
       Trust is per scenario class, from the ledger, never from a narrative.
     </div>
-    <div id="market-body"><p class="muted">No market-sim run recorded yet. Run <code>eve-miro market-sim</code> to generate one.</p></div>
+    <div class="row" style="margin-bottom:8px; align-items:center;">
+      <label class="muted">scenario
+        <select id="market-scenario" style="background:#10162a; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:6px 8px;">
+          <option value="sell_shock_001">sell_shock_001</option>
+          <option value="vol_spike_001">vol_spike_001</option>
+          <option value="rate_shock_001">rate_shock_001</option>
+        </select>
+      </label>
+      <label class="muted">hours
+        <input id="market-hours" type="number" value="120" min="72" step="24" style="width:80px; background:#10162a; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:6px 8px;">
+      </label>
+      <button class="btn primary" id="market-run-btn" onclick="runMarket()">Run scenario</button>
+      <span id="market-status" class="muted"></span>
+    </div>
+    <div id="market-body"><p class="muted">No market-sim run recorded yet. Pick a scenario above and press Run, or run <code>eve-miro market-sim</code> in a terminal.</p></div>
   </section>
 
   <section id="tab-rel" class="card" hidden>
@@ -390,11 +404,31 @@ function trustBadge(rec){
   return `<span class="badge bad">DO NOT USE</span>`;
 }
 
+async function runMarket(){
+  const btn = document.getElementById("market-run-btn");
+  const status = document.getElementById("market-status");
+  btn.disabled = true;
+  status.textContent = "running scenario… (about 15s, results below)";
+  try{
+    const m = await j("/market/run", {method:"POST", body: JSON.stringify({
+      scenario: document.getElementById("market-scenario").value,
+      hours: parseInt(document.getElementById("market-hours").value, 10) || 120,
+    })});
+    const score = m.alignment ? fmt(m.alignment.aggregate_score) : "n/a";
+    status.textContent = "done: " + m.scenario + " · aggregate score " + score;
+  }catch(e){
+    status.textContent = "error: " + e.message;
+  }finally{
+    btn.disabled = false;
+    await refreshMarket();
+  }
+}
+
 async function refreshMarket(){
   const el = document.getElementById("market-body");
   const m = await j("/market/latest").catch(()=>null);
   if(!m){
-    el.innerHTML = `<p class="muted">No market-sim run recorded yet. Run <code>eve-miro market-sim</code> to generate one.</p>`;
+    el.innerHTML = `<p class="muted">No market-sim run recorded yet. Pick a scenario above and press Run, or run <code>eve-miro market-sim</code> in a terminal.</p>`;
     return;
   }
   const al = m.alignment || {};
