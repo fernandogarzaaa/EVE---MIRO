@@ -18,6 +18,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+from eve_miro.cli.market_calibrate import cmd_market_calibrate
 from eve_miro.cli.market_sim import cmd_market_sim
 from eve_miro.paths import REPO_ROOT
 
@@ -112,6 +113,9 @@ Usage:
   eve-miro run             live tiny closed loop (EVE_MIRO_ENGINES=in-tree, fail closed)
   eve-miro market-sim      offline market scenario run (fixtures): ground t0,
                            run marketsim shock, align vs held-out t1, print trust
+  eve-miro market-calibrate fit|validate
+                           MSM calibration of marketsim archetypes (fit) and
+                           holdout validation (validate); see docs/market-calibration.md
   eve-miro api             uvicorn eve_miro.api.main:app :8000
 
 Setup flags (non-interactive):
@@ -582,6 +586,7 @@ COMMANDS = {
     "serve": cmd_serve,
     "run": cmd_run,
     "market-sim": cmd_market_sim,
+    "market-calibrate": cmd_market_calibrate,
     "api": cmd_api,
 }
 

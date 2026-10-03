@@ -1,0 +1,19 @@
+AAPL diagnostic (SPY-calibrated params on AAPL fit targets)
+objective J=3.3103  (SPY fit J=3.7122)
+moment                                            err
+  log_return.std                               -0.409
+  log_return.excess_kurtosis                   -0.842
+  log_return.skew                              +0.407
+  abs_return_autocorr.lag1                     +0.327
+  abs_return_autocorr.lag5                     -0.125
+  abs_return_autocorr.lag10                    -0.398
+  abs_return_autocorr.lag20                    -1.003
+  realized_vol_annualized.rv5.mean             -0.457
+  realized_vol_annualized.rv5.std              -0.574
+  realized_vol_annualized.rv20.mean            -0.379
+  realized_vol_annualized.rv20.std             -0.683
+  realized_vol_annualized.rv5.percentile_mae   +0.470
+  realized_vol_annualized.rv20.percentile_mae  +0.387
+  hill_tail_index.left_5pct                    +0.707
+  hill_tail_index.right_5pct                   +0.236
+  log_return.mean                              -0.118
