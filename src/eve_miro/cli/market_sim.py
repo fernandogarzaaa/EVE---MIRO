@@ -164,13 +164,25 @@ async def _run_scenario(
     scenario_name: str,
     hours: int,
     fixture_dir: Path,
+    *,
+    bars: list[dict[str, Any]] | None = None,
+    agent_kwargs: dict[str, dict[str, Any]] | None = None,
+    agent_mix: dict[str, float] | None = None,
+    experiment_id: str = "market-sim-cli",
 ) -> dict[str, Any]:
+    """Run one market scenario and return the dashboard summary dict.
+
+    bars overrides the fixture load (same row shape: ticker/close/date);
+    used by the live accumulation job. agent_kwargs/agent_mix carry the
+    Phase 5 calibrated archetype parameters into the engine; absent means
+    engine defaults. experiment_id namespaces the ledger records.
+    """
     from marketsim.engine import MarketSimEngine
     from marketsim.scenarios import market_scenario
 
-    rows = _load_fixture_bars(fixture_dir)
+    rows = bars if bars is not None else _load_fixture_bars(fixture_dir)
     if not rows:
-        raise EngineNotConfigured("market-sim: fixture produced no usable bars")
+        raise EngineNotConfigured("market-sim: no usable bars to ground the run")
 
     t1_n = max(3, hours // 24)
     by_ticker: dict[str, list[dict[str, Any]]] = {}
@@ -182,8 +194,8 @@ async def _run_scenario(
     min_bars = min(len(v) for v in by_ticker.values())
     if min_bars < t1_n + 5:
         raise EngineNotConfigured(
-            f"market-sim: fixture has {min_bars} bars per ticker but needs at "
-            f"least {t1_n + 5} ({t1_n} held-out t1 bars plus grounding history)"
+            f"market-sim: {min_bars} bars per ticker but needs at "
+            f"least {t1_n + 5} ({t1_n} t1 bars plus grounding history)"
         )
 
     doc = _load_scenario_doc(scenario_name)
@@ -244,7 +256,8 @@ async def _run_scenario(
             random_seed=seed,
             origin=cutoff.isoformat(),
             initial_prices=initial_prices,
-            agent_mix=dict(conditions.get("agent_mix") or {}),
+            agent_mix=agent_mix if agent_mix is not None else dict(conditions.get("agent_mix") or {}),
+            agent_kwargs=agent_kwargs,
             interventions=interventions,
         )
         engine = MarketSimEngine(scenario=sc)
@@ -271,7 +284,7 @@ async def _run_scenario(
     ledger = RealityLedger()
     alignment, _rec_ids, _evals = record_market_alignment(
         ledger,
-        experiment_id="market-sim-cli",
+        experiment_id=experiment_id,
         scenario_id=scenario_name,
         engine_name="marketsim",
         seed=None,
@@ -281,7 +294,7 @@ async def _run_scenario(
         input_kinds=["observed"],
         n_seeds=len(seeds),
     )
-    trust = scenario_trust_from_ledger(ledger.for_experiment("market-sim-cli"))
+    trust = scenario_trust_from_ledger(ledger.for_experiment(experiment_id))
     trust_dump: dict[str, dict[str, Any]] = {}
     for k, v in trust.items():
         d = v.model_dump()

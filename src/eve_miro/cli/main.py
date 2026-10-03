@@ -18,6 +18,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+from eve_miro.cli.market_accumulate import cmd_market_accumulate
 from eve_miro.cli.market_calibrate import cmd_market_calibrate
 from eve_miro.cli.market_sim import cmd_market_sim
 from eve_miro.paths import REPO_ROOT
@@ -116,6 +117,11 @@ Usage:
   eve-miro market-calibrate fit|validate
                            MSM calibration of marketsim archetypes (fit) and
                            holdout validation (validate); see docs/market-calibration.md
+  eve-miro market-accumulate
+                           weekly trust accumulation from live data: fetch live
+                           bars, run all scenarios with calibrated params, align
+                           vs the trailing 20-day window, append to the trust
+                           ledger; see docs/market-accumulation.md
   eve-miro api             uvicorn eve_miro.api.main:app :8000
 
 Setup flags (non-interactive):
@@ -587,6 +593,7 @@ COMMANDS = {
     "run": cmd_run,
     "market-sim": cmd_market_sim,
     "market-calibrate": cmd_market_calibrate,
+    "market-accumulate": cmd_market_accumulate,
     "api": cmd_api,
 }
 
