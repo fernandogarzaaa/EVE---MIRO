@@ -254,3 +254,29 @@ def test_market_tab_and_latest_endpoint(tmp_path, monkeypatch):
     monkeypatch.setattr(eve_miro.paths, "REPO_ROOT", tmp_path)
     r2 = client.get("/market/latest")
     assert r2.status_code == 404
+
+
+def test_market_run_endpoint_runs_scenario_and_records():
+    """POST /market/run runs the shared scenario function and records it."""
+    client = TestClient(app)
+    r = client.post("/market/run", json={"scenario": "sell_shock_001", "hours": 72})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["scenario"] == "sell_shock_001"
+    assert body["hours"] == 72
+    assert body["alignment"]["scenario_class"] == "sell_shock"
+    assert "sell_shock" in body["trust"]
+    assert "SIMULATED" in body["disclaimer"]
+
+    # Same summary the dashboard file holds.
+    r2 = client.get("/market/latest")
+    assert r2.status_code == 200
+    assert r2.json()["scenario"] == "sell_shock_001"
+
+
+def test_market_run_rejects_bad_input():
+    client = TestClient(app)
+    r = client.post("/market/run", json={"scenario": "nope_001", "hours": 72})
+    assert r.status_code == 400, r.text
+    r2 = client.post("/market/run", json={"scenario": "sell_shock_001", "hours": 24})
+    assert r2.status_code == 400, r2.text
