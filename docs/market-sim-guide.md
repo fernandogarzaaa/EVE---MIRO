@@ -31,11 +31,11 @@ eve-miro market-sim --scenario vol_spike_001 --hours 120
 
 Flags:
 
-- `--scenario` — one of `sell_shock_001`, `vol_spike_001`,
-  `rate_shock_001` (default: `sell_shock_001`). These are the scenario
-  definitions in `experiments/market/`; the CLI remaps their synthetic
-  symbols onto the fixture tickers and scales size-based shock
-  quantities by the price ratio so the shock stays economically
+- `--scenario` — any scenario id from the `experiments/market/`
+  registry (default: `sell_shock_001`). Run `GET /market/scenarios`
+  or list the directory for the current set. The CLI remaps their
+  synthetic symbols onto the fixture tickers and scales size-based
+  shock quantities by the price ratio so the shock stays economically
   comparable.
 - `--hours` — simulated horizon in hours, minimum 72 (needs at least
   3 daily bars to align against). Default: 120.
@@ -47,6 +47,46 @@ closed with a clear message instead of inventing data.
 
 The summary is printed to stdout and written to
 `storage/market/latest_market_run.json`, which feeds the dashboard.
+
+## Scenario library
+
+The original three scenarios (`sell_shock_001`, `vol_spike_001`,
+`rate_shock_001`) are joined by four historical shock templates. Each
+is a stress-test template SHAPED LIKE a real past shock: the
+parameters are grounded in the documented event's statistics, but the
+simulation is not a replay of the event and never a prediction.
+
+- `earn_gap_down_001` — earnings shock with permanent impairment,
+  shaped like INTC 2024-08-02 (-26.06% close-to-close, abnormal z
+  -6.60, volume 4.1x, kept drifting: +5d -8.24%). Overnight gap,
+  sustained liquidation, fundamentals reprice lower and do not buy
+  the dip.
+- `earn_gap_snapback_001` — earnings shock with intact fundamentals,
+  shaped like PANW 2024-02-21 (-28.44%, z -6.74, volume 7.8x, V-shaped
+  recovery: +5d +20.68%). Same flow shock as the gap-down template,
+  but fair value is untouched, so dip-buying drives a recovery. The
+  pair isolates the impairment channel.
+- `sector_flash_001` — sector-wide flash selloff with fast snapback,
+  shaped like NVDA 2025-01-27 (-16.97%, z -5.05, volume 3.5x, +1d
+  +8.93%; AVGO -17.40%, ANET -22.35% the same session). Intense
+  one-session liquidation, no lasting impairment. Honest limit: the
+  engine's order-book depth caps single-session displacement around
+  5%, so this template captures the flash-and-recover structure at
+  reduced magnitude.
+- `macro_slide_001` — news-driven multi-day slide, shaped like SPY
+  2025-04-03/04 (-4.93% then -5.85%, two-day cumulative -10.49%).
+  Two escalating liquidation waves with mild lasting impairment; no
+  V-recovery inside the horizon.
+
+Event statistics were measured from the Signal Lab price store with
+its analogues event-detection pipeline; the MSFT 2026-01-29 shock
+(-9.99%, z -7.46, 22 articles) is documented in Signal Lab's
+`docs/historical-analogues.md`. Each YAML header cites its source
+event and carries the stress-test-not-prediction framing.
+
+Trust is tracked per scenario class, so each template accumulates its
+own calibration record in the weekly ledger (see
+`docs/market-accumulation.md`).
 
 ## Running from the dashboard
 

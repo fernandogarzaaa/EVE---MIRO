@@ -13,7 +13,19 @@ from pydantic import BaseModel, Field
 from eve_miro.core.world.temporal import utcnow
 
 DOMAINS = ("weather", "mobility", "population", "news")
-SCENARIO_CLASSES = ("sell_shock", "volatility_spike", "rate_shock", "baseline")
+# Mirrors eve_miro.core.orchestration.market_alignment.SCENARIO_CLASSES;
+# kept local to avoid a circular import (orchestration.closed_loop
+# imports this module). A test asserts the two stay in sync.
+SCENARIO_CLASSES = (
+    "sell_shock",
+    "volatility_spike",
+    "rate_shock",
+    "earn_gap_down",
+    "earn_gap_snapback",
+    "sector_flash",
+    "macro_slide",
+    "baseline",
+)
 DO_NOT_USE_BELOW = 0.40
 CAUTION_BELOW = 0.70
 

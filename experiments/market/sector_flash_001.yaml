@@ -1,0 +1,55 @@
+# sector_flash_001: sector-wide flash selloff with fast snapback.
+#
+# Source event: NVIDIA (NVDA), 2025-01-27. DeepSeek R1 release over the
+# weekend repriced AI-capex expectations; NVDA closed -16.97%, abnormal
+# z -5.05 vs trailing 60d, volume 3.5x the 20d average, the largest
+# single-day market-cap loss in US history at the time. Sector-wide:
+# AVGO -17.40%, ANET -22.35%, ORCL -13.79% the same session. Fast
+# snapback: +1d +8.93%. Statistics measured from the Signal Lab price
+# store with the analogues event-detection pipeline; event identity
+# cross-checked against contemporaneous reporting.
+#
+# Template structure: intense but brief liquidation pressure (one
+# session), no fair-value impairment (the capex thesis was questioned,
+# not broken). Fundamentals buy the dislocation and the path recovers
+# within two sessions. Honest limit: the engine's order-book depth caps
+# single-session displacement around 5%, so the template captures the
+# flash-and-recover STRUCTURE at reduced magnitude, not the -16.97%.
+#
+# SIMULATED. Stress-test template shaped like a past shock, not a replay
+# and not a prediction. Agent-based scenario projection under stated
+# assumptions, never a forecast of market prices.
+name: market_sector_flash_001
+type: market
+disclaimer: >-
+  SIMULATED. Agent-based scenario projection under stated assumptions,
+  not a forecast of market prices. Sector-wide flash selloff, shaped like
+  NVDA 2025-01-27 (DeepSeek shock): intense one-session liquidation, no
+  lasting impairment, fast snapback.
+initial_world:
+  source: world_state
+  timestamp: "2024-11-04T00:00:00Z"
+  region: global
+duration:
+  simulated_hours: 120
+agents:
+  population: 60
+conditions:
+  symbols:
+    - ACME
+  initial_prices:
+    ACME: 100.0
+  agent_mix:
+    market_maker: 0.10
+    momentum: 0.30
+    noise: 0.40
+    fundamental: 0.20
+interventions:
+  - type: sell_shock
+    timestamp: "+6h"
+    extra:
+      symbol: ACME
+      quantity: 24000.0
+      duration_hours: 6
+random_seed: 202411
+information_cutoff: "2024-11-04T00:00:00Z"

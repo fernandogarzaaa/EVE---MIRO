@@ -404,6 +404,19 @@ function trustBadge(rec){
   return `<span class="badge bad">DO NOT USE</span>`;
 }
 
+async function loadMarketScenarios(){
+  const sel = document.getElementById("market-scenario");
+  try{
+    const list = await j("/market/scenarios");
+    if(Array.isArray(list) && list.length){
+      sel.innerHTML = list.map(s =>
+        `<option value="${s.id}">${s.id} (${s.class})</option>`).join("");
+      return;
+    }
+  }catch(e){ /* fall through to the static options below */ }
+}
+loadMarketScenarios();
+
 async function runMarket(){
   const btn = document.getElementById("market-run-btn");
   const status = document.getElementById("market-status");

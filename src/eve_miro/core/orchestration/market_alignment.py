@@ -29,12 +29,29 @@ from eve_miro.core.world.temporal import iso
 
 TRADING_DAYS = 252
 
-SCENARIO_CLASSES = ("sell_shock", "volatility_spike", "rate_shock", "baseline")
+SCENARIO_CLASSES = (
+    "sell_shock",
+    "volatility_spike",
+    "rate_shock",
+    "earn_gap_down",
+    "earn_gap_snapback",
+    "sector_flash",
+    "macro_slide",
+    "baseline",
+)
 
 
 def scenario_class_for(scenario_id: str) -> str:
     """Map a scenario id to its calibration class. Unknown ids are baseline."""
     sid = (scenario_id or "").lower()
+    if "earn_gap_down" in sid:
+        return "earn_gap_down"
+    if "earn_gap_snapback" in sid:
+        return "earn_gap_snapback"
+    if "sector_flash" in sid:
+        return "sector_flash"
+    if "macro_slide" in sid:
+        return "macro_slide"
     if "sell_shock" in sid or "sellshock" in sid:
         return "sell_shock"
     if "vol_spike" in sid or "volatility_spike" in sid or "volatility" in sid:

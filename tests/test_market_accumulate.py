@@ -23,6 +23,7 @@ from eve_miro.cli.market_accumulate import (
     read_ledger,
     recompute_trust_summary,
 )
+from eve_miro.cli.market_sim import SCENARIOS
 from eve_miro.core.orchestration.market_alignment import scenario_class_for
 from eve_miro.errors import EngineNotConfigured, ProviderError
 
@@ -120,29 +121,27 @@ def test_accumulate_appends_then_skips_idempotently(tmp_path):
     )
     first = asyncio.run(accumulate_week(**kwargs))
     assert first["status"] == "ran"
-    assert first["scenarios"] == ["sell_shock_001", "vol_spike_001", "rate_shock_001"]
-    assert len(calls) == 3
+    assert first["scenarios"] == list(SCENARIOS)
+    assert len(calls) == len(SCENARIOS)
     assert calls[0][1] == 480
     assert calls[0][2] == "market-accumulate"
 
     second = asyncio.run(accumulate_week(**kwargs))
     assert second["status"] == "skipped"
-    assert len(calls) == 3  # no duplicate simulations
+    assert len(calls) == len(SCENARIOS)  # no duplicate simulations
 
     lines = ledger.read_text().strip().splitlines()
-    assert len(lines) == 3
+    assert len(lines) == len(SCENARIOS)
     recs = [json.loads(line) for line in lines]
     assert {r["scenario_class"] for r in recs} == {
-        "sell_shock",
-        "volatility_spike",
-        "rate_shock",
+        scenario_class_for(s) for s in SCENARIOS
     }
     assert all(r["week"] == "2026-W41" and r["data_source"] == "live" for r in recs)
     assert all(r["n_bars"] == 20 for r in recs)
 
     summary = json.loads(trust.read_text())
     assert summary["week"] == "2026-W41"
-    assert summary["n_records"] == 3
+    assert summary["n_records"] == len(SCENARIOS)
     assert summary["classes"]["sell_shock"]["n_alignments"] == 1
     assert latest.is_file()
 
@@ -177,8 +176,8 @@ def test_partial_week_runs_only_missing(tmp_path):
         )
     )
     assert result["status"] == "ran"
-    assert [c[0] for c in calls] == ["vol_spike_001", "rate_shock_001"]
-    assert len(ledger.read_text().strip().splitlines()) == 3
+    assert [c[0] for c in calls] == [s for s in SCENARIOS if s != "sell_shock_001"]
+    assert len(ledger.read_text().strip().splitlines()) == len(SCENARIOS)
 
 
 def test_trust_scores_move_as_ledger_grows(tmp_path):
