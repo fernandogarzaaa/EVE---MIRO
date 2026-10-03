@@ -1,0 +1,22 @@
+<frozen runpy>:128: RuntimeWarning: 'eve_miro.cli.main' found in sys.modules after import of package 'eve_miro.cli', but prior to execution of 'eve_miro.cli.main'; this may result in unpredictable behaviour
+holdout validation for SPY: 691 bars after 2023-12-31
+The fitted model never saw the holdout period. Both columns use the
+frozen prereg scales; holdout errors are (simulated - holdout) / scale.
+
+moment                                           fit err  holdout err
+  log_return.std                                  -0.096       +0.170
+  log_return.excess_kurtosis                      -0.931       -1.462
+  log_return.skew                                 +0.961       -0.512
+  abs_return_autocorr.lag1                        -0.249       +0.190
+  abs_return_autocorr.lag5                        -0.481       +0.093
+  abs_return_autocorr.lag10                       -0.668       +0.004
+  abs_return_autocorr.lag20                       -1.002       -0.222
+  realized_vol_annualized.rv5.mean                -0.094       +0.128
+  realized_vol_annualized.rv5.std                 -0.452       -0.126
+  realized_vol_annualized.rv20.mean               +0.029       +0.239
+  realized_vol_annualized.rv20.std                -0.629       -0.258
+  realized_vol_annualized.rv5.percentile_mae      +0.152       +0.172
+  realized_vol_annualized.rv20.percentile_mae     +0.216       +0.281
+  hill_tail_index.left_5pct                       +1.041       +0.667
+  hill_tail_index.right_5pct                      +0.400       +0.172
+  log_return.mean                                 -0.047       -0.064
