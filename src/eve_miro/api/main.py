@@ -6,6 +6,7 @@ The layout folder apps/api is a pointer; this module is the real app.
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import timedelta
 from pathlib import Path
@@ -486,6 +487,23 @@ def _dashboard_html() -> str:
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard():
     return HTMLResponse(_dashboard_html())
+
+
+@app.get("/market/latest")
+async def market_latest():
+    """Latest offline `eve-miro market-sim` run summary, for the dashboard.
+
+    404 when no run has been recorded yet. The file is written by the CLI;
+    the API never fabricates market output.
+    """
+    from eve_miro.paths import REPO_ROOT
+
+    path = REPO_ROOT / "storage" / "market" / "latest_market_run.json"
+    if not path.is_file():
+        raise HTTPException(
+            404, "no market-sim run recorded yet (run: eve-miro market-sim)"
+        )
+    return JSONResponse(json.loads(path.read_text(encoding="utf-8")))
 
 
 def run() -> None:

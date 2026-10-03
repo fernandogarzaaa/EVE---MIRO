@@ -56,6 +56,7 @@
       <button data-tab="exp">Experience</button>
       <button data-tab="rc">Reality Check</button>
       <button data-tab="rel">Reliability</button>
+      <button data-tab="market">Market</button>
     </nav>
   </div>
 </header>
@@ -104,6 +105,16 @@
     <div id="rc-body"></div>
   </section>
 
+  <section id="tab-market" class="card" hidden>
+    <h2>Market scenarios <span class="badge sim">SIMULATED</span> vs <span class="badge obs">OBSERVED</span></h2>
+    <div class="disclaimer">
+      <span class="badge sim">SIMULATED</span>
+      Scenario calibration against one realized window — not a forecast of market prices.
+      Trust is per scenario class, from the ledger, never from a narrative.
+    </div>
+    <div id="market-body"><p class="muted">No market-sim run recorded yet. Run <code>eve-miro market-sim</code> to generate one.</p></div>
+  </section>
+
   <section id="tab-rel" class="card" hidden>
     <h2>Reliability</h2>
     <p class="muted">Per-source freshness, completeness, availability, and simulation calibration. Stale or empty sources are untrusted.</p>
@@ -111,7 +122,7 @@
   </section>
 </main>
 <script>
-const TABS = ["world","sim","exp","rc","rel"];
+const TABS = ["world","sim","exp","rc","rel","market"];
 const kindClass = k => ({observed:"obs", derived:"der", forecast:"fc", simulated:"sim"}[k] || "obs");
 function badge(k){ k=(k||"").toLowerCase(); return `<span class="badge ${kindClass(k)}">${(k||"?").toUpperCase()}</span>`; }
 function fmt(v){ if(v==null || Number.isNaN(v)) return "n/a"; if(typeof v==="number") return (Math.round(v*1000)/1000).toString(); return String(v); }
@@ -370,6 +381,58 @@ async function refresh(){
   }
   document.getElementById("session-status").textContent =
     (wid?`world ${wid}`:"no world")+" · "+(sid?`sim ${sid}`:"no sim");
+  await refreshMarket();
+}
+
+function trustBadge(rec){
+  if(rec === "USE") return `<span class="badge obs">USE</span>`;
+  if(rec === "CAUTION") return `<span class="badge sim">CAUTION</span>`;
+  return `<span class="badge bad">DO NOT USE</span>`;
+}
+
+async function refreshMarket(){
+  const el = document.getElementById("market-body");
+  const m = await j("/market/latest").catch(()=>null);
+  if(!m){
+    el.innerHTML = `<p class="muted">No market-sim run recorded yet. Run <code>eve-miro market-sim</code> to generate one.</p>`;
+    return;
+  }
+  const al = m.alignment || {};
+  const trust = m.trust || {};
+  const syms = al.symbols || {};
+  const trustRows = Object.keys(trust).sort().map(k => {
+    const t = trust[k];
+    return `<tr><td><code>${k}</code></td><td>${trustBadge(t.recommendation)}</td>
+      <td>${fmt(t.score)}</td><td class="muted">${t.describe||""}</td></tr>`;
+  }).join("");
+  const symBlocks = Object.keys(syms).sort().map(sym => {
+    const s = syms[sym];
+    return `<div class="card" style="margin-top:8px;">
+      <h3><code>${sym}</code> ${badge("simulated")} vs ${badge("observed")}
+        <span class="muted">score ${fmt(s.symbol_score)}</span></h3>
+      <div class="row">
+        <div class="kpi"><span class="muted">KS statistic</span><b>${fmt(s.ks_statistic)}</b></div>
+        <div class="kpi"><span class="muted">vol path MAE</span><b>${fmt(s.vol_path_mae)}</b></div>
+        <div class="kpi"><span class="muted">drawdown error</span><b>${fmt(s.drawdown_error)}</b></div>
+        <div class="kpi"><span class="muted">n points</span><b>${s.n_points}</b></div>
+      </div>
+      <div style="margin-top:8px;">${sparkline(s.sim_daily, s.obs_daily)}</div>
+    </div>`;
+  }).join("") || `<p class="muted">No symbols aligned.</p>`;
+  el.innerHTML = `
+    <div class="row">
+      <div class="kpi"><span class="muted">scenario</span><b style="font-size:14px">${m.scenario||"—"}</b></div>
+      <div class="kpi"><span class="muted">hours</span><b>${m.hours||"—"}</b></div>
+      <div class="kpi"><span class="muted">aggregate score</span><b>${fmt(al.aggregate_score)}</b></div>
+      <div class="kpi"><span class="muted">class</span><b style="font-size:14px">${al.scenario_class||"—"}</b></div>
+    </div>
+    <p class="muted">cutoff ${m.cutoff||"—"} · symbols ${(m.symbols||[]).join(", ")} · generated ${m.generated_at||"—"}</p>
+    <h3>Scenario-class trust</h3>
+    <table><thead><tr><th>class</th><th>recommendation</th><th>score</th><th>calibration</th></tr></thead>
+    <tbody>${trustRows}</tbody></table>
+    <h3 style="margin-top:16px;">Per-symbol alignment</h3>
+    ${symBlocks}
+    <p class="muted" style="margin-top:12px;">${m.disclaimer||""}</p>`;
 }
 refresh();
 setInterval(refresh, 12000);

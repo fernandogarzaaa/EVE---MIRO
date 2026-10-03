@@ -18,6 +18,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+from eve_miro.cli.market_sim import cmd_market_sim
 from eve_miro.paths import REPO_ROOT
 
 PROG = "eve-miro"
@@ -109,6 +110,8 @@ Usage:
   eve-miro config set KEY  set a key (value from EVE_MIRO_VALUE or getpass)
   eve-miro serve           start MiroFish Flask (:5001)
   eve-miro run             live tiny closed loop (EVE_MIRO_ENGINES=in-tree, fail closed)
+  eve-miro market-sim      offline market scenario run (fixtures): ground t0,
+                           run marketsim shock, align vs held-out t1, print trust
   eve-miro api             uvicorn eve_miro.api.main:app :8000
 
 Setup flags (non-interactive):
@@ -578,6 +581,7 @@ COMMANDS = {
     "config": cmd_config,
     "serve": cmd_serve,
     "run": cmd_run,
+    "market-sim": cmd_market_sim,
     "api": cmd_api,
 }
 
