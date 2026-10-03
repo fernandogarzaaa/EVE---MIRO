@@ -10,7 +10,8 @@ is recomputed from the full ledger file on every run.
 
 ## What one run does
 
-1. **Ground.** Fetches live daily bars for SPY and AAPL via yfinance
+1. **Ground.** Fetches live daily bars for SPY, AAPL, QQQ, and IWM
+   via yfinance
    (fail closed when unavailable), the latest VIX close for context
    (soft-fail), a FRED macro snapshot when `FRED_API_KEY` is set (soft
    skip otherwise), and a GDELT market-news article count (soft skip on
@@ -55,16 +56,47 @@ One JSON object per line in `trust_ledger.jsonl`:
 - `run_at`: UTC timestamp of the run
 - `scenario`: scenario id, e.g. `sell_shock_001`
 - `scenario_class`: `sell_shock`, `volatility_spike`, or `rate_shock`
-- `tickers`: `["SPY", "AAPL"]`
+- `tickers`: `["SPY", "AAPL", "QQQ", "IWM"]`
 - `hours`: simulated horizon (480)
 - `n_bars`: realized bars aligned (20)
 - `vix`: latest VIX close, or null when the fetch failed
 - `macro`: FRED snapshot (`{series_id: {date, value}}`), or null
 - `news`: `{"n_articles": N, "query": ...}`, or null
+- `jev_relevance`: Jev's 0..1 relevance score for this record's
+  scenario class this week, or null when Jev scoring was disabled or
+  unavailable. Weak signal only, never ingested by trust.
 - `alignment`: `aggregate_score`, per-symbol metrics
   (`symbol_score`, `ks_statistic`, `vol_path_mae`, `drawdown_error`,
-  `n_points`), `skipped_symbols`
+  `n_points`), `skipped_symbols`, and `jev_judge_score` (Jev's 0..1
+  answer to "does the simulated path capture the realized stress
+  character", or null; weak signal only)
 - `data_source`: always `"live"` (fail closed: no bars, no record)
+
+## Jev weak-signal scoring
+
+When `JEV_ENABLED=1`, the run asks the TypeSafe Jev decision API two
+kinds of typed score questions (module
+`src/eve_miro/core/reality/jev_scoring.py`):
+
+1. **Relevance.** After grounding, one score question per scenario
+   class: how relevant is it to stress-test this class this week, given
+   the market snapshot (VIX, trailing vol, drawdown, trend per ticker)?
+   The answers drive weighting and attention in the report, never
+   prediction. Stored per record as `jev_relevance` and on
+   `latest_market_run.json` as the `jev_relevance` map.
+2. **Judge.** After alignment, one score question per scenario: does
+   the simulated path capture the character of the realized stress
+   (shape, depth, recovery)? Stored as
+   `alignment.jev_judge_score`.
+
+Standing rules, carried over from Signal Lab: Jev is a scalable weak
+signal, NOT gold. The empirical per-class trust computation never
+ingests Jev scores; they live under separate JSON keys and are labeled
+as weak signal wherever they appear. Scoring fails soft everywhere: no
+key, missing credential helper, API error, or timeout means skip
+scoring with a logged note, never fail the run. Jev scoring is opt-in:
+manual runs default off, the weekly cron enables it with
+`JEV_ENABLED=1`.
 
 ## Trust thresholds
 
@@ -98,6 +130,9 @@ cd /path/to/EVE---MIRO && eve-miro market-accumulate
 
 with `FRED_API_KEY` exported when available. The job is idempotent per
 ISO week, so overlapping or retried runs cannot duplicate records.
+The scheduled weekly run sets `JEV_ENABLED=1` to turn on Jev
+weak-signal scoring (see above); manual runs leave it off unless the
+operator opts in.
 
 ## Honest limits
 
