@@ -26,8 +26,15 @@ def market_scenario(
     origin: str = "2024-11-04T00:00:00Z",
     initial_prices: dict[str, float] | None = None,
     agent_mix: dict[str, float] | None = None,
+    agent_kwargs: dict[str, dict[str, Any]] | None = None,
     interventions: list[dict[str, Any]] | None = None,
 ) -> Scenario:
+    """Build a market Scenario.
+
+    agent_kwargs maps archetype kind ("market_maker", "momentum", "noise",
+    "fundamental") to constructor kwargs, letting calibrated parameters
+    flow into the engine. Empty/absent means engine defaults.
+    """
     return Scenario(
         name=name,
         type="market",
@@ -38,6 +45,7 @@ def market_scenario(
             "symbols": symbols,
             "initial_prices": initial_prices or {},
             "agent_mix": agent_mix or {},
+            "agent_kwargs": agent_kwargs or {},
         },
         interventions=[Intervention.model_validate(i) for i in (interventions or [])],
         random_seed=random_seed,
