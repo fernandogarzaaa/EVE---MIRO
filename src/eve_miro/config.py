@@ -44,6 +44,11 @@ PROVIDER_INTERVALS: dict[str, timedelta] = {
     "nasa": timedelta(hours=6),
     "celestrak": timedelta(hours=6),
     "coingecko": timedelta(minutes=5),
+    "markets_bars": timedelta(hours=1),
+    "markets_options": timedelta(hours=4),
+    "macro_fred": timedelta(days=1),
+    "market_vol": timedelta(minutes=15),
+    "gdelt_markets": timedelta(minutes=15),
     "worldbank": timedelta(days=30),
     "spaceweather": timedelta(minutes=5),
 }
