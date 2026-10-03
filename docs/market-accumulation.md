@@ -118,7 +118,58 @@ eve-miro market-accumulate
 
 Environment: no live flags are needed (the job fetches live data
 directly and fails closed without it). Optional: `FRED_API_KEY` for the
-macro snapshot. The job writes under `storage/market/` in the repo.
+macro snapshot, or `FRED_MACRO_JSON` pointing at pre-fetched
+observations (see Macro context below). The job writes under
+`storage/market/` in the repo.
+
+## Macro context
+
+The weekly run records a macro snapshot alongside each run: the latest
+observation of four FRED series read by
+`src/eve_miro/providers/macro_fred.py`:
+
+- `DGS10`: 10-Year Treasury Constant Maturity Rate (percent)
+- `CPIAUCSL`: Consumer Price Index for All Urban Consumers (index)
+- `UNRATE`: Unemployment Rate (percent)
+- `FEDFUNDS`: Effective Federal Funds Rate (percent)
+
+Two ways to supply them. For local runs, export `FRED_API_KEY` (free key
+from stlouisfed.org) and the provider calls the API directly. For the
+scheduled run, whose credential lives behind the Secure Vault rather than
+the process environment, pre-fetch observations into a JSON file and point
+`FRED_MACRO_JSON` at it. The file takes precedence over the API key; a
+corrupt file is a loud soft skip (warned, run continues without macro).
+
+File schema:
+
+```json
+{
+  "DGS10": [{"date": "2026-10-01", "value": "5.24"}],
+  "CPIAUCSL": [{"date": "2026-09-01", "value": "320.1"}],
+  "UNRATE": [{"date": "2026-09-01", "value": "4.1"}],
+  "FEDFUNDS": [{"date": "2026-09-01", "value": "4.33"}]
+}
+```
+
+Pre-fetch with the fred skill CLI (machine-local; the repo never imports
+it, the JSON file is the whole interface):
+
+```sh
+for s in DGS10 CPIAUCSL UNRATE FEDFUNDS; do
+  python3 ~/workspace/skills/fred/bin/fred.py observations \
+    --series-id "$s" --limit 12 > "/tmp/fred_$s.json"
+done
+python3 - <<'EOF'
+import json
+out = {}
+for s in ["DGS10", "CPIAUCSL", "UNRATE", "FEDFUNDS"]:
+    doc = json.load(open(f"/tmp/fred_{s}.json"))
+    out[s] = [{"date": o["date"], "value": o["value"]}
+              for o in doc["observations"]]
+json.dump(out, open("/tmp/fred_macro.json", "w"), indent=2)
+EOF
+FRED_MACRO_JSON=/tmp/fred_macro.json eve-miro market-accumulate
+```
 
 ## Scheduler
 
@@ -128,7 +179,8 @@ Run weekly on Monday mornings Asia/Manila from the repo root:
 cd /path/to/EVE---MIRO && eve-miro market-accumulate
 ```
 
-with `FRED_API_KEY` exported when available. The job is idempotent per
+with `FRED_API_KEY` exported when available, or `FRED_MACRO_JSON`
+pointing at a pre-fetched file (see Macro context above). The job is idempotent per
 ISO week, so overlapping or retried runs cannot duplicate records.
 The scheduled weekly run sets `JEV_ENABLED=1` to turn on Jev
 weak-signal scoring (see above); manual runs leave it off unless the

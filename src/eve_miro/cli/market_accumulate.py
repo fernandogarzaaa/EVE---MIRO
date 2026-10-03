@@ -9,10 +9,11 @@ recomputed from the full ledger file on every run and written to
 refreshed so the dashboard Market tab shows the newest run.
 
 Data: live yfinance daily bars for SPY and AAPL (fail closed when
-unavailable), live VIX for context (soft-fail), FRED macro when
-FRED_API_KEY is set (soft skip otherwise), GDELT market news counts
-(soft skip on failure). Nothing is fabricated: a failed fetch is an
-error for bars and a recorded skip for the optional context.
+unavailable), live VIX for context (soft-fail), FRED macro from
+FRED_MACRO_JSON pre-fetch file or FRED_API_KEY live (soft skip otherwise),
+GDELT market news counts (soft skip on failure). Nothing is fabricated: a
+failed fetch is an error for bars and a recorded skip for the optional
+context.
 
 Idempotency: records are keyed by ISO week (e.g. "2026-W40"). A week
 with all three scenario records already present exits 0 without
@@ -156,26 +157,35 @@ async def fetch_vix() -> float | None:
 
 
 async def fetch_macro() -> dict[str, Any] | None:
-    """FRED macro snapshot when FRED_API_KEY is set. Soft skip otherwise."""
-    if not (os.environ.get(FRED_KEY_ENV) or "").strip():
-        print("note: FRED_API_KEY not set; skipping macro snapshot")
-        return None
-    try:
-        from eve_miro.providers.macro_fred import _live_payload
+    """FRED macro snapshot. Precedence: FRED_MACRO_JSON file, then FRED_API_KEY live.
 
-        payload = await _live_payload()
-        out: dict[str, Any] = {}
-        for series_id, series in (payload.get("series") or {}).items():
-            obs = (series.get("observations") or [])
-            if obs:
-                out[series_id] = {
-                    "date": obs[0].get("date"),
-                    "value": obs[0].get("value"),
-                }
-        return out or None
+    A corrupt file is a loud soft skip (warn + continue without macro); this is
+    deliberate for the weekly run, where a stale macro file must never block the
+    ledger. Neither set means a clean skip.
+    """
+    from eve_miro.providers import macro_fred
+
+    file_path = (os.environ.get(macro_fred.FILE_ENV) or "").strip()
+    try:
+        if file_path:
+            payload = macro_fred.read_file_payload(file_path)
+        elif (os.environ.get(FRED_KEY_ENV) or "").strip():
+            payload = await macro_fred._live_payload()
+        else:
+            print("note: FRED_API_KEY not set and FRED_MACRO_JSON not set; skipping macro snapshot")
+            return None
     except Exception as exc:
-        print(f"warn: FRED fetch failed ({exc}); continuing without macro")
+        print(f"warn: FRED macro unavailable ({exc}); continuing without macro")
         return None
+    out: dict[str, Any] = {}
+    for series_id, series in (payload.get("series") or {}).items():
+        obs = (series.get("observations") or [])
+        if obs:
+            out[series_id] = {
+                "date": obs[0].get("date"),
+                "value": obs[0].get("value"),
+            }
+    return out or None
 
 
 async def fetch_news_counts() -> dict[str, Any] | None:
