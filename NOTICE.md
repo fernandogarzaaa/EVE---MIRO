@@ -25,6 +25,13 @@ Origin: see `eve/ORIGIN.txt`.
 
 EVE files stay MIT under their own copyright notice.
 
+## `marketsim/`
+
+MIT License. See `marketsim/LICENSE`.
+
+First-party market simulation engine. It imports only from the MIT data
+fabric (`eve_miro.*`); it never imports from `mirofish/` (AGPL-3.0).
+
 ## Runtime boundary
 
 The intended process boundary between the MIT data fabric and the AGPL-3.0

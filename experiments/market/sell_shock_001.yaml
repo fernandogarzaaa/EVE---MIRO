@@ -1,0 +1,36 @@
+name: market_sell_shock_001
+type: market
+disclaimer: >-
+  SIMULATED. Agent-based scenario projection under stated assumptions,
+  not a forecast of market prices. A large uninformed sell order hits one
+  ticker; archetypes (market maker, momentum, noise, fundamental) react
+  through a limit order book.
+initial_world:
+  source: world_state
+  timestamp: "2024-11-04T00:00:00Z"
+  region: global
+duration:
+  simulated_hours: 48
+agents:
+  population: 60
+conditions:
+  symbols:
+    - ACME
+    - BETA
+  initial_prices:
+    ACME: 100.0
+    BETA: 50.0
+  agent_mix:
+    market_maker: 0.10
+    momentum: 0.30
+    noise: 0.40
+    fundamental: 0.20
+interventions:
+  - type: sell_shock
+    timestamp: "+12h"
+    extra:
+      symbol: ACME
+      quantity: 20000.0
+      duration_hours: 4
+random_seed: 202411
+information_cutoff: "2024-11-04T00:00:00Z"
