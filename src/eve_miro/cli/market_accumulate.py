@@ -40,11 +40,19 @@ from eve_miro.cli.market_sim import (
 )
 from eve_miro.core.calibration.params import CalibrationParams
 from eve_miro.core.orchestration.market_alignment import scenario_class_for
+from eve_miro.core.reality.jev_scoring import (
+    JEV_NOTE,
+    build_market_state,
+    jev_enabled,
+    judge_alignment,
+    render_market_state,
+    score_scenario_relevance,
+)
 from eve_miro.core.reality.trust_profile import scenario_trust_from_ledger
 from eve_miro.errors import EngineNotConfigured, ProviderError
 from eve_miro.paths import REPO_ROOT
 
-TICKERS = ("SPY", "AAPL")
+TICKERS = ("SPY", "AAPL", "QQQ", "IWM")
 ACCUM_HOURS = 480  # 20 trading days of simulated horizon
 MIN_BARS_PER_TICKER = 25  # 20-day realized window plus grounding history
 EXPERIMENT_ID = "market-accumulate"
@@ -346,7 +354,15 @@ def build_ledger_record(
     vix: float | None,
     macro: dict[str, Any] | None,
     news: dict[str, Any] | None,
+    jev_relevance: float | None = None,
+    jev_judge_score: float | None = None,
 ) -> dict[str, Any]:
+    """Build one JSONL ledger record.
+
+    Jev fields are weak-signal annotations only: they are recorded for
+    attention and never ingested by the trust computation (see
+    ledger_record_for_trust, which projects an explicit field set).
+    """
     alignment = summary.get("alignment") or {}
     symbols = alignment.get("symbols") or {}
     sym_out: dict[str, Any] = {}
@@ -370,13 +386,42 @@ def build_ledger_record(
         "vix": vix,
         "macro": macro,
         "news": news,
+        "jev_relevance": jev_relevance,
         "alignment": {
             "aggregate_score": alignment.get("aggregate_score"),
             "symbols": sym_out,
             "skipped_symbols": alignment.get("skipped_symbols", []),
+            "jev_judge_score": jev_judge_score,
         },
         "data_source": "live",
     }
+
+
+def render_sim_summary(scenario: str, summary: dict[str, Any]) -> str:
+    """Render a simulated scenario outcome as text for the Jev judge."""
+    alignment = summary.get("alignment") or {}
+    lines = [
+        f"Scenario {scenario} "
+        f"(class {alignment.get('scenario_class')}), "
+        f"{summary.get('hours')}h horizon."
+    ]
+    agg = alignment.get("aggregate_score")
+    lines.append(
+        f"Aggregate alignment score: {agg:.3f}"
+        if isinstance(agg, (int, float))
+        else "Aggregate alignment score: n/a"
+    )
+    for sym, sa in (alignment.get("symbols") or {}).items():
+        lines.append(
+            f"{sym}: symbol score {sa.get('symbol_score')}, "
+            f"KS {sa.get('ks_statistic')}, "
+            f"vol-path MAE {sa.get('vol_path_mae')}, "
+            f"drawdown error {sa.get('drawdown_error')}"
+        )
+    skipped = alignment.get("skipped_symbols") or []
+    if skipped:
+        lines.append(f"Skipped symbols: {', '.join(skipped)}")
+    return "\n".join(lines)
 
 
 async def accumulate_week(
@@ -392,6 +437,9 @@ async def accumulate_week(
     latest_run_path: Path | None = None,
     agent_kwargs: dict[str, dict[str, Any]] | None = None,
     agent_mix: dict[str, float] | None = None,
+    jev: bool | None = None,
+    score_relevance_fn: Callable[[dict[str, Any]], dict[str, float | None] | None] | None = None,
+    judge_fn: Callable[[str, str], float | None] | None = None,
 ) -> dict[str, Any]:
     """Run one accumulation week. Returns a result dict; raises fail-closed.
 
@@ -414,6 +462,22 @@ async def accumulate_week(
     macro = await fetch_macro_fn()
     news = await fetch_news_fn()
 
+    use_jev = jev_enabled() if jev is None else jev
+    relevance_fn = score_relevance_fn or score_scenario_relevance
+    judge = judge_fn or judge_alignment
+    market_state = build_market_state(bars, vix)
+    realized_text = render_market_state(market_state)
+    relevance: dict[str, float | None] | None = None
+    if use_jev:
+        print("note: Jev scoring enabled (JEV_ENABLED=1); weak signal only")
+        try:
+            relevance = relevance_fn(market_state)
+        except Exception as exc:
+            print(f"note: Jev relevance scoring skipped ({exc})")
+            relevance = None
+    else:
+        print("note: Jev scoring disabled; set JEV_ENABLED=1 to enable")
+
     run_at = datetime.now(timezone.utc).isoformat()
     new_records: list[dict[str, Any]] = []
     summaries: dict[str, dict[str, Any]] = {}
@@ -428,6 +492,17 @@ async def accumulate_week(
             experiment_id=EXPERIMENT_ID,
         )
         summaries[scenario] = summary
+        sclass = summary.get("alignment", {}).get("scenario_class") or scenario_class_for(
+            scenario
+        )
+        judge_score: float | None = None
+        if use_jev:
+            try:
+                judge_score = judge(
+                    render_sim_summary(scenario, summary), realized_text
+                )
+            except Exception as exc:
+                print(f"note: Jev judge skipped for {scenario} ({exc})")
         new_records.append(
             build_ledger_record(
                 week=week,
@@ -438,6 +513,8 @@ async def accumulate_week(
                 vix=vix,
                 macro=macro,
                 news=news,
+                jev_relevance=(relevance or {}).get(sclass),
+                jev_judge_score=judge_score,
             )
         )
 
@@ -454,6 +531,11 @@ async def accumulate_week(
     latest = summaries[pending[-1]]
     latest["trust"] = trust_dump
     latest["accumulation_week"] = week
+    # Jev relevance is a weak attention signal, kept structurally separate
+    # from the empirical trust table above.
+    latest["jev_relevance"] = relevance or {}
+    if use_jev:
+        latest["jev_note"] = JEV_NOTE
     latest["disclaimer"] = (
         "SIMULATED. Scenario calibration against one realized window, "
         "not a forecast of market prices. Trust scores are per scenario "
@@ -468,6 +550,7 @@ async def accumulate_week(
         "status": "ran",
         "scenarios": pending,
         "n_records": len(all_records),
+        "jev_relevance": relevance or {},
         "trust": {
             sclass: {
                 "score": t["score"],
@@ -507,6 +590,12 @@ def cmd_market_accumulate(argv: list[str] | None = None) -> int:
 
     print(f"market-accumulate  week={week}  scenarios={','.join(result['scenarios'])}")
     print(f"ledger records total: {result['n_records']}")
+    if result.get("jev_relevance"):
+        print("Jev relevance (weak signal, not trust):")
+        for sclass in sorted(result["jev_relevance"]):
+            score = result["jev_relevance"][sclass]
+            print(f"  {sclass}: {score:.2f}" if isinstance(score, float) else f"  {sclass}: n/a")
+        print(JEV_NOTE)
     print("per-class trust (ledger-wide):")
     for sclass in sorted(result["trust"]):
         t = result["trust"][sclass]
