@@ -219,3 +219,38 @@ def test_health_and_metrics_empty():
     assert h.json()["status"] == "ok"
     m = client.get("/metrics?format=json")
     assert m.json()["ingest_count"] == 0
+
+
+def test_market_tab_and_latest_endpoint(tmp_path, monkeypatch):
+    """Market dashboard tab is served; /market/latest reflects the CLI run file."""
+    import eve_miro.paths
+
+    client = TestClient(app)
+    dash = client.get("/")
+    assert dash.status_code == 200
+    assert "Market" in dash.text
+    assert "market-body" in dash.text
+
+    # Generate a real summary via the CLI (offline, fixtures).
+    import io
+    from contextlib import redirect_stdout, redirect_stderr
+
+    from eve_miro.cli.market_sim import cmd_market_sim
+
+    buf = io.StringIO()
+    with redirect_stdout(buf), redirect_stderr(io.StringIO()):
+        rc = cmd_market_sim(["--scenario", "sell_shock_001", "--hours", "72"])
+    assert rc == 0
+
+    r = client.get("/market/latest")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["scenario"] == "sell_shock_001"
+    assert body["alignment"]["scenario_class"] == "sell_shock"
+    assert "sell_shock" in body["trust"]
+    assert "SIMULATED" in body["disclaimer"]
+
+    # Fail closed: no run file -> 404, never fabricated.
+    monkeypatch.setattr(eve_miro.paths, "REPO_ROOT", tmp_path)
+    r2 = client.get("/market/latest")
+    assert r2.status_code == 404
