@@ -31,7 +31,7 @@ eve-miro market-sim --scenario vol_spike_001 --hours 120
 
 Flags:
 
-- `--scenario` — any scenario id from the `experiments/market/`
+- `--scenario`: any scenario id from the `experiments/market/`
   registry (default: `sell_shock_001`). Run `GET /market/scenarios`
   or list the directory for the current set. The CLI remaps their
   synthetic symbols onto the fixture tickers and scales size-based
@@ -56,24 +56,24 @@ is a stress-test template SHAPED LIKE a real past shock: the
 parameters are grounded in the documented event's statistics, but the
 simulation is not a replay of the event and never a prediction.
 
-- `earn_gap_down_001` — earnings shock with permanent impairment,
+- `earn_gap_down_001`: earnings shock with permanent impairment,
   shaped like INTC 2024-08-02 (-26.06% close-to-close, abnormal z
   -6.60, volume 4.1x, kept drifting: +5d -8.24%). Overnight gap,
   sustained liquidation, fundamentals reprice lower and do not buy
   the dip.
-- `earn_gap_snapback_001` — earnings shock with intact fundamentals,
+- `earn_gap_snapback_001`: earnings shock with intact fundamentals,
   shaped like PANW 2024-02-21 (-28.44%, z -6.74, volume 7.8x, V-shaped
   recovery: +5d +20.68%). Same flow shock as the gap-down template,
   but fair value is untouched, so dip-buying drives a recovery. The
   pair isolates the impairment channel.
-- `sector_flash_001` — sector-wide flash selloff with fast snapback,
+- `sector_flash_001`: sector-wide flash selloff with fast snapback,
   shaped like NVDA 2025-01-27 (-16.97%, z -5.05, volume 3.5x, +1d
   +8.93%; AVGO -17.40%, ANET -22.35% the same session). Intense
   one-session liquidation, no lasting impairment. Honest limit: the
   engine's order-book depth caps single-session displacement around
   5%, so this template captures the flash-and-recover structure at
   reduced magnitude.
-- `macro_slide_001` — news-driven multi-day slide, shaped like SPY
+- `macro_slide_001`: news-driven multi-day slide, shaped like SPY
   2025-04-03/04 (-4.93% then -5.85%, two-day cumulative -10.49%).
   Two escalating liquidation waves with mild lasting impairment; no
   V-recovery inside the horizon.
