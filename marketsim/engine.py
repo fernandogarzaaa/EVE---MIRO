@@ -437,6 +437,13 @@ class MarketSimEngine:
     async def run(self, simulation: Simulation, until: datetime) -> SimulationResult:
         simulation.status = "running"
         until = as_utc(until)
+        # The closed loop reassigns sim.id after initialize() for traceability
+        # (sim_<world>_<scenario>_<seed>). Re-key the engine state when the
+        # original id is unambiguously recoverable; otherwise fail closed.
+        if simulation.id not in self._states:
+            original = f"marketsim_{simulation.world_id}_{simulation.seed}"
+            if original in self._states:
+                self._states[simulation.id] = self._states.pop(original)
         max_hours = simulation.hours
         while simulation.cursor_hour < max_hours:
             t = simulation.origin + timedelta(hours=simulation.cursor_hour)

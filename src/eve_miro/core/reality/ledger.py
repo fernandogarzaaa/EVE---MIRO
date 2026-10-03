@@ -23,6 +23,7 @@ class PredictionRecord(BaseModel):
     id: str
     experiment_id: str = ""
     scenario_id: str = ""
+    scenario_class: str = ""
     model: str = "mirofish"
     seed: int | None = None
     cutoff: datetime
@@ -33,6 +34,7 @@ class PredictionRecord(BaseModel):
     observed: list[float] = Field(default_factory=list)
     times: list[str] = Field(default_factory=list)
     mae: float | None = None
+    metrics: dict[str, float] = Field(default_factory=dict)
     verdict: Literal["CORRECT", "INCORRECT", "PENDING"] = "PENDING"
     notes: str = ""
     predicted_kind: ProvenanceKind = ProvenanceKind.SIMULATED
@@ -70,6 +72,7 @@ class RealityLedger:
         *,
         experiment_id: str,
         scenario_id: str = "",
+        scenario_class: str = "",
         model: str = "mirofish",
         seed: int | None = None,
         cutoff: datetime | str,
@@ -79,6 +82,7 @@ class RealityLedger:
         predicted: list[float] | None = None,
         observed: list[float] | None = None,
         times: list[str] | None = None,
+        metrics: dict[str, float] | None = None,
         notes: str = "",
         threshold: float = MAE_CORRECT_THRESHOLD,
     ) -> PredictionRecord:
@@ -90,6 +94,7 @@ class RealityLedger:
             id=f"pred_{uuid4().hex[:12]}",
             experiment_id=experiment_id,
             scenario_id=scenario_id,
+            scenario_class=scenario_class,
             model=model,
             seed=seed,
             cutoff=as_utc(cutoff),
@@ -100,6 +105,7 @@ class RealityLedger:
             observed=observed,
             times=list(times or []),
             mae=err,
+            metrics=dict(metrics or {}),
             verdict=verdict,  # type: ignore[arg-type]
             notes=notes,
         )
