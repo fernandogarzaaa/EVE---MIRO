@@ -280,3 +280,36 @@ def test_market_run_rejects_bad_input():
     assert r.status_code == 400, r.text
     r2 = client.post("/market/run", json={"scenario": "sell_shock_001", "hours": 24})
     assert r2.status_code == 400, r2.text
+
+
+def test_market_scenarios_lists_registry():
+    client = TestClient(app)
+    r = client.get("/market/scenarios")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    ids = [s["id"] for s in body]
+    for stem in (
+        "sell_shock_001",
+        "vol_spike_001",
+        "rate_shock_001",
+        "earn_gap_down_001",
+        "earn_gap_snapback_001",
+        "sector_flash_001",
+        "macro_slide_001",
+    ):
+        assert stem in ids
+    by_id = {s["id"]: s["class"] for s in body}
+    assert by_id["earn_gap_down_001"] == "earn_gap_down"
+    assert by_id["macro_slide_001"] == "macro_slide"
+
+
+def test_market_run_accepts_historical_scenario():
+    """POST /market/run validates against the registry, not a hardcoded tuple."""
+    client = TestClient(app)
+    r = client.post("/market/run", json={"scenario": "earn_gap_down_001", "hours": 72})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["scenario"] == "earn_gap_down_001"
+    assert body["alignment"]["scenario_class"] == "earn_gap_down"
+    assert "earn_gap_down" in body["trust"]
+    assert "SIMULATED" in body["disclaimer"]

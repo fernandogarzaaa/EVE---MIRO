@@ -16,10 +16,14 @@ is recomputed from the full ledger file on every run.
    skip otherwise), and a GDELT market-news article count (soft skip on
    failure). A trailing bar dated today (UTC) is dropped so the realized
    window always ends on the latest complete bar.
-2. **Simulate.** Runs `sell_shock_001`, `vol_spike_001`, and
-   `rate_shock_001` through the marketsim engine over a 480-hour horizon
-   (20 trading days), using the calibrated parameters from
-   `storage/market/calibration_result.json` (Phase 5 best fit).
+2. **Simulate.** Runs every scenario in the `experiments/market/`
+   registry (currently seven: the three original shock scenarios plus
+   the four historical shock templates documented in
+   `docs/market-sim-guide.md`) through the marketsim engine over a
+   480-hour horizon (20 trading days), using the calibrated parameters
+   from `storage/market/calibration_result.json` (Phase 5 best fit).
+   Scenarios are discovered from the registry, never from a hardcoded
+   list, so a new YAML file is picked up automatically.
 3. **Align.** Each simulated daily path is aligned against the trailing
    20 trading days with the Phase 3 alignment module: two-sample KS on
    log returns, rolling realized-vol path MAE, and max-drawdown depth
@@ -31,10 +35,17 @@ is recomputed from the full ledger file on every run.
    `storage/market/latest_market_run.json` so the dashboard Market tab
    shows the newest run with the ledger-wide trust table.
 
-Idempotency: a week with all three scenario records already present
+Idempotency: a week with all scenario records already present
 exits 0 with a skip message. A partially recorded week only runs the
 missing scenarios. To re-run a week manually, pass `--week` with an
 unrecorded label such as `2026-W40b`.
+
+Each historical shock template has its own scenario class
+(`earn_gap_down`, `earn_gap_snapback`, `sector_flash`, `macro_slide`),
+so trust accumulates separately per template. The templates are
+stress-test shapes, not replays: a rising trust score means the
+template's structure keeps matching realized windows, never that the
+source event will repeat.
 
 ## Ledger schema
 

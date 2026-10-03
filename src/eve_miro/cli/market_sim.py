@@ -44,7 +44,28 @@ from eve_miro.core.world.state import Economy, Population, WorldState
 from eve_miro.errors import EngineNotConfigured
 from eve_miro.paths import REPO_ROOT
 
-SCENARIOS = ("sell_shock_001", "vol_spike_001", "rate_shock_001")
+def list_scenarios() -> list[str]:
+    """Scenario ids from experiments/market/*.yaml with type: market.
+
+    The registry is the YAML directory, not a hardcoded tuple: adding a
+    scenario file makes it runnable via the CLI, the API, and the weekly
+    accumulation job. Unknown names fail closed at lookup time.
+    """
+    out: list[str] = []
+    market_dir = REPO_ROOT / "experiments" / "market"
+    if not market_dir.is_dir():
+        return out
+    for path in sorted(market_dir.glob("*.yaml")):
+        try:
+            doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except (OSError, yaml.YAMLError):
+            continue
+        if isinstance(doc, dict) and doc.get("type") == "market" and doc.get("name"):
+            out.append(path.stem)
+    return out
+
+
+SCENARIOS = tuple(list_scenarios())
 DEFAULT_HOURS = 120
 DEFAULT_SEEDS_OFFSET = 1
 MIN_HOURS = 72

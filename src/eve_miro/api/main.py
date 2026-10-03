@@ -506,6 +506,17 @@ async def market_latest():
     return JSONResponse(json.loads(path.read_text(encoding="utf-8")))
 
 
+@app.get("/market/scenarios")
+def market_scenarios():
+    """List runnable market scenarios from the experiments/market/ registry."""
+    from eve_miro.cli.market_sim import list_scenarios
+    from eve_miro.core.orchestration.market_alignment import scenario_class_for
+
+    return JSONResponse(
+        [{"id": s, "class": scenario_class_for(s)} for s in list_scenarios()]
+    )
+
+
 class MarketRunBody(BaseModel):
     scenario: str = "sell_shock_001"
     hours: int = 120
