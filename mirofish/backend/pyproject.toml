@@ -21,8 +21,10 @@ dependencies = [
     "httpx>=0.27.0",
     
     # OASIS 社交媒体模拟
-    "camel-oasis==0.2.5",
-    "camel-ai==0.2.78",
+    # NOTE: the OASIS simulation scripts live in mirofish/simulations/ with
+    # their own dependency tree (camel-oasis pins carry unfixable CVEs, see
+    # Dependabot #189/#150). The backend must not depend on them; the
+    # SimulationRunner launches the scripts via the simulations venv.
     
     # 文件处理
     "PyMuPDF>=1.24.0",

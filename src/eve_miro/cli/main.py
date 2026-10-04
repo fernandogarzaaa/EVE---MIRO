@@ -140,7 +140,7 @@ Providers (OpenAI-compatible HTTP only):
   azure        --base-url required
   custom       --base-url required
 
-Python split: fabric is 3.12+ (.venv). OASIS is 3.11 (mirofish/.venv).
+Python split: fabric is 3.12+ (.venv). OASIS is 3.11 (mirofish/simulations/.venv).
 """
 
 
@@ -163,7 +163,8 @@ def fabric_python() -> Path:
 
 
 def oasis_python() -> Path | None:
-    vpy = venv_python(REPO_ROOT / "mirofish" / ".venv")
+    # OASIS deps are isolated in mirofish/simulations/.venv (decoupled from the backend)
+    vpy = venv_python(REPO_ROOT / "mirofish" / "simulations" / ".venv")
     if vpy.is_file():
         return vpy
     found = shutil.which("python3.11") or shutil.which("python311")
@@ -329,7 +330,7 @@ def cmd_doctor(_args=None) -> int:
     ok = True
     py311 = oasis_python()
     if py311 is None:
-        print("FAIL  python 3.11 not found (OASIS / camel-oasis needs 3.10-3.11 at mirofish/.venv)")
+        print("FAIL  python 3.11 not found (OASIS / camel-oasis needs 3.10-3.11 at mirofish/simulations/.venv)")
         ok = False
     else:
         code = "import oasis, sys; print(sys.version.split()[0])"
@@ -536,13 +537,13 @@ def cmd_serve(_args=None) -> int:
     if not script.is_file():
         print("error: missing %s" % script, file=sys.stderr)
         return 1
-    for candidate in (REPO_ROOT / "mirofish" / ".venv", REPO_ROOT / ".venv"):
+    for candidate in (REPO_ROOT / "mirofish" / "backend" / ".venv", REPO_ROOT / ".venv"):
         py = venv_python(candidate)
         if py.is_file():
             print("starting MiroFish with %s (%s)" % (py, script))
             proc = subprocess.run([str(py), str(script)], check=False)
             return int(proc.returncode)
-    print("error: no mirofish/.venv or .venv python found", file=sys.stderr)
+    print("error: no mirofish/backend/.venv or .venv python found", file=sys.stderr)
     return 1
 
 
