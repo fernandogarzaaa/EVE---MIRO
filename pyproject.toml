@@ -30,15 +30,16 @@ dev = [
   "pytest-cov>=5,<7",
   "ruff>=0.6,<1",
 ]
-# MiroFish backend runtime (mirofish/backend/requirements.txt). camel-oasis
-# may need a C++ compiler; scripts/bootstrap.py preflights that.
+# MiroFish backend runtime (mirofish/backend/pyproject.toml). OASIS simulation
+# deps (camel-oasis) are intentionally NOT here: they live in
+# mirofish/simulations/ with their own lockfile because their exact pins
+# carry unfixable CVEs (Dependabot #189/#150). scripts/bootstrap.py preflights
+# the C++ compiler camel-oasis may need.
 engines = [
   "flask>=3.0.0",
   "flask-cors>=6.0.0",
   "openai>=1.0.0",
   "zep-cloud==3.25.0",
-  "camel-oasis==0.2.5",
-  "camel-ai==0.2.78",
   "PyMuPDF>=1.24.0",
   "charset-normalizer>=3.0.0",
   "chardet>=5.0.0",

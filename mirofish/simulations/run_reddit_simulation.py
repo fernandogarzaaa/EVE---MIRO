@@ -29,12 +29,10 @@ from typing import Dict, Any, List, Optional
 _shutdown_event = None
 _cleanup_done = False
 
-# 添加项目路径
-_scripts_dir = os.path.dirname(os.path.abspath(__file__))
-_backend_dir = os.path.abspath(os.path.join(_scripts_dir, '..'))
-_project_root = os.path.abspath(os.path.join(_backend_dir, '..'))
-sys.path.insert(0, _scripts_dir)
-sys.path.insert(0, _backend_dir)
+# 添加项目路径（脚本位于 mirofish/simulations/，与 backend 解耦）
+_simulations_dir = os.path.dirname(os.path.abspath(__file__))
+_project_root = os.path.abspath(os.path.join(_simulations_dir, '..'))
+sys.path.insert(0, _simulations_dir)
 
 from action_logger import PlatformActionLogger, harvest_trace_actions
 
@@ -44,9 +42,9 @@ _env_file = os.path.join(_project_root, '.env')
 if os.path.exists(_env_file):
     load_dotenv(_env_file)
 else:
-    _backend_env = os.path.join(_backend_dir, '.env')
-    if os.path.exists(_backend_env):
-        load_dotenv(_backend_env)
+    _sim_env = os.path.join(_simulations_dir, '.env')
+    if os.path.exists(_sim_env):
+        load_dotenv(_sim_env)
 
 
 import re

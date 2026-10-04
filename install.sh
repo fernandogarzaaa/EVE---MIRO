@@ -247,19 +247,21 @@ setup_fabric() {
   "$vpy" -m pip install -U pip setuptools wheel
   "$vpy" -m pip install -e ".[dev]"
   if ! "$vpy" -m pip install -e ".[engines]"; then
-    warn "engines extra failed in fabric venv (camel-oasis needs Python 3.11)"
+    warn "engines extra failed in fabric venv"
   fi
 }
 
 setup_oasis() {
   local src="$1"
   local py311="$2"
-  local venv="$src/mirofish/.venv"
-  local req="$src/mirofish/backend/requirements.txt"
+  # OASIS deps are isolated in mirofish/simulations/ (own pyproject.toml),
+  # decoupled from the backend (Dependabot #189/#150).
+  local venv="$src/mirofish/simulations/.venv"
+  local sim_pkg="$src/mirofish/simulations"
   local vpy
   if [ -z "$py311" ]; then
     warn "Python 3.11 not found. OASIS (camel-oasis==0.2.5) needs 3.10-3.11."
-    warn "Create $venv with 3.11 then: pip install -r $req"
+    warn "Create $venv with 3.11 then: pip install -e $sim_pkg"
     return 0
   fi
   vpy="$(venv_py "$venv" || true)"
@@ -269,7 +271,7 @@ setup_oasis() {
     vpy="$(venv_py "$venv")"
   fi
   "$vpy" -m pip install -U pip setuptools wheel
-  "$vpy" -m pip install -r "$req"
+  "$vpy" -m pip install -e "$sim_pkg"
   ok "OASIS venv $vpy"
 }
 
@@ -338,7 +340,7 @@ EVE-MIRO is installed.
   eve-miro run       tiny live loop (fail closed)
   eve-miro api       uvicorn :8000
 
-Python split: fabric is 3.12+ at <src>/.venv ; OASIS is 3.11 at <src>/mirofish/.venv
+Python split: fabric is 3.12+ at <src>/.venv ; OASIS is 3.11 at <src>/mirofish/simulations/.venv
 Clone: $INSTALL_DIR
 If eve-miro is not found, add ~/.local/bin to PATH or open a new shell.
 

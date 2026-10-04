@@ -219,11 +219,23 @@ class SimulationRunner:
         '../../uploads/simulations'
     )
     
-    # 脚本目录
+    # 脚本目录（OASIS 模拟脚本位于 mirofish/simulations/，与 backend 解耦）
     SCRIPTS_DIR = os.path.join(
         os.path.dirname(__file__),
-        '../../scripts'
+        '../../../simulations'
     )
+
+    # simulations 包的解释器（优先使用其独立 venv，否则回退到 backend 解释器）
+    @classmethod
+    def _simulation_python(cls) -> str:
+        sim_venv = os.path.abspath(os.path.join(cls.SCRIPTS_DIR, '.venv'))
+        if os.name == 'nt':
+            candidate = os.path.join(sim_venv, 'Scripts', 'python.exe')
+        else:
+            candidate = os.path.join(sim_venv, 'bin', 'python')
+        if os.path.isfile(candidate):
+            return candidate
+        return sys.executable
     
     # 内存中的运行状态
     _run_states: Dict[str, SimulationRunState] = {}
@@ -475,7 +487,7 @@ class SimulationRunner:
         else:
             cls._graph_memory_enabled[simulation_id] = False
         
-        # 确定运行哪个脚本（脚本位于 backend/scripts/ 目录）
+        # 确定运行哪个脚本（脚本位于 mirofish/simulations/ 目录，与 backend 解耦）
         if platform == "twitter":
             script_name = "run_twitter_simulation.py"
             state.twitter_running = True
@@ -528,7 +540,7 @@ class SimulationRunner:
             #   simulation.log        - 主进程日志
             
             cmd = [
-                sys.executable,  # Python解释器
+                cls._simulation_python(),  # simulations venv 解释器（OASIS 依赖隔离在该 venv）
                 script_path,
                 "--config", config_path,  # 使用完整配置文件路径
             ]

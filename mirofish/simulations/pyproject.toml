@@ -1,0 +1,27 @@
+[project]
+name = "mirofish-simulations"
+version = "0.1.0"
+description = "MiroFish OASIS social simulation scripts (decoupled from the backend package)"
+requires-python = ">=3.11,<3.13"
+license = { text = "AGPL-3.0" }
+authors = [
+    { name = "MiroFish Team" }
+]
+
+dependencies = [
+    # OASIS 社交媒体模拟
+    # Exact pins: camel-oasis 0.2.5 is the latest release and pins these
+    # transitives itself, so they cannot be relaxed here either. They are kept
+    # isolated in this package so Dependabot alerts on them (e.g. RCE in
+    # sentence-transformers, SSRF in unstructured) do not affect the backend.
+    "camel-oasis==0.2.5",
+    "camel-ai==0.2.78",
+    # camel-ai 0.2.78 needs FastMCP on mcp.server (mcp 2.x moved it)
+    "mcp>=1.6,<2",
+    # 环境变量加载（模拟脚本读取 .env 配置）
+    "python-dotenv>=1.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
