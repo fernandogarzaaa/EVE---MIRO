@@ -26,7 +26,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pytest>=8.3,<10",
-  "pytest-asyncio>=0.24,<1",
+  "pytest-asyncio>=0.24,<2",
   "pytest-cov>=5,<7",
   "ruff>=0.6,<1",
 ]
@@ -39,7 +39,7 @@ engines = [
   "flask>=3.0.0",
   "flask-cors>=6.0.0",
   "openai>=1.0.0",
-  "zep-cloud==3.25.0",
+  "zep-cloud==3.30.0",
   "PyMuPDF>=1.24.0",
   "charset-normalizer>=3.0.0",
   "chardet>=5.0.0",
