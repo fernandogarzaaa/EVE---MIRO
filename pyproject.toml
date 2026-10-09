@@ -27,7 +27,7 @@ dependencies = [
 dev = [
   "pytest>=8.3,<9",
   "pytest-asyncio>=0.24,<2",
-  "pytest-cov>=5,<7",
+  "pytest-cov>=5,<8",
   "ruff>=0.6,<1",
 ]
 # MiroFish backend runtime (mirofish/backend/pyproject.toml). OASIS simulation
