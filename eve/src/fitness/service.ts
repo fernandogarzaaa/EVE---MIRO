@@ -171,7 +171,7 @@ export async function serve(
     output?: NodeJS.WritableStream;
   } = {},
 ): Promise<void> {
-  const input = options.input ?? process.stdin;
+  const input: NodeJS.ReadableStream = options.input ?? process.stdin;
   const output = options.output ?? process.stdout;
   const log = options.onLog ?? (() => {});
 
