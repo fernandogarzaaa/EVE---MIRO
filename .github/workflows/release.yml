@@ -20,7 +20,7 @@ jobs:
       - name: Checksums
         run: |
           sha256sum install.sh install.ps1 dist/* > SHA256SUMS.txt
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: |
             dist/*
