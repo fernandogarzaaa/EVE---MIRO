@@ -108,8 +108,8 @@ class ScenarioTrust(BaseModel):
     """Calibration of one market scenario class over past alignments.
 
     Answers: for scenario class X, over N past alignments, the sim's
-    drawdown predictions were within `drawdown_tolerance` of observed
-    `drawdown_within_tol_frac` of the time.
+    drawdown predictions were within `drawdown_tolerance` of the observed
+    drawdown `drawdown_within_tol_frac` of the time.
     """
 
     scenario_class: str
@@ -127,7 +127,7 @@ class ScenarioTrust(BaseModel):
         return (
             f"for scenario class {self.scenario_class}, over {self.n_alignments} "
             f"past alignments, the sim's drawdown predictions were within "
-            f"{self.drawdown_tolerance:.2%} of observed "
+            f"{self.drawdown_tolerance:.2%} of the observed drawdown "
             f"{self.drawdown_within_tol_frac:.0%} of the time "
             f"({within} of {self.n_alignments})."
         )

@@ -30,6 +30,7 @@ from eve_miro.core.simulation.engine import AgentAction, Simulation, SimulationR
 from eve_miro.core.world.events import ProvenanceKind
 from eve_miro.core.world.temporal import as_utc, iso
 from eve_miro.errors import EngineNotConfigured
+from eve_miro.http_proxy import sanitized_proxy_env
 from eve_miro.paths import mirofish_root
 
 _LOCAL_DEFAULT_URL = "http://127.0.0.1:5001"
@@ -230,7 +231,11 @@ class MiroFishClient:
         deadline = time.monotonic() + self.timeout
         own = self._client is None
         timeout = httpx.Timeout(self.timeout)
-        client = self._client or httpx.AsyncClient(timeout=timeout, follow_redirects=True)
+        if self._client is None:
+            with sanitized_proxy_env():
+                client = httpx.AsyncClient(timeout=timeout, follow_redirects=True)
+        else:
+            client = self._client
         try:
             files = {"files": (filename, seed_md, "text/markdown")}
             form = {
