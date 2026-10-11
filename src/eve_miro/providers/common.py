@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 
 from eve_miro.config import FIXTURES_DIR
+from eve_miro.http_proxy import sanitized_proxy_env
 
 _TRUTHY = {"1", "true", "True", "yes"}
 _USER_AGENT = "eve-miro/1.0 (public-data adapters; research)"
@@ -44,10 +45,11 @@ async def http_get_json(
     hdrs = {"User-Agent": _USER_AGENT}
     if headers:
         hdrs.update(headers)
-    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
-        response = await client.get(url, params=params, headers=hdrs)
-        response.raise_for_status()
-        return response.json()
+    with sanitized_proxy_env():
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+            response = await client.get(url, params=params, headers=hdrs)
+            response.raise_for_status()
+            return response.json()
 
 
 async def http_post_json(
@@ -60,10 +62,11 @@ async def http_post_json(
     hdrs = {"User-Agent": _USER_AGENT}
     if headers:
         hdrs.update(headers)
-    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
-        response = await client.post(url, json=body, headers=hdrs)
-        response.raise_for_status()
-        return response.json()
+    with sanitized_proxy_env():
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+            response = await client.post(url, json=body, headers=hdrs)
+            response.raise_for_status()
+            return response.json()
 
 async def fetch_live_or_fixture(
     live_flag: str,
