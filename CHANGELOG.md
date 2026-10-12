@@ -7,9 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-13
+
 ### Added
 
+- **Market simulation** (MarketSim): market-data fabric (#7), simulation engine (#8),
+  alignment metrics with per-scenario-class trust (#9), `eve-miro market-sim` CLI,
+  dashboard **Market** tab and user guide (#10), run scenarios from the browser (#11),
+  MSM calibration of archetypes (#13).
+- Weekly trust-accumulation job for the market simulator (#14), historical shock
+  scenario templates from Signal Lab events (#15), Jev weak-signal scoring (#16),
+  FRED macro provider reading a pre-fetched JSON cache (#17).
+- CI covers the `eve/` TypeScript suite (vitest) (#4); root SECURITY.md (#2).
 - Dependabot configuration (weekly) for pip (root), uv (`mirofish/backend`, `mirofish/simulations`), npm (`eve`, `mirofish`, `mirofish/frontend`) and GitHub Actions.
+
+### Fixed
+
+- Dashboard: every server-provided string (event fields, GDELT/simulation text,
+  experience artifacts, market summaries) is HTML-escaped before rendering, closing
+  an HTML/script-injection path from external feeds and LLM output.
+- Dashboard: simulation buttons report API errors instead of failing silently;
+  stale world/simulation ids from a previous database are discarded; tabs expose
+  `role="tab"`/`aria-selected`; status lines are announced (`aria-live`).
+- `eve mcp-eval --help` no longer crashes (#6); `install.sh` `log()` printf error (#18);
+  httpx proxy-environment hardening (#51).
+- OASIS simulation scripts decoupled from the backend (#19).
+
+### Security
+
+- Patched critical CVEs: anyio and nltk in `uv.lock` (#3), PyJWT 2.10.1 → 2.14.0 in the
+  MiroFish backend lock (#12).
+
+### Changed
+
+- User-Agent `eve-miro/1.1`.
+- Dependency updates across `eve/`, `mirofish/frontend` and GitHub Actions (Dependabot).
 
 ## [1.0.0] - 2026-08-31
 
