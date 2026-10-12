@@ -12,7 +12,7 @@ from eve_miro.config import FIXTURES_DIR
 from eve_miro.http_proxy import sanitized_proxy_env
 
 _TRUTHY = {"1", "true", "True", "yes"}
-_USER_AGENT = "eve-miro/1.0 (public-data adapters; research)"
+_USER_AGENT = "eve-miro/1.1 (public-data adapters; research)"
 
 
 def fixtures_enabled() -> bool:
