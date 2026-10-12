@@ -50,13 +50,13 @@
   </div>
   <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
     <button class="btn primary" id="btn-demo" onclick="loadDemo()">Load demo</button>
-    <nav>
-      <button class="active" data-tab="world">World</button>
-      <button data-tab="sim">Simulation</button>
-      <button data-tab="exp">Experience</button>
-      <button data-tab="rc">Reality Check</button>
-      <button data-tab="rel">Reliability</button>
-      <button data-tab="market">Market</button>
+    <nav role="tablist" aria-label="Dashboard sections">
+      <button class="active" role="tab" aria-selected="true" aria-controls="tab-world" data-tab="world">World</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-sim" data-tab="sim">Simulation</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-exp" data-tab="exp">Experience</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-rc" data-tab="rc">Reality Check</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-rel" data-tab="rel">Reliability</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-market" data-tab="market">Market</button>
     </nav>
   </div>
 </header>
@@ -67,7 +67,7 @@
     <span class="badge fc">FORECAST</span>
     <span class="badge sim">SIMULATED</span>
     <span class="muted"> — labels are mandatory on every record. Simulated output is not observation.</span>
-    <div class="status" id="session-status" style="display:inline-block; margin-left:12px;"></div>
+    <div class="status" id="session-status" role="status" aria-live="polite" style="display:inline-block; margin-left:12px;"></div>
   </section>
 
   <section id="tab-world" class="card">
@@ -85,10 +85,10 @@
       Synthetic statistical personas, not real people. Scenario projections under assumptions — never “the future is…”.
     </div>
     <p>
-      <button class="btn" onclick="createSim()">Create typhoon_manila_001</button>
-      <button class="btn" onclick="runSim()">Run</button>
-      <button class="btn" onclick="pauseSim()">Pause</button>
-      <button class="btn" onclick="resumeSim()">Resume</button>
+      <button class="btn" onclick="act(createSim)">Create typhoon_manila_001</button>
+      <button class="btn" onclick="act(runSim)">Run</button>
+      <button class="btn" onclick="act(pauseSim)">Pause</button>
+      <button class="btn" onclick="act(resumeSim)">Resume</button>
     </p>
     <div id="sim-body"></div>
   </section>
@@ -124,7 +124,7 @@
         <input id="market-hours" type="number" value="120" min="72" step="24" style="width:80px; background:#10162a; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:6px 8px;">
       </label>
       <button class="btn primary" id="market-run-btn" onclick="runMarket()">Run scenario</button>
-      <span id="market-status" class="muted"></span>
+      <span id="market-status" class="muted" role="status" aria-live="polite"></span>
     </div>
     <div id="market-body"><p class="muted">No market-sim run recorded yet. Pick a scenario above and press Run, or run <code>eve-miro market-sim</code> in a terminal.</p></div>
   </section>
@@ -138,8 +138,12 @@
 <script>
 const TABS = ["world","sim","exp","rc","rel","market"];
 const kindClass = k => ({observed:"obs", derived:"der", forecast:"fc", simulated:"sim"}[k] || "obs");
-function badge(k){ k=(k||"").toLowerCase(); return `<span class="badge ${kindClass(k)}">${(k||"?").toUpperCase()}</span>`; }
-function fmt(v){ if(v==null || Number.isNaN(v)) return "n/a"; if(typeof v==="number") return (Math.round(v*1000)/1000).toString(); return String(v); }
+function badge(k){ k=String(k||"").toLowerCase(); return `<span class="badge ${kindClass(k)}">${esc((k||"?").toUpperCase())}</span>`; }
+// Every server string is escaped before it reaches innerHTML: events, GDELT
+// titles and simulation artifacts can carry arbitrary (LLM / web) text.
+function esc(v){ return String(v==null?"":v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function pre(o){ return `<pre>${esc(JSON.stringify(o, null, 2))}</pre>`; }
+function fmt(v){ if(v==null || Number.isNaN(v)) return "n/a"; if(typeof v==="number") return (Math.round(v*1000)/1000).toString(); return esc(v); }
 async function j(url, opts){
   const r = await fetch(url, Object.assign({headers:{"content-type":"application/json"}}, opts||{}));
   const ct = r.headers.get("content-type")||"";
@@ -150,8 +154,8 @@ async function j(url, opts){
 function sessionSet(k,v){ if(v) localStorage.setItem("eve_miro_"+k, v); }
 function sessionGet(k){ return localStorage.getItem("eve_miro_"+k) || ""; }
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
-  document.querySelectorAll("nav button").forEach(x => x.classList.remove("active"));
-  b.classList.add("active");
+  document.querySelectorAll("nav button").forEach(x => { x.classList.remove("active"); x.setAttribute("aria-selected","false"); });
+  b.classList.add("active"); b.setAttribute("aria-selected","true");
   TABS.forEach(t => { document.getElementById("tab-"+t).hidden = t !== b.dataset.tab; });
 });
 
@@ -164,7 +168,7 @@ function phMap(events){
   const dots = (events||[]).filter(e => e.location && e.location.lat!=null).slice(0,200).map(e => {
     const [x,y] = xy(e.location.lat, e.location.lon);
     const c = {observed:"#3dd68c", derived:"#6ea8ff", forecast:"#ff8a5b", simulated:"#f5c542"}[e.kind] || "#3dd68c";
-    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="${c}" opacity="0.9"><title>${e.kind} ${e.source && e.source.provider} ${e.event_type}</title></circle>`;
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="${c}" opacity="0.9"><title>${esc(e.kind)} ${esc(e.source && e.source.provider)} ${esc(e.event_type)}</title></circle>`;
   }).join("");
   const [mx,my] = xy(14.5995, 120.9842);
   return `<svg class="map" viewBox="0 0 ${W} ${H}" role="img" aria-label="Philippines bbox event locations">
@@ -238,6 +242,12 @@ async function loadDemo(){
   }
 }
 
+// Surface failures of the simulation buttons instead of an unhandled rejection.
+async function act(fn){
+  const status = document.getElementById("session-status");
+  try { await fn(); }
+  catch(err){ status.textContent = "error: " + err.message; }
+}
 async function createSim(){
   const wid = await ensureWorld();
   if(!wid){ alert("Load demo or POST /worlds first."); return; }
@@ -271,6 +281,11 @@ async function refresh(){
   let sid = sessionGet("sim");
   let eid = sessionGet("eval");
   const worlds = await j("/worlds").catch(()=>null);
+  if(wid && worlds && Array.isArray(worlds.worlds) && !worlds.worlds.some(w => w.id === wid)){
+    // Stored ids from a previous server/database no longer exist: start over.
+    ["world","sim","eval"].forEach(k => localStorage.removeItem("eve_miro_"+k));
+    wid = sid = eid = "";
+  }
   if(!wid && worlds && worlds.worlds && worlds.worlds.length){
     wid = worlds.worlds[0].id; sessionSet("world", wid);
   }
@@ -288,8 +303,8 @@ async function refresh(){
   }
 
   const kpis = [];
-  kpis.push(`<div class="kpi"><span class="muted">API</span><b>${health && health.status || "?"}</b></div>`);
-  kpis.push(`<div class="kpi"><span class="muted">store</span><b>${health && health.store || "?"}</b></div>`);
+  kpis.push(`<div class="kpi"><span class="muted">API</span><b>${esc(health && health.status || "?")}</b></div>`);
+  kpis.push(`<div class="kpi"><span class="muted">store</span><b>${esc(health && health.store || "?")}</b></div>`);
   kpis.push(`<div class="kpi"><span class="muted">worlds</span><b>${worlds ? worlds.n : 0}</b></div>`);
 
   let eventsHtml = `<p class="muted">No world yet. Click <b>Load demo</b> to ingest Open-Meteo + USGS fixtures for the Philippines bbox.</p>`;
@@ -298,16 +313,16 @@ async function refresh(){
     const ev = await j(`/worlds/${wid}/events`).catch(()=>null);
     const st = await j(`/worlds/${wid}/state`).catch(()=>null);
     kpis.push(`<div class="kpi"><span class="muted">events</span><b>${ev ? ev.n : 0}</b></div>`);
-    kpis.push(`<div class="kpi"><span class="muted">cutoff</span><b style="font-size:13px">${(st && st.information_cutoff) || "—"}</b></div>`);
+    kpis.push(`<div class="kpi"><span class="muted">cutoff</span><b style="font-size:13px">${esc((st && st.information_cutoff) || "—")}</b></div>`);
     if(ev){
       mapHtml = phMap(ev.events);
-      eventsHtml = `<p>World <code>${wid}</code> — ${ev.n} events.
+      eventsHtml = `<p>World <code>${esc(wid)}</code> — ${ev.n} events.
         State kinds: ${(st && st.quality && st.quality.kinds || []).map(badge).join(" ")}</p>
         <table><thead><tr><th>kind</th><th>source</th><th>type</th><th>freshness</th><th>lat,lon</th><th>id</th></tr></thead><tbody>` +
         ev.events.slice(0,100).map(e => {
           const loc = e.location ? `${e.location.lat.toFixed(2)}, ${e.location.lon.toFixed(2)}` : "—";
-          const src = e.source ? `${e.source.provider}/${e.source.dataset}` : "?";
-          return `<tr><td>${badge(e.kind)}</td><td>${src}</td><td>${e.event_type}</td><td>${e.freshness||""}</td><td>${loc}</td><td><code>${e.id}</code></td></tr>`;
+          const src = e.source ? esc(`${e.source.provider}/${e.source.dataset}`) : "?";
+          return `<tr><td>${badge(e.kind)}</td><td>${src}</td><td>${esc(e.event_type)}</td><td>${esc(e.freshness)}</td><td>${loc}</td><td><code>${esc(e.id)}</code></td></tr>`;
         }).join("") + `</tbody></table>`;
     }
   }
@@ -321,14 +336,14 @@ async function refresh(){
     const o = await j(`/simulations/${sid}/outcomes`).catch(()=>null);
     if(s){
       simHtml = `<div class="row">
-        <div class="kpi"><span class="muted">status</span><b>${s.status}</b></div>
-        <div class="kpi"><span class="muted">population</span><b>${s.population_n || s.personas_n}</b></div>
-        <div class="kpi"><span class="muted">hours</span><b>${s.hours}</b></div>
-        <div class="kpi"><span class="muted">cutoff</span><b style="font-size:13px">${s.information_cutoff||"—"}</b></div>
+        <div class="kpi"><span class="muted">status</span><b>${esc(s.status)}</b></div>
+        <div class="kpi"><span class="muted">population</span><b>${esc(s.population_n || s.personas_n)}</b></div>
+        <div class="kpi"><span class="muted">hours</span><b>${esc(s.hours)}</b></div>
+        <div class="kpi"><span class="muted">cutoff</span><b style="font-size:13px">${esc(s.information_cutoff||"—")}</b></div>
       </div>
-      <p>${badge("simulated")} scenario <code>${s.scenario_name||""}</code> id=<code>${s.id}</code></p>
-      <div class="disclaimer">${s.disclaimer||"SIMULATED. Not observation."}</div>
-      <pre>${JSON.stringify((o && o.summary) || {status:s.status}, null, 2)}</pre>`;
+      <p>${badge("simulated")} scenario <code>${esc(s.scenario_name)}</code> id=<code>${esc(s.id)}</code></p>
+      <div class="disclaimer">${esc(s.disclaimer||"SIMULATED. Not observation.")}</div>
+      ${pre((o && o.summary) || {status:s.status})}`;
     }
   }
   document.getElementById("sim-body").innerHTML = simHtml;
@@ -336,10 +351,10 @@ async function refresh(){
   const ex = await j("/experiences").catch(()=>null);
   if(ex){
     document.getElementById("exp-body").innerHTML = (ex.experiences||[]).map(e => {
-      const art = e.artifact ? `<pre>${JSON.stringify(e.artifact, null, 2)}</pre>` : "";
-      const cf = (e.counterfactuals||[]).map(c => `${badge("simulated")} ${c.label} — ${c.disclaimer}`).join("<br/>") || "<span class='muted'>no counterfactuals</span>";
+      const art = e.artifact ? pre(e.artifact) : "";
+      const cf = (e.counterfactuals||[]).map(c => `${badge("simulated")} ${esc(c.label)} — ${esc(c.disclaimer)}`).join("<br/>") || "<span class='muted'>no counterfactuals</span>";
       return `<div class="card" style="margin-top:8px;">
-        <div><span class="layer">${e.layer}</span> ${badge("simulated")} <code>${e.id}</code>
+        <div><span class="layer">${esc(e.layer)}</span> ${badge("simulated")} <code>${esc(e.id)}</code>
           confidence=${fmt(e.confidence)} learning=${fmt(e.learning_value)}</div>
         ${art}
         <p>${cf}</p>
@@ -354,7 +369,7 @@ async function refresh(){
       const trust = evl.domain_trusted
         ? `<p class="ok">Domain has observations — still a scenario projection, not a forecast skill claim.</p>`
         : `<p class="warn">Do not trust this domain — no observations.</p>`;
-      rc = `<p>${badge(evl.predicted_kind)} predicted vs ${badge(evl.observed_kind)} observed — ${evl.metric_name}</p>
+      rc = `<p>${badge(evl.predicted_kind)} predicted vs ${badge(evl.observed_kind)} observed — ${esc(evl.metric_name)}</p>
         <div class="row">
           <div class="kpi"><span class="muted">MAE</span><b>${fmt(evl.mae)}</b></div>
           <div class="kpi"><span class="muted">RMSE</span><b>${fmt(evl.rmse)}</b></div>
@@ -362,7 +377,7 @@ async function refresh(){
           <div class="kpi"><span class="muted">timing min</span><b>${fmt(evl.timing_error_minutes)}</b></div>
         </div>
         ${trust}
-        <p class="muted">${evl.notes||""} ${(evl.calibration && evl.calibration.reliability_note) || ""}</p>
+        <p class="muted">${esc(evl.notes)} ${esc(evl.calibration && evl.calibration.reliability_note)}</p>
         ${sparkline(evl.predicted, evl.observed)}`;
     }
   }
@@ -375,17 +390,17 @@ async function refresh(){
       const verdict = (s.verdict||"").includes("do not trust")
         ? `<span class="badge bad">DON'T TRUST</span>`
         : `<span class="badge obs">FRESH</span>`;
-      return `<tr><td>${name}</td><td>${s.available?"yes":"no"}</td><td>${s.complete?"yes":"no"}</td>
-        <td>${s.event_count||0}</td><td>${s.age_seconds==null?"n/a":Math.round(s.age_seconds)+"s"}</td>
-        <td>${s.last_effective_time||"—"}</td><td>${verdict}</td></tr>`;
+      return `<tr><td>${esc(name)}</td><td>${s.available?"yes":"no"}</td><td>${s.complete?"yes":"no"}</td>
+        <td>${esc(s.event_count||0)}</td><td>${s.age_seconds==null?"n/a":Math.round(s.age_seconds)+"s"}</td>
+        <td>${esc(s.last_effective_time||"—")}</td><td>${verdict}</td></tr>`;
     }).join("");
     const cal = (rel.simulation_calibration||[]).map(c =>
-      `<tr><td><code>${c.id}</code></td><td>${badge(c.predicted_kind)} vs ${badge(c.observed_kind)}</td>
-       <td>${fmt(c.mae)}</td><td>${fmt(c.rmse)}</td><td>${c.n}</td>
-       <td>${c.domain_trusted?"":"<span class='badge bad'>DON'T TRUST</span>"} ${c.reliability_note||""}</td></tr>`
+      `<tr><td><code>${esc(c.id)}</code></td><td>${badge(c.predicted_kind)} vs ${badge(c.observed_kind)}</td>
+       <td>${fmt(c.mae)}</td><td>${fmt(c.rmse)}</td><td>${esc(c.n)}</td>
+       <td>${c.domain_trusted?"":"<span class='badge bad'>DON'T TRUST</span>"} ${esc(c.reliability_note)}</td></tr>`
     ).join("") || `<tr><td colspan="6" class="muted">No evaluations yet.</td></tr>`;
     document.getElementById("rel-body").innerHTML = `
-      ${un.length? `<p class="warn">Do not trust: ${un.join(", ")}</p>` : `<p class="ok">No untrusted domains flagged for this world.</p>`}
+      ${un.length? `<p class="warn">Do not trust: ${esc(un.join(", "))}</p>` : `<p class="ok">No untrusted domains flagged for this world.</p>`}
       <h3>Sources</h3>
       <table><thead><tr><th>source</th><th>available</th><th>complete</th><th>events</th><th>age</th><th>last</th><th>verdict</th></tr></thead>
       <tbody>${srcRows||`<tr><td colspan="7" class="muted">No sources (ingest a world).</td></tr>`}</tbody></table>
@@ -436,37 +451,37 @@ async function refreshMarket(){
   const syms = al.symbols || {};
   const trustRows = Object.keys(trust).sort().map(k => {
     const t = trust[k];
-    return `<tr><td><code>${k}</code></td><td>${trustBadge(t.recommendation)}</td>
-      <td>${fmt(t.score)}</td><td class="muted">${t.describe||""}</td></tr>`;
+    return `<tr><td><code>${esc(k)}</code></td><td>${trustBadge(t.recommendation)}</td>
+      <td>${fmt(t.score)}</td><td class="muted">${esc(t.describe)}</td></tr>`;
   }).join("");
   const symBlocks = Object.keys(syms).sort().map(sym => {
     const s = syms[sym];
     return `<div class="card" style="margin-top:8px;">
-      <h3><code>${sym}</code> ${badge("simulated")} vs ${badge("observed")}
+      <h3><code>${esc(sym)}</code> ${badge("simulated")} vs ${badge("observed")}
         <span class="muted">score ${fmt(s.symbol_score)}</span></h3>
       <div class="row">
         <div class="kpi"><span class="muted">KS statistic</span><b>${fmt(s.ks_statistic)}</b></div>
         <div class="kpi"><span class="muted">vol path MAE</span><b>${fmt(s.vol_path_mae)}</b></div>
         <div class="kpi"><span class="muted">drawdown error</span><b>${fmt(s.drawdown_error)}</b></div>
-        <div class="kpi"><span class="muted">n points</span><b>${s.n_points}</b></div>
+        <div class="kpi"><span class="muted">n points</span><b>${esc(s.n_points)}</b></div>
       </div>
       <div style="margin-top:8px;">${sparkline(s.sim_daily, s.obs_daily)}</div>
     </div>`;
   }).join("") || `<p class="muted">No symbols aligned.</p>`;
   el.innerHTML = `
     <div class="row">
-      <div class="kpi"><span class="muted">scenario</span><b style="font-size:14px">${m.scenario||"—"}</b></div>
-      <div class="kpi"><span class="muted">hours</span><b>${m.hours||"—"}</b></div>
+      <div class="kpi"><span class="muted">scenario</span><b style="font-size:14px">${esc(m.scenario||"—")}</b></div>
+      <div class="kpi"><span class="muted">hours</span><b>${esc(m.hours||"—")}</b></div>
       <div class="kpi"><span class="muted">aggregate score</span><b>${fmt(al.aggregate_score)}</b></div>
-      <div class="kpi"><span class="muted">class</span><b style="font-size:14px">${al.scenario_class||"—"}</b></div>
+      <div class="kpi"><span class="muted">class</span><b style="font-size:14px">${esc(al.scenario_class||"—")}</b></div>
     </div>
-    <p class="muted">cutoff ${m.cutoff||"—"} · symbols ${(m.symbols||[]).join(", ")} · generated ${m.generated_at||"—"}</p>
+    <p class="muted">cutoff ${esc(m.cutoff||"—")} · symbols ${esc((m.symbols||[]).join(", "))} · generated ${esc(m.generated_at||"—")}</p>
     <h3>Scenario-class trust</h3>
     <table><thead><tr><th>class</th><th>recommendation</th><th>score</th><th>calibration</th></tr></thead>
     <tbody>${trustRows}</tbody></table>
     <h3 style="margin-top:16px;">Per-symbol alignment</h3>
     ${symBlocks}
-    <p class="muted" style="margin-top:12px;">${m.disclaimer||""}</p>`;
+    <p class="muted" style="margin-top:12px;">${esc(m.disclaimer)}</p>`;
 }
 refresh();
 setInterval(refresh, 12000);
