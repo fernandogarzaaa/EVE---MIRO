@@ -567,7 +567,7 @@ def cmd_api(argv: list[str]) -> int:
     except ImportError:
         print("error: uvicorn is not installed (pip install -e .)", file=sys.stderr)
         return 1
-    host = os.environ.get("API_HOST", "0.0.0.0")
+    host = os.environ.get("API_HOST", "127.0.0.1")  # unauthenticated API: loopback unless asked
     port = int(os.environ.get("API_PORT", "8000"))
     i = 0
     while i < len(argv):

@@ -46,10 +46,16 @@ app = FastAPI(
     version=__version__,
     description="Reality-grounded experiential simulation. Provenance kinds are never mixed.",
 )
+# The API has no auth, so browsers may only call it from loopback origins
+# (the dashboard is served same-origin by this app). Wildcard + credentials
+# used to reflect ANY Origin, letting every web page drive the API and read
+# its responses. Extra origins: EVE_MIRO_CORS_ORIGINS="https://a,https://b".
+_CORS_EXTRA = [o.strip() for o in os.environ.get("EVE_MIRO_CORS_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_CORS_EXTRA,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$",
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -550,4 +556,4 @@ def market_run(body: MarketRunBody):
 def run() -> None:
     import uvicorn
 
-    uvicorn.run("eve_miro.api.main:app", host=os.environ.get("API_HOST", "0.0.0.0"), port=int(os.environ.get("API_PORT", "8000")))
+    uvicorn.run("eve_miro.api.main:app", host=os.environ.get("API_HOST", "127.0.0.1"), port=int(os.environ.get("API_PORT", "8000")))
