@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-13
+
+### Security
+
+- **API CORS reflected any origin with credentials.** `allow_origins=["*"]` +
+  `allow_credentials=True` echoed every `Origin`, so any web page could drive
+  the unauthenticated API (create worlds, run simulations/experiments) and
+  read its responses. CORS now allows loopback origins only (the dashboard is
+  same-origin), without credentials; add more with `EVE_MIRO_CORS_ORIGINS`.
+- **`eve-miro api` bound `0.0.0.0` by default** (also `.env.example`), exposing
+  the unauthenticated API to the LAN. Default is now `127.0.0.1`; pass
+  `--host 0.0.0.0` / `API_HOST` to opt in. MiroFish `run.py` likewise defaults
+  `FLASK_HOST` to `127.0.0.1` (docker-compose and the Dockerfile set `0.0.0.0`
+  explicitly and are unchanged).
+- **`POST /experiments/run` opened arbitrary server files**: `experiment` was
+  passed to `load_experiment()`, which accepts any existing filesystem path.
+  The endpoint now accepts bundled experiment ids only (400 for paths) and
+  returns 404 instead of 500 for an unknown id.
+
 ## [1.1.0] - 2026-10-13
 
 ### Added

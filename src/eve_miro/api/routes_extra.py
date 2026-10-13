@@ -274,7 +274,18 @@ async def run_experiment(body: ExperimentRunBody | None = None):
     from eve_miro.providers.weather import OpenMeteoProvider
 
     payload = body or ExperimentRunBody()
-    spec = load_experiment(payload.experiment)
+    exp = payload.experiment
+    # Only bundled experiment ids are accepted over HTTP: load_experiment()
+    # also takes filesystem paths (for the CLI), which let any caller make
+    # the server open arbitrary files.
+    if not exp or "/" in exp or "\\" in exp or ".." in exp or ":" in exp:
+        raise HTTPException(status_code=400, detail="experiment must be a bundled experiment id, not a path")
+    try:
+        spec = load_experiment(exp)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"experiment not found: {exp}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     provider = OpenMeteoProvider(mode="archive")
     if payload.use_fixtures:
         os.environ.setdefault("FIXTURES", "1")
