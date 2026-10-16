@@ -96,7 +96,10 @@ ALIASES = {
     "gemini": "openrouter",
 }
 
-ALIAS_NOTE = "MiroFish speaks OpenAI-compatible HTTP; use OpenRouter or a gateway, not cookie login."
+ALIAS_NOTE = (
+    "MiroFish speaks OpenAI-compatible HTTP; use OpenRouter or a gateway, "
+    "not cookie login."
+)
 
 USAGE = """\
 EVE-MIRO — reality-grounded experiential simulation
@@ -145,10 +148,9 @@ Python split: fabric is 3.12+ (.venv). OASIS is 3.11 (mirofish/simulations/.venv
 """
 
 
+
 def is_tty() -> bool:
-    return bool(
-        getattr(sys.stdin, "isatty", lambda: False)() and getattr(sys.stdout, "isatty", lambda: False)()
-    )
+    return bool(getattr(sys.stdin, "isatty", lambda: False)() and getattr(sys.stdout, "isatty", lambda: False)())
 
 
 def venv_python(venv_dir: Path) -> Path:
@@ -327,19 +329,16 @@ def cmd_help(_args: list[str] | None = None) -> int:
     return 0
 
 
+
 def cmd_doctor(_args=None) -> int:
     ok = True
     py311 = oasis_python()
     if py311 is None:
-        print(
-            "FAIL  python 3.11 not found (OASIS / camel-oasis needs 3.10-3.11 at mirofish/simulations/.venv)"
-        )
+        print("FAIL  python 3.11 not found (OASIS / camel-oasis needs 3.10-3.11 at mirofish/simulations/.venv)")
         ok = False
     else:
         code = "import oasis, sys; print(sys.version.split()[0])"
-        proc = subprocess.run(
-            [str(py311), "-c", code], capture_output=True, text=True, timeout=30, check=False
-        )
+        proc = subprocess.run([str(py311), "-c", code], capture_output=True, text=True, timeout=30, check=False)
         if proc.returncode == 0:
             print("ok    oasis import (%s %s)" % (py311, proc.stdout.strip()))
         else:
@@ -379,6 +378,7 @@ def cmd_doctor(_args=None) -> int:
     else:
         print("skip  ollama (optional)")
     return 0 if ok else 1
+
 
 
 def _prompt(msg: str, default: str = "") -> str:
