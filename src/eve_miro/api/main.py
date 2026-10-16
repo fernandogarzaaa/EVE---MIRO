@@ -451,11 +451,12 @@ async def post_scenario(payload: dict[str, Any]):
         raise HTTPException(status_code=409, detail=f"scenario already exists: {name}")
     from eve_miro.core.simulation.scenarios import Scenario
 
+    definition = {**payload, "name": name}
     try:
-        scenario = Scenario.model_validate(payload)
+        scenario = Scenario.model_validate(definition)
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"invalid scenario definition: {exc}") from exc
-    app_state.STATE.scenarios[name] = {"scenario": scenario, "definition": payload}
+    app_state.STATE.scenarios[name] = {"scenario": scenario, "definition": definition}
     return {"id": name, "stored": True}
 
 
