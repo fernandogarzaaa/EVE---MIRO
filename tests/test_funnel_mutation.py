@@ -1064,3 +1064,78 @@ def test_routing_funnel_import_error_fails_closed(monkeypatch):
     monkeypatch.setitem(sys.modules, "funnelsim.engine", None)
     with pytest.raises(EngineNotConfigured, match="funnelsim engine not installed"):
         get_simulation_engine(funnel_scenario("t"))
+
+
+# ---------------------------------------------------------------- coderabbit follow-ups
+
+
+def test_scenario_kwargs_forwards_speed_to_lead_params():
+    import eve_miro.cli.funnel_sim as cli
+
+    kw = cli._scenario_kwargs(
+        {
+            "conditions": {
+                "response_mean_covered_min": 2.0,
+                "response_mean_uncovered_min": 9.0,
+                "book_prob_fast": 0.6,
+                "book_prob_slow": 0.2,
+            }
+        },
+        days=14,
+        seed=5,
+    )
+    assert kw["response_mean_covered_min"] == 2.0
+    assert kw["response_mean_uncovered_min"] == 9.0
+    assert kw["book_prob_fast"] == 0.6
+    assert kw["book_prob_slow"] == 0.2
+
+
+def test_funnel_scenario_builder_speed_to_lead_params():
+    sc = funnel_scenario(
+        "s",
+        mode="speed_to_lead",
+        response_mean_covered_min=2.0,
+        response_mean_uncovered_min=9.0,
+        book_prob_fast=0.6,
+        book_prob_slow=0.2,
+    )
+    assert sc.conditions["response_mean_covered_min"] == 2.0
+    assert sc.conditions["response_mean_uncovered_min"] == 9.0
+    assert sc.conditions["book_prob_fast"] == 0.6
+    assert sc.conditions["book_prob_slow"] == 0.2
+
+
+@pytest.mark.parametrize("key", ["contactable_coverage", "book_prob_fast", "book_prob_slow"])
+def test_params_from_rejects_speed_probability_over_one(key):
+    eng = FunnelSimEngine(scenario=_bare_scenario(mode="speed_to_lead"))
+    with pytest.raises(EngineNotConfigured, match="must be <= 1"):
+        eng._params_from(_bare_scenario(mode="speed_to_lead", **{key: 1.5}))
+
+
+def test_speed_params_flow_from_yaml_to_engine():
+    # non-default booking probs must change outcomes, proving the YAML
+    # values reach the engine instead of falling back to defaults
+    base = _init(
+        days=10,
+        movers=1,
+        seed=7,
+        mode="speed_to_lead",
+        leads_per_day=5.0,
+        contactable_coverage=1.0,
+        book_prob_fast=0.0,
+        book_prob_slow=0.0,
+    )
+    fast = _init(
+        days=10,
+        movers=1,
+        seed=7,
+        mode="speed_to_lead",
+        leads_per_day=5.0,
+        contactable_coverage=1.0,
+        book_prob_fast=1.0,
+        book_prob_slow=1.0,
+    )
+    s_base = asyncio.run(base[0].run(base[1], base[1].origin + timedelta(hours=10 * 24))).summary
+    s_fast = asyncio.run(fast[0].run(fast[1], fast[1].origin + timedelta(hours=10 * 24))).summary
+    assert s_base["bookings"] == 0
+    assert s_fast["bookings"] == s_fast["leads"] > 0

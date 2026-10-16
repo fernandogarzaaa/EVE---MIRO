@@ -204,6 +204,13 @@ class FunnelSimEngine:
             )
             p.book_prob_fast = _positive_float(c.get("book_prob_fast", 0.55), "book_prob_fast")
             p.book_prob_slow = _positive_float(c.get("book_prob_slow", 0.15), "book_prob_slow")
+            for prob_name, prob in (
+                ("contactable_coverage", p.contactable_coverage),
+                ("book_prob_fast", p.book_prob_fast),
+                ("book_prob_slow", p.book_prob_slow),
+            ):
+                if prob > 1.0:
+                    raise EngineNotConfigured(f"funnelsim: {prob_name} must be <= 1, got {prob}")
         pricing = c.get("pricing") or {}
         if not isinstance(pricing, dict):
             raise EngineNotConfigured("funnelsim: conditions.pricing must be a mapping")

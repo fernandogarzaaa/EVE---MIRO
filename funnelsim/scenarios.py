@@ -37,6 +37,10 @@ def funnel_scenario(
     problem_resolve_prob: float = 0.70,
     office_response_days_mean: float = 2.0,
     leads_per_day: float = 10.0,
+    response_mean_covered_min: float = 1.0,
+    response_mean_uncovered_min: float = 8.0,
+    book_prob_fast: float = 0.55,
+    book_prob_slow: float = 0.15,
     pricing: dict[str, Any] | None = None,
     interventions: list[dict[str, Any]] | None = None,
 ) -> Scenario:
@@ -59,6 +63,10 @@ def funnel_scenario(
         "problem_resolve_prob": problem_resolve_prob,
         "office_response_days_mean": office_response_days_mean,
         "leads_per_day": leads_per_day,
+        "response_mean_covered_min": response_mean_covered_min,
+        "response_mean_uncovered_min": response_mean_uncovered_min,
+        "book_prob_fast": book_prob_fast,
+        "book_prob_slow": book_prob_slow,
         "pricing": pricing or {},
     }
     return Scenario(
