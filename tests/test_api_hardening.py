@@ -54,7 +54,7 @@ def test_unknown_scenario_does_not_silently_run_typhoon_default():
 def test_simulation_population_must_be_positive_and_bounded():
     client = TestClient(app)
     zero = client.post("/simulations", json={"world_id": "not-used", "population": 0})
-    too_large = client.post("/simulations", json={"world_id": "not-used", "population": 100001})
+    too_large = client.post("/simulations", json={"world_id": "not-used", "population": 10001})
     assert zero.status_code == 422
     assert too_large.status_code == 422
 
