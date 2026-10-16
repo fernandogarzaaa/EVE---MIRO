@@ -17,7 +17,7 @@ This change fixes request-mode selection and scenario-routing correctness, adds 
 2. **Unknown scenario IDs silently fell back to the typhoon scenario (high).** The route compared a scenario ID to the world registry and then selected the default scenario for most unknown IDs. It now resolves stored, validated scenarios or known bundled scenarios and returns a 404 for unknown IDs. Path-like IDs are rejected before lookup.
 3. **Stored scenarios were not usable consistently (high).** Scenario creation stored raw dictionaries while simulation creation expected a bundled YAML scenario. Saved scenarios are now validated into the Scenario model, and the simulation route can resolve them.
 4. **Duplicate world IDs silently replaced registry entries (medium).** World creation now returns HTTP 409 instead of overwriting an existing world.
-5. **Simulation population had no API bound (medium).** Population is now constrained to 1–100,000 at request validation, preventing zero/negative values and accidental unbounded allocations.
+5. **Simulation population had no API bound (medium).** Population is now constrained to 1–10,000 at request validation, preventing zero/negative values and accidental unbounded allocations.
 6. **CI did not make the test environment explicit or retain a coverage artifact (medium).** CI now sets deterministic fixture/stub environment variables, supports manual dispatch, applies job timeouts, disables persisted checkout credentials, and publishes the coverage XML artifact.
 
 ### Remaining production risks
