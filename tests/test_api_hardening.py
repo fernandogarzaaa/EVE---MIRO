@@ -63,3 +63,28 @@ def test_scenario_name_rejects_path_like_input():
     client = TestClient(app)
     response = client.post("/scenarios", json={"name": "../secrets"})
     assert response.status_code == 400
+
+
+def test_saved_scenario_is_accepted_by_simulation_creation():
+    client = TestClient(app)
+    world_id = "hardening-saved-scenario-world"
+    created_world = client.post("/worlds", json={"id": world_id, "information_cutoff": "2024-11-01T00:00:00Z"})
+    assert created_world.status_code == 200, created_world.text
+
+    scenario = {
+        "name": "hardening-saved-scenario",
+        "type": "typhoon",
+        "initial_world": {"timestamp": "2024-11-01T00:00:00Z"},
+        "duration": {"simulated_hours": 2},
+        "agents": {"population": 5},
+        "information_cutoff": "2024-11-01T00:00:00Z",
+    }
+    saved = client.post("/scenarios", json=scenario)
+    assert saved.status_code == 200, saved.text
+
+    simulation = client.post(
+        "/simulations",
+        json={"world_id": world_id, "scenario": "hardening-saved-scenario", "population": 5},
+    )
+    assert simulation.status_code == 200, simulation.text
+    assert simulation.json()["population_n"] == 5
