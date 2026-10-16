@@ -17,7 +17,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from eve_miro import __version__
 from eve_miro.api.metrics_prom import inc_eval, inc_ingest, inc_sim_run
@@ -35,6 +35,7 @@ from eve_miro.core.world.state import Population
 from eve_miro.core.world.temporal import as_utc, iso, utcnow
 from eve_miro.errors import EngineNotConfigured, FutureLeakageError, ProvenanceError, ReplayError
 from eve_miro.providers.protocol import TimeWindow
+from eve_miro.providers.common import fixture_mode
 from eve_miro.providers.registry import all_providers
 from eve_miro.worker.loop import ingest_from_providers, provider_cadence
 
@@ -101,9 +102,10 @@ class IngestBody(BaseModel):
 
 
 class CreateSimBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     world_id: str
     scenario: str | None = "typhoon_manila_001"
-    population: int | None = None
+    population: int | None = Field(default=None, ge=1, le=10_000)
     seed: int | None = None
 
 
@@ -187,6 +189,8 @@ async def reliability(world_id: str | None = None):
 @app.post("/worlds")
 async def create_world(body: CreateWorldBody):
     wid = body.id or f"world_{uuid4().hex[:10]}"
+    if wid in app_state.STATE.worlds:
+        raise HTTPException(status_code=409, detail=f"world already exists: {wid}")
     rec = WorldRecord(
         id=wid,
         created_at=utcnow(),
@@ -201,8 +205,6 @@ async def create_world(body: CreateWorldBody):
 @app.post("/worlds/{world_id}/ingest")
 async def ingest(world_id: str, body: IngestBody):
     rec = _world_or_404(world_id)
-    if body.use_fixtures:
-        os.environ.setdefault("FIXTURES", "1")
     accepted: list[WorldEvent] = []
     cutoff = rec.information_cutoff
     if body.events:
@@ -216,16 +218,20 @@ async def ingest(world_id: str, body: IngestBody):
             "end": "2024-11-03T23:00:00Z",
         }
         window = TimeWindow(start=window_raw["start"], end=window_raw["end"], region=rec.region)
-        accepted.extend(
-            await ingest_from_providers(
-                app_state.STATE.store,
-                world_id,
-                body.providers,
-                window,
-                channel=body.channel,
-                information_cutoff=cutoff,
-            )
-        )
+        try:
+            with fixture_mode(body.use_fixtures):
+                accepted.extend(
+                    await ingest_from_providers(
+                        app_state.STATE.store,
+                        world_id,
+                        body.providers,
+                        window,
+                        channel=body.channel,
+                        information_cutoff=cutoff,
+                    )
+                )
+        except KeyError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
     kinds = sorted({e.kind.value for e in accepted})
     inc_ingest(len(accepted))
     return {
@@ -278,7 +284,20 @@ async def list_events(world_id: str):
 @app.post("/simulations")
 async def create_sim(body: CreateSimBody):
     rec = _world_or_404(body.world_id)
-    scenario = load_scenario(name=body.scenario) if body.scenario else None
+    scenario = None
+    if body.scenario:
+        if "/" in body.scenario or chr(92) in body.scenario or ".." in body.scenario or ":" in body.scenario:
+            raise HTTPException(status_code=400, detail="scenario must be a bundled or stored scenario identifier")
+        stored = app_state.STATE.scenarios.get(body.scenario)
+        from eve_miro.core.simulation.scenarios import Scenario
+
+        if isinstance(stored, dict) and isinstance(stored.get("scenario"), Scenario):
+            scenario = stored["scenario"]
+        else:
+            try:
+                scenario = load_scenario(name=body.scenario)
+            except (FileNotFoundError, ValueError) as exc:
+                raise HTTPException(status_code=404, detail=f"scenario not found: {body.scenario}") from exc
     if scenario and body.population:
         scenario.agents["population"] = body.population
     if scenario and body.seed is not None:
@@ -425,22 +444,43 @@ async def validate_exp(exp_id: str):
 
 @app.post("/scenarios")
 async def post_scenario(payload: dict[str, Any]):
-    name = payload.get("name") or f"scenario_{uuid4().hex[:8]}"
-    app_state.STATE.scenarios[name] = payload
+    name = str(payload.get("name") or f"scenario_{uuid4().hex[:8]}").strip()
+    if not name or "/" in name or chr(92) in name or ".." in name or ":" in name:
+        raise HTTPException(status_code=400, detail="scenario name must be a simple identifier")
+    if name in app_state.STATE.scenarios:
+        raise HTTPException(status_code=409, detail=f"scenario already exists: {name}")
+    from eve_miro.core.simulation.scenarios import Scenario
+
+    definition = {**payload, "name": name}
+    try:
+        scenario = Scenario.model_validate(definition)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"invalid scenario definition: {exc}") from exc
+    app_state.STATE.scenarios[name] = {"scenario": scenario, "definition": definition}
     return {"id": name, "stored": True}
 
 
 @app.post("/scenarios/{scenario_id}/simulate")
 async def simulate_scenario(scenario_id: str, world_id: str | None = None):
-    if scenario_id == "typhoon_manila_001" or scenario_id not in app_state.STATE.worlds:
-        scenario = load_scenario(name="typhoon_manila_001")
+    from eve_miro.core.simulation.scenarios import Scenario
+
+    stored = app_state.STATE.scenarios.get(scenario_id)
+    if isinstance(stored, dict) and isinstance(stored.get("scenario"), Scenario):
+        scenario = stored["scenario"]
     else:
-        scenario = load_scenario(name=scenario_id)
+        if not scenario_id or "/" in scenario_id or chr(92) in scenario_id or ".." in scenario_id or ":" in scenario_id:
+            raise HTTPException(status_code=400, detail="scenario_id must be a bundled or stored scenario identifier")
+        try:
+            scenario = load_scenario(name=scenario_id)
+        except (FileNotFoundError, ValueError) as exc:
+            raise HTTPException(status_code=404, detail=f"scenario not found: {scenario_id}") from exc
     wid = world_id or next(iter(app_state.STATE.worlds), None)
     if not wid:
         rec = WorldRecord(id=f"world_{uuid4().hex[:10]}", created_at=utcnow(), information_cutoff=scenario.cutoff)
         app_state.STATE.worlds[rec.id] = rec
         wid = rec.id
+    else:
+        _world_or_404(wid)
     events = app_state.STATE.store.list(wid)
     result, selected = await run_scenario(wid, events, scenario)
     app_state.STATE.simulations[result.simulation.id] = result.simulation

@@ -1,44 +1,72 @@
 name: ci
+
 on:
   push:
   pull_request:
+  workflow_dispatch:
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
 permissions:
   contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+          cache: pip
       - name: Install
-        run: pip install -e ".[dev]"
+        run: python -m pip install -e ".[dev]"
       - name: Ruff
         run: ruff check src tests scripts
+
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      FIXTURES: "1"
+      EVE_MIRO_ENGINES: "stub"
+      LIVE: "0"
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+          cache: pip
       - name: Install
-        run: pip install -e ".[dev]"
-      - name: Pytest
-        run: pytest -q
-        env:
-          FIXTURES: "1"
+        run: python -m pip install -e ".[dev]"
+      - name: Pytest with coverage report
+        run: python -m pytest -q --cov=src/eve_miro --cov-report=term-missing --cov-report=xml
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: python-coverage
+          path: coverage.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
   test-ts:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: eve
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version: "22"

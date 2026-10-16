@@ -196,7 +196,17 @@ def test_dashboard_and_extra_routes():
     val = client.post(f"/experiences/{exp_id}/validate")
     assert val.status_code == 200
 
-    sc = client.post("/scenarios", json={"name": "adhoc_test", "note": "x"})
+    sc = client.post(
+        "/scenarios",
+        json={
+            "name": "adhoc_test",
+            "type": "typhoon",
+            "initial_world": {"timestamp": "2024-11-01T00:00:00Z"},
+            "duration": {"simulated_hours": 2},
+            "agents": {"population": 5},
+            "information_cutoff": "2024-11-01T00:00:00Z",
+        },
+    )
     assert sc.status_code == 200
     sim_sc = client.post("/scenarios/typhoon_manila_001/simulate", params={"world_id": wid})
     assert sim_sc.status_code == 200, sim_sc.text

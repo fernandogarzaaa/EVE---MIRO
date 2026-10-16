@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any
+from contextlib import contextmanager
+from contextvars import ContextVar
+from typing import Any, Iterator
 
 import httpx
 
@@ -14,13 +16,33 @@ from eve_miro.http_proxy import sanitized_proxy_env
 _TRUTHY = {"1", "true", "True", "yes"}
 _USER_AGENT = "eve-miro/1.1 (public-data adapters; research)"
 
+# A context-local override lets a single API request choose fixtures or live
+# providers without mutating os.environ for concurrent requests.
+_FIXTURE_OVERRIDE: ContextVar[bool | None] = ContextVar("eve_miro_fixture_override", default=None)
+
+
+@contextmanager
+def fixture_mode(use_fixtures: bool) -> Iterator[None]:
+    """Override fixture/live selection for the current execution context."""
+    token = _FIXTURE_OVERRIDE.set(bool(use_fixtures))
+    try:
+        yield
+    finally:
+        _FIXTURE_OVERRIDE.reset(token)
+
 
 def fixtures_enabled() -> bool:
+    override = _FIXTURE_OVERRIDE.get()
+    if override is not None:
+        return override
     return os.environ.get("FIXTURES", "1") not in {"0", "false", "False"}
 
 
 def live_requested(provider_flag: str | None = None) -> bool:
-    """Live HTTP when FIXTURES=0, LIVE=1, or <PROVIDER>_LIVE=1. Tests keep FIXTURES=1."""
+    """Resolve explicit request mode before process defaults and provider flags."""
+    override = _FIXTURE_OVERRIDE.get()
+    if override is not None:
+        return not override
     if os.environ.get("LIVE", "0") in _TRUTHY:
         return True
     if provider_flag and os.environ.get(provider_flag, "0") in _TRUTHY:
