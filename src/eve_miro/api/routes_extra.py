@@ -49,7 +49,7 @@ class DemoBody(BaseModel):
     region: str = "philippines"
     information_cutoff: str = "2026-08-31T10:00:00Z"
     scenario: str = "typhoon_manila_001"
-    population: int = 200
+    population: int = Field(default=200, ge=1, le=10_000)
     providers: list[str] = Field(default_factory=lambda: ["openmeteo", "usgs"])
 
 
