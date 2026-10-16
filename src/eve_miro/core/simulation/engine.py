@@ -118,6 +118,14 @@ def get_simulation_engine(
 
             raise EngineNotConfigured(f"marketsim engine not installed: {exc}") from exc
         return MarketSimEngine(scenario=scenario, artifacts=artifacts)
+    if scenario is not None and getattr(scenario, "type", None) == "funnel":
+        try:
+            from funnelsim.engine import FunnelSimEngine
+        except ImportError as exc:
+            from eve_miro.errors import EngineNotConfigured
+
+            raise EngineNotConfigured(f"funnelsim engine not installed: {exc}") from exc
+        return FunnelSimEngine(scenario=scenario, artifacts=artifacts)
     from eve_miro.core.simulation.mirofish_adapter import MiroFishEngine
 
     return MiroFishEngine(scenario=scenario, artifacts=artifacts)
@@ -137,7 +145,7 @@ def is_warning_delay_artifact(artifact: dict[str, Any]) -> bool:
 
 
 def typhoon_wind(hour: float, *, peak_hour: float = 36.0, peak: float = 110.0, base: float = 18.0) -> float:
-    return base + peak * math.exp(-((hour - peak_hour) ** 2) / (2 * 12.0 ** 2))
+    return base + peak * math.exp(-((hour - peak_hour) ** 2) / (2 * 12.0**2))
 
 
 def typhoon_precip(hour: float, wind: float) -> float:
@@ -257,7 +265,12 @@ class StubSimulationEngine:
         evacuated = 0
         stuck = 0
         sheltered = 0
-        already = {a.agent_id for step in simulation.steps for a in step.actions if a.action in {"evacuate", "shelter", "stuck"}}
+        already = {
+            a.agent_id
+            for step in simulation.steps
+            for a in step.actions
+            if a.action in {"evacuate", "shelter", "stuck"}
+        }
 
         for p in simulation.personas:
             if p.agent_id in already:
@@ -268,7 +281,9 @@ class StubSimulationEngine:
             want = received or self_ev or (warning_active and p.risk_aversion > 0.85 and wind > 50)
             if want:
                 # Late warning after congestion is ineffective.
-                delay_bad = warning_active and congestion > 0.35 and (warn_h is not None and hour - warn_h <= 2)
+                delay_bad = (
+                    warning_active and congestion > 0.35 and (warn_h is not None and hour - warn_h <= 2)
+                )
                 jammed = congestion > 0.45 and (self_ev is False) and (delay_bad or not p.vehicle_access)
                 if jammed and reduce_cascade and rng.random() < 0.75:
                     act: str = "evacuate"
@@ -329,7 +344,11 @@ class StubSimulationEngine:
         market = market.get("market") or {}
         latest = market.get("latest") or {}
         base_price = float(latest.get("price") or 100.0)
-        prev = simulation.steps[-1].price if simulation.steps and simulation.steps[-1].price is not None else base_price
+        prev = (
+            simulation.steps[-1].price
+            if simulation.steps and simulation.steps[-1].price is not None
+            else base_price
+        )
         # Subsequent prices are SIMULATED (seeded random walk). Initial base is OBSERVED context only.
         price = max(0.01, prev * (1.0 + rng.uniform(-0.03, 0.03)))
         change = (price - prev) / prev if prev else 0.0
@@ -425,7 +444,10 @@ class StubSimulationEngine:
         return SimulationResult(
             simulation=simulation,
             traces=traces,
-            predicted_series={"wind_speed_10m": winds, "congestion": [s.congestion for s in simulation.steps]},
+            predicted_series={
+                "wind_speed_10m": winds,
+                "congestion": [s.congestion for s in simulation.steps],
+            },
             predicted_times=times,
             summary=summary,
         )
