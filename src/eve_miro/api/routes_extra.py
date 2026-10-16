@@ -19,6 +19,7 @@ from eve_miro.api.state import WorldRecord
 from eve_miro.core.experience.candidates import ExperienceCandidate
 from eve_miro.core.experience.engine import get_experience_engine
 from eve_miro.core.simulation.engine import StubSimulationEngine
+from eve_miro.providers.common import fixture_mode
 from eve_miro.core.world.events import ProvenanceKind
 from eve_miro.core.world.projector import project_world_state
 from eve_miro.core.world.provenance import ProvenanceGraph
@@ -287,20 +288,22 @@ async def run_experiment(body: ExperimentRunBody | None = None):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     provider = OpenMeteoProvider(mode="archive")
-    if payload.use_fixtures:
-        os.environ.setdefault("FIXTURES", "1")
-        events = provider.normalize(load_fixture("openmeteo_manila_archive.json"))
-    else:
-        from eve_miro.config import TimeWindow as CfgWindow
+    from eve_miro.config import TimeWindow as CfgWindow
 
-        # Live Open-Meteo: OPENMETEO_LIVE=1 or LIVE=1 or FIXTURES=0. Fail closed.
-        os.environ.setdefault("OPENMETEO_LIVE", "1")
-        cutoff = spec.cutoff
-        window = CfgWindow(
-            start=cutoff.strftime("%Y-%m-%dT00:00:00Z") if hasattr(cutoff, "strftime") else str(cutoff),
-            end="2024-11-03T23:00:00Z",
-        )
-        events = await provider.fetch(window)
+    cutoff = spec.cutoff
+    window = CfgWindow(
+        start=cutoff.strftime("%Y-%m-%dT00:00:00Z"),
+        end="2024-11-03T23:00:00Z",
+    )
+    try:
+        with fixture_mode(payload.use_fixtures):
+            events = await provider.fetch(window)
+    except Exception as exc:
+        from eve_miro.errors import ProviderError
+
+        if isinstance(exc, ProviderError):
+            raise HTTPException(status_code=502, detail=f"live provider failed: {exc}") from exc
+        raise
     t0, t1 = split_at_cutoff(events, spec.cutoff)
     loop = ClosedLoop(ledger=app_state.STATE.ledger, graph=app_state.STATE.experience_graph)
     result = await loop.run(
