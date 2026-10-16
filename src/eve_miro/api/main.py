@@ -102,13 +102,11 @@ class IngestBody(BaseModel):
 
 
 class CreateSimBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     world_id: str
     scenario: str | None = "typhoon_manila_001"
-    population: int | None = None
-    seed: int | None = None
-
-    model_config = ConfigDict(extra="forbid")
     population: int | None = Field(default=None, ge=1, le=100_000)
+    seed: int | None = None
 
 
 class EvaluateBody(BaseModel):
@@ -286,7 +284,20 @@ async def list_events(world_id: str):
 @app.post("/simulations")
 async def create_sim(body: CreateSimBody):
     rec = _world_or_404(body.world_id)
-    scenario = load_scenario(name=body.scenario) if body.scenario else None
+    scenario = None
+    if body.scenario:
+        if "/" in body.scenario or chr(92) in body.scenario or ".." in body.scenario or ":" in body.scenario:
+            raise HTTPException(status_code=400, detail="scenario must be a bundled or stored scenario identifier")
+        stored = app_state.STATE.scenarios.get(body.scenario)
+        from eve_miro.core.simulation.scenarios import Scenario
+
+        if isinstance(stored, dict) and isinstance(stored.get("scenario"), Scenario):
+            scenario = stored["scenario"]
+        else:
+            try:
+                scenario = load_scenario(name=body.scenario)
+            except (FileNotFoundError, ValueError) as exc:
+                raise HTTPException(status_code=404, detail=f"scenario not found: {body.scenario}") from exc
     if scenario and body.population:
         scenario.agents["population"] = body.population
     if scenario and body.seed is not None:
