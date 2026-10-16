@@ -105,7 +105,7 @@ class CreateSimBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     world_id: str
     scenario: str | None = "typhoon_manila_001"
-    population: int | None = Field(default=None, ge=1, le=100_000)
+    population: int | None = Field(default=None, ge=1, le=10_000)
     seed: int | None = None
 
 
