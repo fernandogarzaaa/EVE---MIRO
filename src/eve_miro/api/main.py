@@ -35,6 +35,7 @@ from eve_miro.core.world.state import Population
 from eve_miro.core.world.temporal import as_utc, iso, utcnow
 from eve_miro.errors import EngineNotConfigured, FutureLeakageError, ProvenanceError, ReplayError
 from eve_miro.providers.protocol import TimeWindow
+from eve_miro.providers.common import fixture_mode
 from eve_miro.providers.registry import all_providers
 from eve_miro.worker.loop import ingest_from_providers, provider_cadence
 
@@ -92,6 +93,11 @@ class CreateWorldBody(BaseModel):
     label: str = ""
 
 
+    @staticmethod
+    def _unused() -> None:
+        return None
+
+
 class IngestBody(BaseModel):
     events: list[dict[str, Any]] | None = None
     providers: list[str] | None = None
@@ -105,6 +111,10 @@ class CreateSimBody(BaseModel):
     scenario: str | None = "typhoon_manila_001"
     population: int | None = None
     seed: int | None = None
+
+    from pydantic import ConfigDict, Field
+    model_config = ConfigDict(extra="forbid")
+    population: int | None = Field(default=None, ge=1, le=100_000)
 
 
 class EvaluateBody(BaseModel):
@@ -187,6 +197,8 @@ async def reliability(world_id: str | None = None):
 @app.post("/worlds")
 async def create_world(body: CreateWorldBody):
     wid = body.id or f"world_{uuid4().hex[:10]}"
+    if wid in app_state.STATE.worlds:
+        raise HTTPException(status_code=409, detail=f"world already exists: {wid}")
     rec = WorldRecord(
         id=wid,
         created_at=utcnow(),
@@ -201,8 +213,6 @@ async def create_world(body: CreateWorldBody):
 @app.post("/worlds/{world_id}/ingest")
 async def ingest(world_id: str, body: IngestBody):
     rec = _world_or_404(world_id)
-    if body.use_fixtures:
-        os.environ.setdefault("FIXTURES", "1")
     accepted: list[WorldEvent] = []
     cutoff = rec.information_cutoff
     if body.events:
@@ -216,16 +226,20 @@ async def ingest(world_id: str, body: IngestBody):
             "end": "2024-11-03T23:00:00Z",
         }
         window = TimeWindow(start=window_raw["start"], end=window_raw["end"], region=rec.region)
-        accepted.extend(
-            await ingest_from_providers(
-                app_state.STATE.store,
-                world_id,
-                body.providers,
-                window,
-                channel=body.channel,
-                information_cutoff=cutoff,
-            )
-        )
+        try:
+            with fixture_mode(body.use_fixtures):
+                accepted.extend(
+                    await ingest_from_providers(
+                        app_state.STATE.store,
+                        world_id,
+                        body.providers,
+                        window,
+                        channel=body.channel,
+                        information_cutoff=cutoff,
+                    )
+                )
+        except KeyError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
     kinds = sorted({e.kind.value for e in accepted})
     inc_ingest(len(accepted))
     return {
