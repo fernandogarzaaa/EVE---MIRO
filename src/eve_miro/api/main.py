@@ -17,7 +17,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from eve_miro import __version__
 from eve_miro.api.metrics_prom import inc_eval, inc_ingest, inc_sim_run
@@ -93,11 +93,6 @@ class CreateWorldBody(BaseModel):
     label: str = ""
 
 
-    @staticmethod
-    def _unused() -> None:
-        return None
-
-
 class IngestBody(BaseModel):
     events: list[dict[str, Any]] | None = None
     providers: list[str] | None = None
@@ -112,7 +107,6 @@ class CreateSimBody(BaseModel):
     population: int | None = None
     seed: int | None = None
 
-    from pydantic import ConfigDict, Field
     model_config = ConfigDict(extra="forbid")
     population: int | None = Field(default=None, ge=1, le=100_000)
 
