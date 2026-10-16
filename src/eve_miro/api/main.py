@@ -433,22 +433,42 @@ async def validate_exp(exp_id: str):
 
 @app.post("/scenarios")
 async def post_scenario(payload: dict[str, Any]):
-    name = payload.get("name") or f"scenario_{uuid4().hex[:8]}"
-    app_state.STATE.scenarios[name] = payload
+    name = str(payload.get("name") or f"scenario_{uuid4().hex[:8]}").strip()
+    if not name or "/" in name or chr(92) in name or ".." in name or ":" in name:
+        raise HTTPException(status_code=400, detail="scenario name must be a simple identifier")
+    if name in app_state.STATE.scenarios:
+        raise HTTPException(status_code=409, detail=f"scenario already exists: {name}")
+    from eve_miro.core.simulation.scenarios import Scenario
+
+    try:
+        scenario = Scenario.model_validate(payload)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"invalid scenario definition: {exc}") from exc
+    app_state.STATE.scenarios[name] = {"scenario": scenario, "definition": payload}
     return {"id": name, "stored": True}
 
 
 @app.post("/scenarios/{scenario_id}/simulate")
 async def simulate_scenario(scenario_id: str, world_id: str | None = None):
-    if scenario_id == "typhoon_manila_001" or scenario_id not in app_state.STATE.worlds:
-        scenario = load_scenario(name="typhoon_manila_001")
+    from eve_miro.core.simulation.scenarios import Scenario
+
+    stored = app_state.STATE.scenarios.get(scenario_id)
+    if isinstance(stored, dict) and isinstance(stored.get("scenario"), Scenario):
+        scenario = stored["scenario"]
     else:
-        scenario = load_scenario(name=scenario_id)
+        if not scenario_id or "/" in scenario_id or chr(92) in scenario_id or ".." in scenario_id or ":" in scenario_id:
+            raise HTTPException(status_code=400, detail="scenario_id must be a bundled or stored scenario identifier")
+        try:
+            scenario = load_scenario(name=scenario_id)
+        except (FileNotFoundError, ValueError) as exc:
+            raise HTTPException(status_code=404, detail=f"scenario not found: {scenario_id}") from exc
     wid = world_id or next(iter(app_state.STATE.worlds), None)
     if not wid:
         rec = WorldRecord(id=f"world_{uuid4().hex[:10]}", created_at=utcnow(), information_cutoff=scenario.cutoff)
         app_state.STATE.worlds[rec.id] = rec
         wid = rec.id
+    else:
+        _world_or_404(wid)
     events = app_state.STATE.store.list(wid)
     result, selected = await run_scenario(wid, events, scenario)
     app_state.STATE.simulations[result.simulation.id] = result.simulation
