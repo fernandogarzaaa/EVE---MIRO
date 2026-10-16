@@ -267,11 +267,8 @@ class ExperimentRunBody(BaseModel):
 @router.post("/experiments/run")
 async def run_experiment(body: ExperimentRunBody | None = None):
     """Closed loop: WorldState(t0) → sim → EVE → score vs WorldState(t1)."""
-    import os
-
     from eve_miro.core.orchestration.closed_loop import ClosedLoop, split_at_cutoff
     from eve_miro.core.orchestration.experiment import load_experiment, parse_horizon
-    from eve_miro.providers.common import load_fixture
     from eve_miro.providers.weather import OpenMeteoProvider
 
     payload = body or ExperimentRunBody()
