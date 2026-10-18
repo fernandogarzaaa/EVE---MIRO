@@ -78,6 +78,8 @@ def test_invalid_page_size_is_rejected():
 
     with pytest.raises(ValueError, match="page_size"):
         zep_paging.fetch_all_edges(client, "graph", page_size=0)
+
+
 def test_max_items_of_one_is_accepted():
     edges = [SimpleNamespace(uuid_="e1"), SimpleNamespace(uuid_="e2")]
     client, _calls = _client(edges)
