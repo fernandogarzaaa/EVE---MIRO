@@ -13,6 +13,19 @@ from app.services.zep_entity_reader import EntityNode, ZepEntityReader
 from app.services.zep_tools import ZepToolsService
 
 
+def _remote_builder(client):
+    """GraphBuilderService without __init__ (which would build a real Zep
+    client), pinned to the remote path the fake client provides.
+
+    __init__ sets _local; bypassing it leaves _local unset and every method
+    that branches on it raises AttributeError.
+    """
+    builder = object.__new__(GraphBuilderService)
+    builder._local = False
+    builder.client = client
+    return builder
+
+
 def test_report_search_caps_the_query_sent_to_zep():
     calls = []
 
@@ -208,8 +221,7 @@ def test_document_ingestion_uses_current_batch_api_and_persists_identity():
             calls.append(("process", kwargs))
             return SimpleNamespace(status="queued")
 
-    builder = object.__new__(GraphBuilderService)
-    builder.client = SimpleNamespace(batch=BatchApi())
+    builder = _remote_builder(SimpleNamespace(batch=BatchApi()))
     persisted = []
 
     submission = builder.add_text_batches(
@@ -246,8 +258,7 @@ def test_graph_create_persists_identity_before_post_and_reconciles_timeout():
             events.append(("get", graph_id))
             return SimpleNamespace(graph_id=graph_id)
 
-    builder = object.__new__(GraphBuilderService)
-    builder.client = SimpleNamespace(graph=GraphApi())
+    builder = _remote_builder(SimpleNamespace(graph=GraphApi()))
 
     graph_id = builder.create_graph(
         "Graph",
@@ -299,8 +310,7 @@ def test_batch_create_timeout_is_reconciled_by_operation_metadata(monkeypatch):
             calls.append("process")
             return SimpleNamespace(status="queued")
 
-    builder = object.__new__(GraphBuilderService)
-    builder.client = SimpleNamespace(batch=BatchApi())
+    builder = _remote_builder(SimpleNamespace(batch=BatchApi()))
     monkeypatch.setattr(graph_builder_module.time, "sleep", lambda _seconds: None)
 
     submission = builder.add_text_batches("graph-id", ["chunk"])
@@ -336,8 +346,7 @@ def test_batch_add_timeout_recovers_a_fully_accepted_group_without_replay(monkey
         def process(self, **_kwargs):
             return SimpleNamespace(status="queued")
 
-    builder = object.__new__(GraphBuilderService)
-    builder.client = SimpleNamespace(batch=BatchApi())
+    builder = _remote_builder(SimpleNamespace(batch=BatchApi()))
     monkeypatch.setattr(graph_builder_module.time, "sleep", lambda _seconds: None)
 
     submission = builder.add_text_batches(
@@ -384,8 +393,7 @@ def test_batch_wait_validates_terminal_items_and_opaque_zero_cursor():
                 next_cursor=None,
             )
 
-    builder = object.__new__(GraphBuilderService)
-    builder.client = SimpleNamespace(batch=BatchApi())
+    builder = _remote_builder(SimpleNamespace(batch=BatchApi()))
     submission = BatchSubmission("batch-1", "operation", [], 2)
 
     assert builder._wait_for_batch(submission, timeout=1) == [
@@ -397,14 +405,15 @@ def test_batch_wait_validates_terminal_items_and_opaque_zero_cursor():
 
 @pytest.mark.parametrize("status", ["partial", "failed", "invalid", "canceled"])
 def test_batch_non_success_terminal_states_fail(status):
-    builder = object.__new__(GraphBuilderService)
-    builder.client = SimpleNamespace(
-        batch=SimpleNamespace(
-            get=lambda **_kwargs: SimpleNamespace(status=status, progress=None),
-            list_items=lambda **_kwargs: SimpleNamespace(
-                items=[SimpleNamespace(status="failed", error={"message": "bad"})],
-                next_cursor=None,
-            ),
+    builder = _remote_builder(
+        SimpleNamespace(
+            batch=SimpleNamespace(
+                get=lambda **_kwargs: SimpleNamespace(status=status, progress=None),
+                list_items=lambda **_kwargs: SimpleNamespace(
+                    items=[SimpleNamespace(status="failed", error={"message": "bad"})],
+                    next_cursor=None,
+                ),
+            )
         )
     )
 
@@ -416,10 +425,11 @@ def test_batch_non_success_terminal_states_fail(status):
 
 
 def test_batch_wait_times_out_while_status_remains_nonterminal(monkeypatch):
-    builder = object.__new__(GraphBuilderService)
-    builder.client = SimpleNamespace(
-        batch=SimpleNamespace(
-            get=lambda **_kwargs: SimpleNamespace(status="processing", progress=None)
+    builder = _remote_builder(
+        SimpleNamespace(
+            batch=SimpleNamespace(
+                get=lambda **_kwargs: SimpleNamespace(status="processing", progress=None)
+            )
         )
     )
     timestamps = iter([0.0, 2.0])
@@ -478,8 +488,7 @@ def test_installed_sdk_serializes_the_batch_325_contract():
         raise AssertionError(f"Unexpected request: {request.method} {path}")
 
     with httpx.Client(transport=httpx.MockTransport(handler)) as transport_client:
-        builder = object.__new__(GraphBuilderService)
-        builder.client = Zep(api_key="test-key", httpx_client=transport_client)
+        builder = _remote_builder(Zep(api_key="test-key", httpx_client=transport_client))
         submission = builder.add_text_batches("graph-id", ["source chunk"])
         assert builder._wait_for_batch(submission, timeout=1) == ["episode-1"]
 
