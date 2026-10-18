@@ -12,6 +12,19 @@ from zep_cloud.external_clients.ontology import (
 )
 
 
+def _remote_builder(client):
+    """GraphBuilderService without __init__ (which would build a real Zep
+    client), pinned to the remote path the fake client provides.
+
+    __init__ sets _local; bypassing it leaves _local unset and every method
+    that branches on it raises AttributeError.
+    """
+    builder = object.__new__(GraphBuilderService)
+    builder._local = False
+    builder.client = client
+    return builder
+
+
 def test_normalize_string_attribute():
     assert normalize_ontology_attribute("role") == {
         "name": "role",
@@ -85,8 +98,7 @@ def test_graph_builder_safety_net_accepts_strings_and_skips_invalid_values():
     class Client:
         graph = GraphApi()
 
-    builder = object.__new__(GraphBuilderService)
-    builder.client = Client()
+    builder = _remote_builder(Client())
     builder.set_ontology("graph-id", {
         "entity_types": [{
             "name": "Speaker",
@@ -109,8 +121,7 @@ def test_graph_builder_emits_a_pinned_zep_sdk_compatible_schema():
     class Client:
         graph = GraphApi()
 
-    builder = object.__new__(GraphBuilderService)
-    builder.client = Client()
+    builder = _remote_builder(Client())
     builder.set_ontology("graph-id", {
         "entity_types": [{
             "name": "Speaker",
@@ -157,8 +168,7 @@ def test_graph_builder_passes_an_empty_entity_mapping_for_edge_only_ontology():
     class Client:
         graph = GraphApi()
 
-    builder = object.__new__(GraphBuilderService)
-    builder.client = Client()
+    builder = _remote_builder(Client())
     builder.set_ontology("graph-id", {
         "entity_types": [],
         "edge_types": [{
@@ -187,8 +197,7 @@ def test_graph_builder_deduplicates_and_caps_edge_source_targets_for_zep():
     ]
     source_targets.insert(1, dict(source_targets[0]))
 
-    builder = object.__new__(GraphBuilderService)
-    builder.client = Client()
+    builder = _remote_builder(Client())
     builder.set_ontology("graph-id", {
         "entity_types": [],
         "edge_types": [{
