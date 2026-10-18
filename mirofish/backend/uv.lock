@@ -1245,7 +1245,7 @@ wheels = [
 
 [[package]]
 name = "zep-cloud"
-version = "3.25.0"
+version = "3.30.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
@@ -1254,7 +1254,7 @@ dependencies = [
     { name = "python-dateutil" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/81/0d/7a866e1e1e5f0f1353eedf3d0e17df9b3cf362c494bccd41eb121b49c43f/zep_cloud-3.25.0.tar.gz", hash = "sha256:a77867e02c2a9036a20623e85d03415e237e76510b6e05ff2e9ab2cdced0aeb9", size = 94772, upload-time = "2026-07-16T00:46:43.918Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/77/e2/c8a6b8e4eca1c039adc38d03499119656ece70091aed45c2a1a89405e535/zep_cloud-3.30.0.tar.gz", hash = "sha256:e33ddcba11250ee8322410acacdfcc18e228b57313bed910b3c3c6d0f74d7f26", size = 112278, upload-time = "2026-09-24T18:04:22.000Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/77/fc/5ca2bdd20b83bd62bc2708580f756e704f69704709e0ed43e735aa590c1e/zep_cloud-3.25.0-py3-none-any.whl", hash = "sha256:94d9599038b154af9ad33cab4b4873ed9adb1bcaa48fc4c41cbd407c1a657ef5", size = 166438, upload-time = "2026-07-16T00:46:42.39Z" },
+    { url = "https://files.pythonhosted.org/packages/e3/f5/8a876c25179249bf6f8e26696954463ac1269fe1bd0334d1f912cf6c94dd/zep_cloud-3.30.0-py3-none-any.whl", hash = "sha256:c3b68ca75f8628cc803f74baa351a1fc3c8c34bf3142828a61f40945951d6ea9", size = 198458, upload-time = "2026-09-24T18:04:21.000Z" },
 ]
