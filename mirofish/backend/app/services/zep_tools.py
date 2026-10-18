@@ -485,25 +485,36 @@ class ZepToolsService:
 
         try:
             # 4.0 移除了带 scope 参数的通用 search，改为按范围的专用端点。
-            # search_* 返回自动翻页的 SyncPager；用 islice 裁剪到请求的条数，
-            # 保持与 3.x limit 参数相同的返回规模。
+            # search_* 返回自动翻页的 SyncPager；在这里物化并用 islice 裁剪到
+            # 请求的条数，保持与 3.x limit 参数相同的返回规模。物化放在重试
+            # 边界内，后续翻页的瞬时失败也能被重试策略覆盖。
             if scope == "nodes":
-                search_pager = self._call_with_retry(
-                    func=lambda: self.client.graph.search_nodes(
-                        graph_id,
-                        query=zep_query,
-                        page_size=zep_limit,
-                        reranker="cross_encoder",
+                search_results = self._call_with_retry(
+                    func=lambda: list(
+                        itertools.islice(
+                            self.client.graph.search_nodes(
+                                graph_id,
+                                query=zep_query,
+                                page_size=zep_limit,
+                                reranker="cross_encoder",
+                            ),
+                            zep_limit,
+                        )
                     ),
                     operation_name=t("console.graphSearchOp", graphId=graph_id),
                 )
             else:
-                search_pager = self._call_with_retry(
-                    func=lambda: self.client.graph.search_edges(
-                        graph_id,
-                        query=zep_query,
-                        page_size=zep_limit,
-                        reranker="cross_encoder",
+                search_results = self._call_with_retry(
+                    func=lambda: list(
+                        itertools.islice(
+                            self.client.graph.search_edges(
+                                graph_id,
+                                query=zep_query,
+                                page_size=zep_limit,
+                                reranker="cross_encoder",
+                            ),
+                            zep_limit,
+                        )
                     ),
                     operation_name=t("console.graphSearchOp", graphId=graph_id),
                 )
@@ -514,7 +525,7 @@ class ZepToolsService:
 
             # 解析边搜索结果
             if scope != "nodes":
-                for edge in itertools.islice(search_pager, zep_limit):
+                for edge in search_results:
                     if hasattr(edge, "fact") and edge.fact:
                         facts.append(edge.fact)
                     edges.append(
@@ -529,7 +540,7 @@ class ZepToolsService:
 
             # 解析节点搜索结果
             if scope == "nodes":
-                for node in itertools.islice(search_pager, zep_limit):
+                for node in search_results:
                     nodes.append(
                         {
                             "uuid": getattr(node, "uuid_", None) or getattr(node, "uuid", ""),

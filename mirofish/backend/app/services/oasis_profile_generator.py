@@ -409,30 +409,31 @@ class OasisProfileGenerator:
         def search_edges():
             """搜索边（事实/关系）- 带重试机制"""
             # 4.0 按范围拆分 search 为专用端点；pager 自动翻页，islice 裁剪条数。
-            return list(
-                itertools.islice(
-                    call_zep_read_with_retry(
-                        lambda: self.zep_client.graph.search_edges(
+            # 物化放在重试边界内，后续翻页的瞬时失败也能被重试策略覆盖。
+            return call_zep_read_with_retry(
+                lambda: list(
+                    itertools.islice(
+                        self.zep_client.graph.search_edges(
                             self.graph_id, query=comprehensive_query, page_size=30, reranker="rrf"
                         ),
-                        operation_name=f"profile edge search ({entity.uuid})",
-                    ),
-                    30,
-                )
+                        30,
+                    )
+                ),
+                operation_name=f"profile edge search ({entity.uuid})",
             )
 
         def search_nodes():
             """搜索节点（实体摘要）- 带重试机制"""
-            return list(
-                itertools.islice(
-                    call_zep_read_with_retry(
-                        lambda: self.zep_client.graph.search_nodes(
+            return call_zep_read_with_retry(
+                lambda: list(
+                    itertools.islice(
+                        self.zep_client.graph.search_nodes(
                             self.graph_id, query=comprehensive_query, page_size=20, reranker="rrf"
                         ),
-                        operation_name=f"profile node search ({entity.uuid})",
-                    ),
-                    20,
-                )
+                        20,
+                    )
+                ),
+                operation_name=f"profile node search ({entity.uuid})",
             )
 
         try:
