@@ -1,154 +1,165 @@
 {
-  "scenario": "rate_shock_001",
-  "hours": 72,
+  "scenario": "vol_spike_001",
+  "hours": 480,
   "seeds": [
     202411,
     202412
   ],
   "symbols": [
-    "AAPL",
-    "SPY"
+    "AAPL"
   ],
-  "cutoff": "2026-09-22T13:30:00+00:00",
-  "t1_bars_per_symbol": 3,
+  "cutoff": "2026-09-18T04:00:00+00:00",
+  "t1_bars_per_symbol": 20,
   "alignment": {
-    "scenario_id": "rate_shock_001",
-    "scenario_class": "rate_shock",
+    "scenario_id": "vol_spike_001",
+    "scenario_class": "volatility_spike",
     "n_seeds": 2,
     "symbols": {
       "AAPL": {
         "symbol": "AAPL",
-        "n_points": 3,
-        "ks_statistic": 1.0,
-        "ks_pvalue": 0.097027,
-        "return_mae": 0.037412,
-        "vol_path_mae": 0.047399,
-        "sim_drawdown": -0.070291,
-        "obs_drawdown": 0.0,
-        "drawdown_error": 0.070291,
-        "symbol_score": 0.0,
+        "n_points": 20,
+        "ks_statistic": 0.473684,
+        "ks_pvalue": 0.018105,
+        "return_mae": 0.088648,
+        "vol_path_mae": 1.616684,
+        "sim_drawdown": -0.488865,
+        "obs_drawdown": -0.034216,
+        "drawdown_error": 0.454649,
+        "symbol_score": 0.175439,
         "sim_daily": [
-          268.003,
-          260.0544,
-          249.1648
+          326.7364,
+          352.9802,
+          325.0444,
+          271.3898,
+          312.8551,
+          243.5098,
+          237.4629,
+          301.0371,
+          277.9839,
+          273.025,
+          273.6446,
+          241.8689,
+          218.4577,
+          225.9216,
+          211.4977,
+          213.6804,
+          180.4205,
+          207.231,
+          209.1962,
+          215.0568
         ],
         "obs_daily": [
-          267.87,
-          268.13,
-          268.39
-        ]
-      },
-      "SPY": {
-        "symbol": "SPY",
-        "n_points": 3,
-        "ks_statistic": 0.5,
-        "ks_pvalue": 0.84382,
-        "return_mae": 0.04035,
-        "vol_path_mae": 0.301948,
-        "sim_drawdown": -0.074801,
-        "obs_drawdown": 0.0,
-        "drawdown_error": 0.074801,
-        "symbol_score": 0.166667,
-        "sim_daily": [
-          616.8261,
-          618.6499,
-          572.3739
-        ],
-        "obs_daily": [
-          660.7,
-          660.9,
-          661.1
+          338.98,
+          339.75,
+          337.02,
+          335.92,
+          341.07,
+          338.4,
+          329.4,
+          333.02,
+          330.32,
+          333.69,
+          332.89,
+          333.63,
+          336.67,
+          340.42,
+          336.64,
+          340.97,
+          341.27,
+          342.96,
+          342.0,
+          343.46
         ]
       }
     },
     "skipped_symbols": [],
-    "aggregate_score": 0.083334,
-    "notes": "2 aligned, 0 skipped (none); scores measure calibration against one realized path, not predictive power."
+    "aggregate_score": 0.175439,
+    "notes": "1 aligned, 0 skipped (none); scores measure calibration against one realized path, not predictive power."
   },
   "trust": {
     "sell_shock": {
       "scenario_class": "sell_shock",
-      "n_alignments": 0,
+      "n_alignments": 3,
       "drawdown_tolerance": 0.02,
       "drawdown_within_tol_frac": 0.0,
-      "mean_drawdown_error": null,
-      "mean_ks_statistic": null,
-      "score": 0.0,
+      "mean_drawdown_error": 0.184689,
+      "mean_ks_statistic": 0.526316,
+      "score": 0.1895,
       "recommendation": "DO_NOT_USE",
-      "notes": "no alignments recorded for this scenario class; do not trust it",
-      "describe": "for scenario class sell_shock, over 0 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 0)."
+      "notes": "n=3, drawdown within 2.00%: 0/3 (0%), mean_drawdown_error=0.1847",
+      "describe": "for scenario class sell_shock, over 3 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 3)."
     },
     "volatility_spike": {
       "scenario_class": "volatility_spike",
-      "n_alignments": 0,
+      "n_alignments": 3,
       "drawdown_tolerance": 0.02,
       "drawdown_within_tol_frac": 0.0,
-      "mean_drawdown_error": null,
-      "mean_ks_statistic": null,
-      "score": 0.0,
+      "mean_drawdown_error": 0.45465,
+      "mean_ks_statistic": 0.473684,
+      "score": 0.2105,
       "recommendation": "DO_NOT_USE",
-      "notes": "no alignments recorded for this scenario class; do not trust it",
-      "describe": "for scenario class volatility_spike, over 0 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 0)."
+      "notes": "n=3, drawdown within 2.00%: 0/3 (0%), mean_drawdown_error=0.4547",
+      "describe": "for scenario class volatility_spike, over 3 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 3)."
     },
     "rate_shock": {
       "scenario_class": "rate_shock",
-      "n_alignments": 2,
+      "n_alignments": 3,
       "drawdown_tolerance": 0.02,
       "drawdown_within_tol_frac": 0.0,
-      "mean_drawdown_error": 0.072546,
-      "mean_ks_statistic": 0.75,
-      "score": 0.1,
+      "mean_drawdown_error": 0.388652,
+      "mean_ks_statistic": 0.614035,
+      "score": 0.1544,
       "recommendation": "DO_NOT_USE",
-      "notes": "n=2, drawdown within 2.00%: 0/2 (0%), mean_drawdown_error=0.0725",
-      "describe": "for scenario class rate_shock, over 2 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 2)."
+      "notes": "n=3, drawdown within 2.00%: 0/3 (0%), mean_drawdown_error=0.3887",
+      "describe": "for scenario class rate_shock, over 3 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 3)."
     },
     "earn_gap_down": {
       "scenario_class": "earn_gap_down",
-      "n_alignments": 0,
+      "n_alignments": 3,
       "drawdown_tolerance": 0.02,
       "drawdown_within_tol_frac": 0.0,
-      "mean_drawdown_error": null,
-      "mean_ks_statistic": null,
-      "score": 0.0,
+      "mean_drawdown_error": 0.552684,
+      "mean_ks_statistic": 0.526316,
+      "score": 0.1895,
       "recommendation": "DO_NOT_USE",
-      "notes": "no alignments recorded for this scenario class; do not trust it",
-      "describe": "for scenario class earn_gap_down, over 0 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 0)."
+      "notes": "n=3, drawdown within 2.00%: 0/3 (0%), mean_drawdown_error=0.5527",
+      "describe": "for scenario class earn_gap_down, over 3 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 3)."
     },
     "earn_gap_snapback": {
       "scenario_class": "earn_gap_snapback",
-      "n_alignments": 0,
+      "n_alignments": 3,
       "drawdown_tolerance": 0.02,
       "drawdown_within_tol_frac": 0.0,
-      "mean_drawdown_error": null,
-      "mean_ks_statistic": null,
-      "score": 0.0,
+      "mean_drawdown_error": 0.427517,
+      "mean_ks_statistic": 0.473684,
+      "score": 0.2105,
       "recommendation": "DO_NOT_USE",
-      "notes": "no alignments recorded for this scenario class; do not trust it",
-      "describe": "for scenario class earn_gap_snapback, over 0 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 0)."
+      "notes": "n=3, drawdown within 2.00%: 0/3 (0%), mean_drawdown_error=0.4275",
+      "describe": "for scenario class earn_gap_snapback, over 3 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 3)."
     },
     "sector_flash": {
       "scenario_class": "sector_flash",
-      "n_alignments": 0,
+      "n_alignments": 3,
       "drawdown_tolerance": 0.02,
       "drawdown_within_tol_frac": 0.0,
-      "mean_drawdown_error": null,
-      "mean_ks_statistic": null,
-      "score": 0.0,
+      "mean_drawdown_error": 0.438233,
+      "mean_ks_statistic": 0.473684,
+      "score": 0.2105,
       "recommendation": "DO_NOT_USE",
-      "notes": "no alignments recorded for this scenario class; do not trust it",
-      "describe": "for scenario class sector_flash, over 0 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 0)."
+      "notes": "n=3, drawdown within 2.00%: 0/3 (0%), mean_drawdown_error=0.4382",
+      "describe": "for scenario class sector_flash, over 3 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 3)."
     },
     "macro_slide": {
       "scenario_class": "macro_slide",
-      "n_alignments": 0,
+      "n_alignments": 3,
       "drawdown_tolerance": 0.02,
       "drawdown_within_tol_frac": 0.0,
-      "mean_drawdown_error": null,
-      "mean_ks_statistic": null,
-      "score": 0.0,
+      "mean_drawdown_error": 0.457283,
+      "mean_ks_statistic": 0.631579,
+      "score": 0.1474,
       "recommendation": "DO_NOT_USE",
-      "notes": "no alignments recorded for this scenario class; do not trust it",
-      "describe": "for scenario class macro_slide, over 0 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 0)."
+      "notes": "n=3, drawdown within 2.00%: 0/3 (0%), mean_drawdown_error=0.4573",
+      "describe": "for scenario class macro_slide, over 3 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 3)."
     },
     "baseline": {
       "scenario_class": "baseline",
@@ -163,6 +174,17 @@
       "describe": "for scenario class baseline, over 0 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 0)."
     }
   },
-  "disclaimer": "SIMULATED. Scenario calibration against one realized window, not a forecast of market prices.",
-  "generated_at": "2026-10-13T06:16:18.354789+00:00"
+  "disclaimer": "SIMULATED. Scenario calibration against one realized window, not a forecast of market prices. Trust scores are per scenario class from the accumulation ledger.",
+  "generated_at": "2026-10-19T01:03:53.478237+00:00",
+  "accumulation_week": "2026-W43",
+  "jev_relevance": {
+    "sell_shock": 0.5333333333333333,
+    "volatility_spike": 0.5166666666666667,
+    "rate_shock": 0.5866666666666667,
+    "earn_gap_down": 0.31666666666666665,
+    "earn_gap_snapback": 0.4666666666666666,
+    "sector_flash": 0.39666666666666667,
+    "macro_slide": 0.54
+  },
+  "jev_note": "Jev scores are a weak signal for attention only, not evidence. Trust scores come from the empirical alignment ledger."
 }
