@@ -22,21 +22,21 @@ logger = logging.getLogger(__name__)
 def _to_pascal_case(name: str) -> str:
     """将任意格式的名称转换为 PascalCase（如 'works_for' -> 'WorksFor', 'person' -> 'Person'）"""
     # 按非字母数字字符分割
-    parts = re.split(r'[^a-zA-Z0-9]+', name)
+    parts = re.split(r"[^a-zA-Z0-9]+", name)
     # 再按 camelCase 边界分割（如 'camelCase' -> ['camel', 'Case']）
     words = []
     for part in parts:
-        words.extend(re.sub(r'([a-z])([A-Z])', r'\1_\2', part).split('_'))
+        words.extend(re.sub(r"([a-z])([A-Z])", r"\1_\2", part).split("_"))
     # 每个词首字母大写，过滤空串
-    result = ''.join(word.capitalize() for word in words if word)
-    return result if result else 'Unknown'
+    result = "".join(word.capitalize() for word in words if word)
+    return result if result else "Unknown"
 
 
 def _to_upper_snake_case(name: str) -> str:
     """Convert free-form or camelCase names to SCREAMING_SNAKE_CASE."""
 
-    separated = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', name.strip())
-    normalized = re.sub(r'[^a-zA-Z0-9]+', '_', separated).strip('_').upper()
+    separated = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name.strip())
+    normalized = re.sub(r"[^a-zA-Z0-9]+", "_", separated).strip("_").upper()
     if not normalized:
         return "UNKNOWN"
     if normalized[0].isdigit():
@@ -196,41 +196,31 @@ class OntologyGenerator:
     本体生成器
     分析文本内容，生成实体和关系类型定义
     """
-    
+
     def __init__(self, llm_client: Optional[LLMClient] = None):
         self.llm_client = llm_client or LLMClient()
-    
+
     def generate(
-        self,
-        document_texts: List[str],
-        simulation_requirement: str,
-        additional_context: Optional[str] = None
+        self, document_texts: List[str], simulation_requirement: str, additional_context: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         生成本体定义
-        
+
         Args:
             document_texts: 文档文本列表
             simulation_requirement: 模拟需求描述
             additional_context: 额外上下文
-            
+
         Returns:
             本体定义（entity_types, edge_types等）
         """
         # 构建用户消息
-        user_message = self._build_user_message(
-            document_texts, 
-            simulation_requirement,
-            additional_context
-        )
-        
+        user_message = self._build_user_message(document_texts, simulation_requirement, additional_context)
+
         lang_instruction = get_language_instruction()
         system_prompt = f"{ONTOLOGY_SYSTEM_PROMPT}\n\n{lang_instruction}\nIMPORTANT: Entity type names MUST be in English PascalCase (e.g., 'PersonEntity', 'MediaOrganization'). Relationship type names MUST be in English UPPER_SNAKE_CASE (e.g., 'WORKS_FOR'). Attribute names MUST be in English snake_case. Only description fields and analysis_summary should use the specified language above."
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message}
-        ]
-        
+        messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_message}]
+
         # 调用LLM
         result = self.llm_client.chat_json(
             messages=messages,
@@ -241,29 +231,26 @@ class OntologyGenerator:
             max_tokens=None,
             max_attempts=2,
         )
-        
+
         # 验证和后处理
         result = self._validate_and_process(result)
-        
+
         return result
-    
+
     # 传给 LLM 的文本最大长度（5万字）
     MAX_TEXT_LENGTH_FOR_LLM = 50000
     LONG_TEXT_CHUNK_SIZE = 8000
     LONG_TEXT_CHUNK_OVERLAP = 200
     MAX_LONG_TEXT_CHUNKS = 60
     MIN_LONG_TEXT_EXCERPT = 400
-    
+
     def _build_user_message(
-        self,
-        document_texts: List[str],
-        simulation_requirement: str,
-        additional_context: Optional[str]
+        self, document_texts: List[str], simulation_requirement: str, additional_context: Optional[str]
     ) -> str:
         """构建用户消息"""
-        
+
         combined_text = self._build_document_context(document_texts)
-        
+
         message = f"""## 模拟需求
 
 {simulation_requirement}
@@ -272,14 +259,14 @@ class OntologyGenerator:
 
 {combined_text}
 """
-        
+
         if additional_context:
             message += f"""
 ## 额外说明
 
 {additional_context}
 """
-        
+
         message += """
 请根据以上内容，设计适合社会舆论模拟的实体类型和关系类型。
 
@@ -290,7 +277,7 @@ class OntologyGenerator:
 4. 所有实体类型必须是现实中可以发声的主体，不能是抽象概念
 5. 属性名不能使用 name、uuid、group_id、graph_id 等保留字，用 full_name、org_name 等替代
 """
-        
+
         return message
 
     def _build_document_context(self, document_texts: List[str]) -> str:
@@ -326,7 +313,7 @@ class OntologyGenerator:
 
         if len(context) > self.MAX_TEXT_LENGTH_FOR_LLM:
             marker = "\n\n...(分块上下文已压缩到本体分析长度限制内)..."
-            context = context[:self.MAX_TEXT_LENGTH_FOR_LLM - len(marker)] + marker
+            context = context[: self.MAX_TEXT_LENGTH_FOR_LLM - len(marker)] + marker
 
         return context
 
@@ -342,12 +329,14 @@ class OntologyGenerator:
             )
             total_doc_chunks = len(doc_chunks)
             for chunk_index, chunk in enumerate(doc_chunks, 1):
-                all_chunks.append({
-                    "document_index": doc_index,
-                    "chunk_index": chunk_index,
-                    "total_document_chunks": total_doc_chunks,
-                    "text": chunk,
-                })
+                all_chunks.append(
+                    {
+                        "document_index": doc_index,
+                        "chunk_index": chunk_index,
+                        "total_document_chunks": total_doc_chunks,
+                        "text": chunk,
+                    }
+                )
 
         return all_chunks
 
@@ -362,8 +351,7 @@ class OntologyGenerator:
 
         last_index = len(chunks) - 1
         selected_indexes = {
-            round(i * last_index / (self.MAX_LONG_TEXT_CHUNKS - 1))
-            for i in range(self.MAX_LONG_TEXT_CHUNKS)
+            round(i * last_index / (self.MAX_LONG_TEXT_CHUNKS - 1)) for i in range(self.MAX_LONG_TEXT_CHUNKS)
         }
         return [chunks[i] for i in sorted(selected_indexes)]
 
@@ -401,13 +389,15 @@ class OntologyGenerator:
         for chunk in selected_chunks:
             excerpt = self._excerpt_text(chunk["text"], excerpt_limit)
             lines.append(
-                "\n".join([
-                    (
-                        f"--- 文档 {chunk['document_index']} / "
-                        f"分块 {chunk['chunk_index']}/{chunk['total_document_chunks']} ---"
-                    ),
-                    excerpt,
-                ])
+                "\n".join(
+                    [
+                        (
+                            f"--- 文档 {chunk['document_index']} / "
+                            f"分块 {chunk['chunk_index']}/{chunk['total_document_chunks']} ---"
+                        ),
+                        excerpt,
+                    ]
+                )
             )
 
         return "\n\n".join(lines)
@@ -428,7 +418,7 @@ class OntologyGenerator:
         head_len = remaining // 2
         tail_len = remaining - head_len
         return f"{text[:head_len].rstrip()}{marker}{text[-tail_len:].lstrip()}"
-    
+
     def _validate_and_process(self, result: Dict[str, Any]) -> Dict[str, Any]:
         """验证和后处理结果"""
         if not isinstance(result, dict):
@@ -472,21 +462,15 @@ class OntologyGenerator:
                 continue
 
             if normalized_name != original_name:
-                logger.warning(
-                    f"Entity type name '{original_name}' auto-converted to '{normalized_name}'"
-                )
+                logger.warning(f"Entity type name '{original_name}' auto-converted to '{normalized_name}'")
             entity["name"] = normalized_name
-            entity["attributes"] = normalize_ontology_attributes(
-                entity.get("attributes", [])
-            )
+            entity["attributes"] = normalize_ontology_attributes(entity.get("attributes", []))
             if not isinstance(entity.get("examples"), list):
                 entity["examples"] = []
             description = entity.get("description")
             if not isinstance(description, str) or not description:
                 description = f"A {normalized_name} entity."
-            entity["description"] = (
-                description[:97] + "..." if len(description) > 100 else description
-            )
+            entity["description"] = description[:97] + "..." if len(description) > 100 else description
 
             seen_entity_names.add(normalized_name)
             processed_entities.append(entity)
@@ -503,47 +487,47 @@ class OntologyGenerator:
             "description": "Any individual person not fitting other specific person types.",
             "attributes": [
                 {"name": "full_name", "type": "text", "description": "Full name of the person"},
-                {"name": "role", "type": "text", "description": "Role or occupation"}
+                {"name": "role", "type": "text", "description": "Role or occupation"},
             ],
-            "examples": ["ordinary citizen", "anonymous netizen"]
+            "examples": ["ordinary citizen", "anonymous netizen"],
         }
-        
+
         organization_fallback = {
             "name": "Organization",
             "description": "Any organization not fitting other specific organization types.",
             "attributes": [
                 {"name": "org_name", "type": "text", "description": "Name of the organization"},
-                {"name": "org_type", "type": "text", "description": "Type of organization"}
+                {"name": "org_type", "type": "text", "description": "Type of organization"},
             ],
-            "examples": ["small business", "community group"]
+            "examples": ["small business", "community group"],
         }
-        
+
         # 检查是否已有兜底类型
         entity_names = {e["name"] for e in result["entity_types"]}
         has_person = "Person" in entity_names
         has_organization = "Organization" in entity_names
-        
+
         # 需要添加的兜底类型
         fallbacks_to_add = []
         if not has_person:
             fallbacks_to_add.append(person_fallback)
         if not has_organization:
             fallbacks_to_add.append(organization_fallback)
-        
+
         if fallbacks_to_add:
             current_count = len(result["entity_types"])
             needed_slots = len(fallbacks_to_add)
-            
+
             # 如果添加后会超过 10 个，需要移除一些现有类型
             if current_count + needed_slots > MAX_ONTOLOGY_TYPES:
                 # 计算需要移除多少个
                 to_remove = current_count + needed_slots - MAX_ONTOLOGY_TYPES
                 # 从末尾移除（保留前面更重要的具体类型）
                 result["entity_types"] = result["entity_types"][:-to_remove]
-            
+
             # 添加兜底类型
             result["entity_types"].extend(fallbacks_to_add)
-        
+
         # 最终确保不超过限制（防御性编程）
         result["entity_types"] = result["entity_types"][:MAX_ONTOLOGY_TYPES]
 
@@ -588,9 +572,7 @@ class OntologyGenerator:
                     logger.warning(f"Duplicate edge type '{normalized_name}' removed during validation")
                 continue
             if normalized_name != original_name:
-                logger.warning(
-                    f"Edge type name '{original_name}' auto-converted to '{normalized_name}'"
-                )
+                logger.warning(f"Edge type name '{original_name}' auto-converted to '{normalized_name}'")
             edge["name"] = normalized_name
 
             normalized_targets = []
@@ -602,18 +584,12 @@ class OntologyGenerator:
                 target = resolve_entity_name(source_target["target"])
                 if source and target:
                     normalized_targets.append({"source": source, "target": target})
-            edge["source_targets"] = normalize_ontology_source_targets(
-                normalized_targets
-            )
-            edge["attributes"] = normalize_ontology_attributes(
-                edge.get("attributes", [])
-            )
+            edge["source_targets"] = normalize_ontology_source_targets(normalized_targets)
+            edge["attributes"] = normalize_ontology_attributes(edge.get("attributes", []))
             description = edge.get("description")
             if not isinstance(description, str) or not description:
                 description = f"A {normalized_name} relationship."
-            edge["description"] = (
-                description[:97] + "..." if len(description) > 100 else description
-            )
+            edge["description"] = description[:97] + "..." if len(description) > 100 else description
 
             seen_edge_names.add(normalized_name)
             processed_edges.append(edge)
@@ -621,112 +597,114 @@ class OntologyGenerator:
                 break
 
         result["edge_types"] = processed_edges
-        
+
         return result
-    
+
     def generate_python_code(self, ontology: Dict[str, Any]) -> str:
         """
         将本体定义转换为Python代码（类似ontology.py）
-        
+
         Args:
             ontology: 本体定义
-            
+
         Returns:
             Python代码字符串
         """
         code_lines = [
             '"""',
-            '自定义实体类型定义',
-            '由MiroFish自动生成，用于社会舆论模拟',
+            "自定义实体类型定义",
+            "由MiroFish自动生成，用于社会舆论模拟",
             '"""',
-            '',
-            'from pydantic import Field',
-            'from zep_cloud.external_clients.ontology import EntityModel, EntityText, EdgeModel',
-            '',
-            '',
-            '# ============== 实体类型定义 ==============',
-            '',
+            "",
+            "from pydantic import Field",
+            "from zep_cloud.ontology import EntityModel, EntityText, EdgeModel",
+            "",
+            "",
+            "# ============== 实体类型定义 ==============",
+            "",
         ]
-        
+
         # 生成实体类型
         for entity in ontology.get("entity_types", []):
             name = entity["name"]
             desc = entity.get("description", f"A {name} entity.")
-            
-            code_lines.append(f'class {name}(EntityModel):')
+
+            code_lines.append(f"class {name}(EntityModel):")
             code_lines.append(f'    """{desc}"""')
-            
+
             attrs = entity.get("attributes", [])
             if attrs:
                 for attr in attrs:
                     attr_name = attr["name"]
                     attr_desc = attr.get("description", attr_name)
-                    code_lines.append(f'    {attr_name}: EntityText = Field(')
+                    code_lines.append(f"    {attr_name}: EntityText = Field(")
                     code_lines.append(f'        description="{attr_desc}",')
-                    code_lines.append(f'        default=None')
-                    code_lines.append(f'    )')
+                    code_lines.append(f"        default=None")
+                    code_lines.append(f"    )")
             else:
-                code_lines.append('    pass')
-            
-            code_lines.append('')
-            code_lines.append('')
-        
-        code_lines.append('# ============== 关系类型定义 ==============')
-        code_lines.append('')
-        
+                code_lines.append("    pass")
+
+            code_lines.append("")
+            code_lines.append("")
+
+        code_lines.append("# ============== 关系类型定义 ==============")
+        code_lines.append("")
+
         # 生成关系类型
         for edge in ontology.get("edge_types", []):
             name = edge["name"]
             # 转换为PascalCase类名
-            class_name = ''.join(word.capitalize() for word in name.split('_'))
+            class_name = "".join(word.capitalize() for word in name.split("_"))
             desc = edge.get("description", f"A {name} relationship.")
-            
-            code_lines.append(f'class {class_name}(EdgeModel):')
+
+            code_lines.append(f"class {class_name}(EdgeModel):")
             code_lines.append(f'    """{desc}"""')
-            
+
             attrs = edge.get("attributes", [])
             if attrs:
                 for attr in attrs:
                     attr_name = attr["name"]
                     attr_desc = attr.get("description", attr_name)
-                    code_lines.append(f'    {attr_name}: EntityText = Field(')
+                    code_lines.append(f"    {attr_name}: EntityText = Field(")
                     code_lines.append(f'        description="{attr_desc}",')
-                    code_lines.append(f'        default=None')
-                    code_lines.append(f'    )')
+                    code_lines.append(f"        default=None")
+                    code_lines.append(f"    )")
             else:
-                code_lines.append('    pass')
-            
-            code_lines.append('')
-            code_lines.append('')
-        
+                code_lines.append("    pass")
+
+            code_lines.append("")
+            code_lines.append("")
+
         # 生成类型字典
-        code_lines.append('# ============== 类型配置 ==============')
-        code_lines.append('')
-        code_lines.append('ENTITY_TYPES = {')
+        code_lines.append("# ============== 类型配置 ==============")
+        code_lines.append("")
+        code_lines.append("ENTITY_TYPES = {")
         for entity in ontology.get("entity_types", []):
             name = entity["name"]
             code_lines.append(f'    "{name}": {name},')
-        code_lines.append('}')
-        code_lines.append('')
-        code_lines.append('EDGE_TYPES = {')
+        code_lines.append("}")
+        code_lines.append("")
+        code_lines.append("EDGE_TYPES = {")
         for edge in ontology.get("edge_types", []):
             name = edge["name"]
-            class_name = ''.join(word.capitalize() for word in name.split('_'))
+            class_name = "".join(word.capitalize() for word in name.split("_"))
             code_lines.append(f'    "{name}": {class_name},')
-        code_lines.append('}')
-        code_lines.append('')
-        
+        code_lines.append("}")
+        code_lines.append("")
+
         # 生成边的source_targets映射
-        code_lines.append('EDGE_SOURCE_TARGETS = {')
+        code_lines.append("EDGE_SOURCE_TARGETS = {")
         for edge in ontology.get("edge_types", []):
             name = edge["name"]
             source_targets = edge.get("source_targets", [])
             if source_targets:
-                st_list = ', '.join([
-                    f'{{"source": "{st.get("source", "Entity")}", "target": "{st.get("target", "Entity")}"}}'
-                    for st in source_targets
-                ])
+                st_list = ", ".join(
+                    [
+                        f'{{"source": "{st.get("source", "Entity")}", "target": "{st.get("target", "Entity")}"}}'
+                        for st in source_targets
+                    ]
+                )
                 code_lines.append(f'    "{name}": [{st_list}],')
-        code_lines.append('}')
-        
-        return '\n'.join(code_lines)
+        code_lines.append("}")
+
+        return "\n".join(code_lines)
