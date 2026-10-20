@@ -1,0 +1,58 @@
+{
+  "baseline_review_share": {
+    "source": "SmartMoving 2026 survey of 484 movers (vendor)",
+    "value": 0.18
+  },
+  "contactable_coverage": {
+    "source": "worker-4 assumption A2: CRMs hold mobile numbers; landlines, wrong numbers, opt-outs, quiet hours erode reach",
+    "value": 0.8
+  },
+  "dlc_monthly_fee": {
+    "source": "Twilio sole-prop campaign tier ($10 standard tier as variant)",
+    "value": 2.0
+  },
+  "dlc_setup": {
+    "source": "Twilio: $4.50 brand + $15 campaign; amortized over 12 months",
+    "value": 19.5
+  },
+  "gatherup_conversion_per_100_requests": {
+    "both": 26,
+    "email": 15,
+    "sms": 20,
+    "source": "GatherUp vendor data, all-industry platform customers (not mover-specific)"
+  },
+  "jobs_per_month_small_mid": {
+    "source": "worker-4 assumption A1: $2.4M revenue / $3,020 per move ~= 66/mo; small-to-mid skews below the mean",
+    "value": 60
+  },
+  "pricing_defaults": {
+    "per_booking_bonus": 25.0,
+    "per_job": 0.8,
+    "per_problem_bonus": 10.0,
+    "per_review_bonus": 5.0,
+    "source": "ASSUMPTION: v3 prices per job processed with outcome bonuses; $5/review is worker-4's recommended month-3 test price"
+  },
+  "problem_rate": {
+    "source": "worker-4 cost model: problem-routing text sent at 20% of loops",
+    "value": 0.2
+  },
+  "provenance": "MSTech AI proposal v3 (Fernando Garza, Oct 2026) and worker-4 adversarial simulation (2026-10-16). Vendor-reported figures are labeled as such; the rest are documented assumptions.",
+  "request_to_review_conversion": {
+    "source": "worker-4 assumption A3: GatherUp SMS figure; pessimistic bound 0.12 sits below their email figure",
+    "value": 0.2
+  },
+  "speed_to_lead_baseline": {
+    "close_rate": 0.39,
+    "respond_within_5min_share": 0.38,
+    "response_mean_minutes": 8.0,
+    "source": "SmartMoving 2026 survey (vendor)"
+  },
+  "text_cost_all_in": {
+    "source": "Twilio pricing docs: $0.0079-0.0083 base + $0.0025-0.005 carrier surcharge; conservative upper bound",
+    "value": 0.013
+  },
+  "texts_per_loop": {
+    "source": "worker-4 assumption A5: thank-you + ask + nudge, plus problem-routing at 20% rate",
+    "value": 3.2
+  }
+}

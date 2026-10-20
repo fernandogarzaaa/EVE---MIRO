@@ -61,7 +61,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src", "."]
-include = ["eve_miro*", "marketsim"]
+include = ["eve_miro*", "marketsim", "funnelsim"]
 
 [tool.setuptools.package-data]
 eve_miro = ["api/static/*"]
