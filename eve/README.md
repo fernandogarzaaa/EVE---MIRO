@@ -119,6 +119,8 @@ Three principles make it a simulation rather than automation:
 
 ## Quick start
 
+> Note: npm currently serves experience-validation-engine 0.3.1. The tree in this repo is 0.5.0 and is not published yet, so a registry install does not deliver this tree. Publishing is pending Inan's npm account recovery, see the PR body.
+
 ```bash
 npm install experience-validation-engine
 
