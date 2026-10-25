@@ -118,6 +118,14 @@ def get_simulation_engine(
 
             raise EngineNotConfigured(f"marketsim engine not installed: {exc}") from exc
         return MarketSimEngine(scenario=scenario, artifacts=artifacts)
+    if scenario is not None and getattr(scenario, "type", None) == "funnel":
+        try:
+            from funnelsim.engine import FunnelSimEngine
+        except ImportError as exc:
+            from eve_miro.errors import EngineNotConfigured
+
+            raise EngineNotConfigured(f"funnelsim engine not installed: {exc}") from exc
+        return FunnelSimEngine(scenario=scenario, artifacts=artifacts)
     from eve_miro.core.simulation.mirofish_adapter import MiroFishEngine
 
     return MiroFishEngine(scenario=scenario, artifacts=artifacts)

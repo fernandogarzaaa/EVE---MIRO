@@ -21,6 +21,7 @@ from typing import Any
 from eve_miro.cli.market_accumulate import cmd_market_accumulate
 from eve_miro.cli.market_calibrate import cmd_market_calibrate
 from eve_miro.cli.market_sim import cmd_market_sim
+from eve_miro.cli.funnel_sim import cmd_funnel_sim
 from eve_miro.paths import REPO_ROOT
 
 PROG = "eve-miro"
@@ -122,6 +123,9 @@ Usage:
                            bars, run all scenarios with calibrated params, align
                            vs the trailing 20-day window, append to the trust
                            ledger; see docs/market-accumulation.md
+  eve-miro funnel-sim      offline funnel scenario run (fixtures): ground t0,
+                           run funnelsim post-job loop or speed-to-lead,
+                           record projection-only, print summary
   eve-miro api             uvicorn eve_miro.api.main:app :8000
 
 Setup flags (non-interactive):
@@ -593,6 +597,7 @@ COMMANDS = {
     "serve": cmd_serve,
     "run": cmd_run,
     "market-sim": cmd_market_sim,
+    "funnel-sim": cmd_funnel_sim,
     "market-calibrate": cmd_market_calibrate,
     "market-accumulate": cmd_market_accumulate,
     "api": cmd_api,
