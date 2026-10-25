@@ -14,7 +14,7 @@ MiroFish and EVE ship **in this repository** as first-party engine trees.
 
 ## Status
 
-**v1.0.0** on `main`. Fail-closed in-tree engines, live public-data adapters,
+**v1.1.1** on `main`. Fail-closed in-tree engines, live public-data adapters,
 OASIS action harvest, weather/mobility mapping, CLI, and CI/CD.
 
 Shipped:
