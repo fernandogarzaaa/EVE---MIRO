@@ -1,91 +1,91 @@
 {
-  "generated_at": "2026-10-19T01:03:55.258558+00:00",
-  "week": "2026-W43",
-  "n_records": 21,
+  "generated_at": "2026-10-26T01:03:52.782708+00:00",
+  "week": "2026-W44",
+  "n_records": 28,
   "classes": {
     "sell_shock": {
       "scenario_class": "sell_shock",
-      "n_alignments": 3,
+      "n_alignments": 4,
       "drawdown_tolerance": 0.02,
       "drawdown_within_tol_frac": 0.0,
-      "mean_drawdown_error": 0.184689,
+      "mean_drawdown_error": 0.184509,
       "mean_ks_statistic": 0.526316,
       "score": 0.1895,
       "recommendation": "DO_NOT_USE",
-      "notes": "n=3, drawdown within 2.00%: 0/3 (0%), mean_drawdown_error=0.1847",
-      "describe": "for scenario class sell_shock, over 3 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 3)."
+      "notes": "n=4, drawdown within 2.00%: 0/4 (0%), mean_drawdown_error=0.1845",
+      "describe": "for scenario class sell_shock, over 4 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 4)."
     },
     "volatility_spike": {
       "scenario_class": "volatility_spike",
-      "n_alignments": 3,
+      "n_alignments": 4,
       "drawdown_tolerance": 0.02,
       "drawdown_within_tol_frac": 0.0,
-      "mean_drawdown_error": 0.45465,
+      "mean_drawdown_error": 0.456556,
       "mean_ks_statistic": 0.473684,
       "score": 0.2105,
       "recommendation": "DO_NOT_USE",
-      "notes": "n=3, drawdown within 2.00%: 0/3 (0%), mean_drawdown_error=0.4547",
-      "describe": "for scenario class volatility_spike, over 3 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 3)."
+      "notes": "n=4, drawdown within 2.00%: 0/4 (0%), mean_drawdown_error=0.4566",
+      "describe": "for scenario class volatility_spike, over 4 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 4)."
     },
     "rate_shock": {
       "scenario_class": "rate_shock",
-      "n_alignments": 3,
+      "n_alignments": 4,
       "drawdown_tolerance": 0.02,
       "drawdown_within_tol_frac": 0.0,
-      "mean_drawdown_error": 0.388652,
-      "mean_ks_statistic": 0.614035,
-      "score": 0.1544,
+      "mean_drawdown_error": 0.388472,
+      "mean_ks_statistic": 0.618421,
+      "score": 0.1526,
       "recommendation": "DO_NOT_USE",
-      "notes": "n=3, drawdown within 2.00%: 0/3 (0%), mean_drawdown_error=0.3887",
-      "describe": "for scenario class rate_shock, over 3 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 3)."
+      "notes": "n=4, drawdown within 2.00%: 0/4 (0%), mean_drawdown_error=0.3885",
+      "describe": "for scenario class rate_shock, over 4 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 4)."
     },
     "earn_gap_down": {
       "scenario_class": "earn_gap_down",
-      "n_alignments": 3,
+      "n_alignments": 4,
       "drawdown_tolerance": 0.02,
       "drawdown_within_tol_frac": 0.0,
-      "mean_drawdown_error": 0.552684,
+      "mean_drawdown_error": 0.554588,
       "mean_ks_statistic": 0.526316,
       "score": 0.1895,
       "recommendation": "DO_NOT_USE",
-      "notes": "n=3, drawdown within 2.00%: 0/3 (0%), mean_drawdown_error=0.5527",
-      "describe": "for scenario class earn_gap_down, over 3 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 3)."
+      "notes": "n=4, drawdown within 2.00%: 0/4 (0%), mean_drawdown_error=0.5546",
+      "describe": "for scenario class earn_gap_down, over 4 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 4)."
     },
     "earn_gap_snapback": {
       "scenario_class": "earn_gap_snapback",
-      "n_alignments": 3,
+      "n_alignments": 4,
       "drawdown_tolerance": 0.02,
       "drawdown_within_tol_frac": 0.0,
-      "mean_drawdown_error": 0.427517,
+      "mean_drawdown_error": 0.429422,
       "mean_ks_statistic": 0.473684,
       "score": 0.2105,
       "recommendation": "DO_NOT_USE",
-      "notes": "n=3, drawdown within 2.00%: 0/3 (0%), mean_drawdown_error=0.4275",
-      "describe": "for scenario class earn_gap_snapback, over 3 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 3)."
+      "notes": "n=4, drawdown within 2.00%: 0/4 (0%), mean_drawdown_error=0.4294",
+      "describe": "for scenario class earn_gap_snapback, over 4 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 4)."
     },
     "sector_flash": {
       "scenario_class": "sector_flash",
-      "n_alignments": 3,
+      "n_alignments": 4,
       "drawdown_tolerance": 0.02,
       "drawdown_within_tol_frac": 0.0,
-      "mean_drawdown_error": 0.438233,
+      "mean_drawdown_error": 0.440138,
       "mean_ks_statistic": 0.473684,
       "score": 0.2105,
       "recommendation": "DO_NOT_USE",
-      "notes": "n=3, drawdown within 2.00%: 0/3 (0%), mean_drawdown_error=0.4382",
-      "describe": "for scenario class sector_flash, over 3 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 3)."
+      "notes": "n=4, drawdown within 2.00%: 0/4 (0%), mean_drawdown_error=0.4401",
+      "describe": "for scenario class sector_flash, over 4 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 4)."
     },
     "macro_slide": {
       "scenario_class": "macro_slide",
-      "n_alignments": 3,
+      "n_alignments": 4,
       "drawdown_tolerance": 0.02,
       "drawdown_within_tol_frac": 0.0,
-      "mean_drawdown_error": 0.457283,
+      "mean_drawdown_error": 0.459188,
       "mean_ks_statistic": 0.631579,
       "score": 0.1474,
       "recommendation": "DO_NOT_USE",
-      "notes": "n=3, drawdown within 2.00%: 0/3 (0%), mean_drawdown_error=0.4573",
-      "describe": "for scenario class macro_slide, over 3 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 3)."
+      "notes": "n=4, drawdown within 2.00%: 0/4 (0%), mean_drawdown_error=0.4592",
+      "describe": "for scenario class macro_slide, over 4 past alignments, the sim's drawdown predictions were within 2.00% of the observed drawdown 0% of the time (0 of 4)."
     },
     "baseline": {
       "scenario_class": "baseline",
