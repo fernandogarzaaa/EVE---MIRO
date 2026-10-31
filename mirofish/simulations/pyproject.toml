@@ -17,7 +17,7 @@ dependencies = [
     "camel-oasis==0.2.5",
     "camel-ai==0.2.78",
     # camel-ai 0.2.78 needs FastMCP on mcp.server (mcp 2.x moved it)
-    "mcp>=1.6,<2",
+    "mcp>=1.6,<3",
     # 环境变量加载（模拟脚本读取 .env 配置）
     "python-dotenv>=1.2.2",
 ]
