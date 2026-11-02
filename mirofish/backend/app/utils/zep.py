@@ -18,10 +18,11 @@ logger = get_logger("mirofish.zep")
 
 T = TypeVar("T")
 
-ZEP_CLOUD_BASE_URL = "https://api.getzep.com/api/v2"
-# Keep request behavior aligned with the zep-cloud 3.25.0 SDK default that
-# MiroFish used before introducing the shared client. This is an internal
-# integration policy, not a deployment setting users need to tune.
+ZEP_CLOUD_BASE_URL = "https://api.getzep.com/api/v4"
+# Keep request behavior aligned with the zep-cloud 4.0.0 SDK default, which
+# targets the v4 API. The 3.x SDK defaulted to api/v2; the 4.0 endpoints do
+# not exist there. This is an internal integration policy, not a deployment
+# setting users need to tune.
 ZEP_HTTP_REQUEST_TIMEOUT_SECONDS = 60.0
 # Zep ingestion is asynchronous and may take several minutes. Preserve the
 # original GraphBuilder deadline while keeping it separate from HTTP timeout.
@@ -75,9 +76,7 @@ def get_zep_client(api_key: str | None = None, timeout: float | None = None) -> 
     if not normalized_key:
         raise ValueError("ZEP_API_KEY 未配置")
 
-    request_timeout = float(
-        timeout if timeout is not None else ZEP_HTTP_REQUEST_TIMEOUT_SECONDS
-    )
+    request_timeout = float(timeout if timeout is not None else ZEP_HTTP_REQUEST_TIMEOUT_SECONDS)
     if request_timeout <= 0:
         raise ValueError("Zep request timeout must be greater than 0")
     return _cached_zep_client(normalized_key, request_timeout)
@@ -98,9 +97,7 @@ def is_retryable_zep_error(error: BaseException) -> bool:
         return True
     if isinstance(error, ZepApiError):
         status_code = error.status_code
-        return status_code in {408, 429} or (
-            status_code is not None and 500 <= status_code <= 599
-        )
+        return status_code in {408, 429} or (status_code is not None and 500 <= status_code <= 599)
     return False
 
 

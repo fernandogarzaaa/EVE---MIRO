@@ -6,10 +6,6 @@ from app.utils.ontology import (
     normalize_ontology_attribute,
     normalize_ontology_attributes,
 )
-from zep_cloud.external_clients.ontology import (
-    edge_model_to_api_schema,
-    entity_model_to_api_schema,
-)
 
 
 def _remote_builder(client):
@@ -45,11 +41,13 @@ def test_reject_unusable_attribute_shapes():
 
 
 def test_attribute_list_is_non_empty_and_capped_for_zep():
-    assert normalize_ontology_attributes(None) == [{
-        "name": "details",
-        "type": "text",
-        "description": "Additional details about this ontology type.",
-    }]
+    assert normalize_ontology_attributes(None) == [
+        {
+            "name": "details",
+            "type": "text",
+            "description": "Additional details about this ontology type.",
+        }
+    ]
 
     attributes = [None] + [f"field_{index}" for index in range(12)]
     normalized = normalize_ontology_attributes(attributes)
@@ -61,28 +59,36 @@ def test_attribute_list_is_non_empty_and_capped_for_zep():
 
 
 def test_generator_normalizes_entity_and_edge_attributes():
-    result = OntologyGenerator(llm_client=object())._validate_and_process({
-        "entity_types": [{"name": "speaker", "attributes": ["role", None]}],
-        "edge_types": [{"name": "quotes", "attributes": ["source_url", {}]}],
-    })
+    result = OntologyGenerator(llm_client=object())._validate_and_process(
+        {
+            "entity_types": [{"name": "speaker", "attributes": ["role", None]}],
+            "edge_types": [{"name": "quotes", "attributes": ["source_url", {}]}],
+        }
+    )
 
-    assert result["entity_types"][0]["attributes"] == [{
-        "name": "role",
-        "type": "text",
-        "description": "role",
-    }]
-    assert result["edge_types"][0]["attributes"] == [{
-        "name": "source_url",
-        "type": "text",
-        "description": "source_url",
-    }]
+    assert result["entity_types"][0]["attributes"] == [
+        {
+            "name": "role",
+            "type": "text",
+            "description": "role",
+        }
+    ]
+    assert result["edge_types"][0]["attributes"] == [
+        {
+            "name": "source_url",
+            "type": "text",
+            "description": "source_url",
+        }
+    ]
 
 
 def test_generator_adds_a_property_to_empty_custom_types():
-    result = OntologyGenerator(llm_client=object())._validate_and_process({
-        "entity_types": [{"name": "speaker", "attributes": []}],
-        "edge_types": [{"name": "quotes", "attributes": []}],
-    })
+    result = OntologyGenerator(llm_client=object())._validate_and_process(
+        {
+            "entity_types": [{"name": "speaker", "attributes": []}],
+            "edge_types": [{"name": "quotes", "attributes": []}],
+        }
+    )
 
     assert result["entity_types"][0]["attributes"][0]["name"] == "details"
     assert result["edge_types"][0]["attributes"][0]["name"] == "details"
@@ -92,100 +98,124 @@ def test_graph_builder_safety_net_accepts_strings_and_skips_invalid_values():
     captured = {}
 
     class GraphApi:
-        def set_ontology(self, **kwargs):
+        def set_ontology(self, *args, **kwargs):
+            captured["args"] = args
             captured.update(kwargs)
 
     class Client:
         graph = GraphApi()
 
     builder = _remote_builder(Client())
-    builder.set_ontology("graph-id", {
-        "entity_types": [{
-            "name": "Speaker",
-            "attributes": ["role", None, {"name": "summary"}],
-        }],
-        "edge_types": [],
-    })
+    builder.set_ontology(
+        "graph-id",
+        {
+            "entity_types": [
+                {
+                    "name": "Speaker",
+                    "attributes": ["role", None, {"name": "summary"}],
+                }
+            ],
+            "edge_types": [],
+        },
+    )
 
-    speaker = captured["entities"]["Speaker"]
-    assert set(speaker.__annotations__) == {"role", "entity_summary"}
+    assert captured["args"] == ("graph-id",)
+    (speaker,) = captured["entity_types"]
+    assert speaker.name == "Speaker"
+    assert {prop.name for prop in speaker.properties} == {"role", "entity_summary"}
+    assert all(prop.type == "text" for prop in speaker.properties)
 
 
 def test_graph_builder_emits_a_pinned_zep_sdk_compatible_schema():
     captured = {}
 
     class GraphApi:
-        def set_ontology(self, **kwargs):
+        def set_ontology(self, *args, **kwargs):
+            captured["args"] = args
             captured.update(kwargs)
 
     class Client:
         graph = GraphApi()
 
     builder = _remote_builder(Client())
-    builder.set_ontology("graph-id", {
-        "entity_types": [{
-            "name": "Speaker",
-            "attributes": ["graph_id"] + [
-                f"field_{index}" for index in range(10)
+    builder.set_ontology(
+        "graph-id",
+        {
+            "entity_types": [
+                {
+                    "name": "Speaker",
+                    "attributes": ["graph_id"] + [f"field_{index}" for index in range(10)],
+                }
             ],
-        }],
-        "edge_types": [{
-            "name": "MENTIONS",
-            "attributes": [],
-            "source_targets": [{"source": "Speaker", "target": "Speaker"}],
-        }],
-    })
+            "edge_types": [
+                {
+                    "name": "MENTIONS",
+                    "attributes": [],
+                    "source_targets": [{"source": "Speaker", "target": "Speaker"}],
+                }
+            ],
+        },
+    )
 
-    assert captured["graph_ids"] == ["graph-id"]
+    assert captured["args"] == ("graph-id",)
 
-    speaker = captured["entities"]["Speaker"]
-    entity_schema = entity_model_to_api_schema(speaker, "Speaker")
-    assert len(entity_schema["properties"]) == MAX_ONTOLOGY_ATTRIBUTES
-    assert entity_schema["properties"][0] == {
-        "name": "entity_graph_id",
-        "type": "Text",
-        "description": "graph_id",
-    }
+    (speaker,) = captured["entity_types"]
+    assert speaker.name == "Speaker"
+    assert len(speaker.properties) == MAX_ONTOLOGY_ATTRIBUTES
+    assert speaker.properties[0].name == "entity_graph_id"
+    assert speaker.properties[0].type == "text"
+    assert speaker.properties[0].description == "graph_id"
 
-    mentions, source_targets = captured["edges"]["MENTIONS"]
-    edge_schema = edge_model_to_api_schema(mentions, "MENTIONS")
-    assert edge_schema["properties"] == [{
-        "name": "details",
-        "type": "Text",
-        "description": "Additional details about this ontology type.",
-    }]
-    assert source_targets[0].source == "Speaker"
-    assert source_targets[0].target == "Speaker"
+    (mentions,) = captured["edge_types"]
+    assert mentions.name == "MENTIONS"
+    assert [(prop.name, prop.type, prop.description) for prop in mentions.properties] == [
+        (
+            "details",
+            "text",
+            "Additional details about this ontology type.",
+        )
+    ]
+    assert mentions.source_targets[0].source == "Speaker"
+    assert mentions.source_targets[0].target == "Speaker"
 
 
 def test_graph_builder_passes_an_empty_entity_mapping_for_edge_only_ontology():
     captured = {}
 
     class GraphApi:
-        def set_ontology(self, **kwargs):
+        def set_ontology(self, *args, **kwargs):
+            captured["args"] = args
             captured.update(kwargs)
 
     class Client:
         graph = GraphApi()
 
     builder = _remote_builder(Client())
-    builder.set_ontology("graph-id", {
-        "entity_types": [],
-        "edge_types": [{
-            "name": "RELATED_TO",
-            "attributes": ["reason"],
-            "source_targets": [{"source": "Entity", "target": "Entity"}],
-        }],
-    })
+    builder.set_ontology(
+        "graph-id",
+        {
+            "entity_types": [],
+            "edge_types": [
+                {
+                    "name": "RELATED_TO",
+                    "attributes": ["reason"],
+                    "source_targets": [{"source": "Entity", "target": "Entity"}],
+                }
+            ],
+        },
+    )
 
-    assert captured["entities"] == {}
+    assert captured["entity_types"] == []
+    (related,) = captured["edge_types"]
+    assert related.name == "RELATED_TO"
 
 
 def test_graph_builder_deduplicates_and_caps_edge_source_targets_for_zep():
     captured = {}
 
     class GraphApi:
-        def set_ontology(self, **kwargs):
+        def set_ontology(self, *args, **kwargs):
+            captured["args"] = args
             captured.update(kwargs)
 
     class Client:
@@ -198,20 +228,24 @@ def test_graph_builder_deduplicates_and_caps_edge_source_targets_for_zep():
     source_targets.insert(1, dict(source_targets[0]))
 
     builder = _remote_builder(Client())
-    builder.set_ontology("graph-id", {
-        "entity_types": [],
-        "edge_types": [{
-            "name": "RELATED_TO",
-            "attributes": ["reason"],
-            "source_targets": source_targets,
-        }],
-    })
+    builder.set_ontology(
+        "graph-id",
+        {
+            "entity_types": [],
+            "edge_types": [
+                {
+                    "name": "RELATED_TO",
+                    "attributes": ["reason"],
+                    "source_targets": source_targets,
+                }
+            ],
+        },
+    )
 
-    _, normalized_targets = captured["edges"]["RELATED_TO"]
-    assert len(normalized_targets) == MAX_ONTOLOGY_SOURCE_TARGETS
-    assert [(item.source, item.target) for item in normalized_targets] == [
-        (f"Source{index}", f"Target{index}")
-        for index in range(MAX_ONTOLOGY_SOURCE_TARGETS)
+    (related,) = captured["edge_types"]
+    assert len(related.source_targets) == MAX_ONTOLOGY_SOURCE_TARGETS
+    assert [(item.source, item.target) for item in related.source_targets] == [
+        (f"Source{index}", f"Target{index}") for index in range(MAX_ONTOLOGY_SOURCE_TARGETS)
     ]
 
 
@@ -220,20 +254,19 @@ def test_generator_ignores_invalid_entries_and_normalizes_edge_names():
         {"source": "speaker", "target": "news outlet"},
         {"source": "speaker", "target": "news outlet"},
         None,
-    ] + [
-        {"source": "speaker", "target": "news outlet" if index == 0 else "Person"}
-        for index in range(12)
-    ]
+    ] + [{"source": "speaker", "target": "news outlet" if index == 0 else "Person"} for index in range(12)]
 
-    result = OntologyGenerator(llm_client=object())._validate_and_process({
-        "entity_types": ["speaker", None, 7, {"name": "news outlet"}],
-        "edge_types": [
-            "unusable edge",
-            None,
-            {"name": "worksFor", "source_targets": source_targets},
-            {"name": "works-for", "source_targets": []},
-        ],
-    })
+    result = OntologyGenerator(llm_client=object())._validate_and_process(
+        {
+            "entity_types": ["speaker", None, 7, {"name": "news outlet"}],
+            "edge_types": [
+                "unusable edge",
+                None,
+                {"name": "worksFor", "source_targets": source_targets},
+                {"name": "works-for", "source_targets": []},
+            ],
+        }
+    )
 
     assert [entity["name"] for entity in result["entity_types"][:2]] == [
         "Speaker",
@@ -248,19 +281,18 @@ def test_generator_ignores_invalid_entries_and_normalizes_edge_names():
 
 def test_generator_caps_after_discarding_invalid_edge_endpoints():
     invalid_first = [
-        {"source": f"Removed{index}", "target": "AlsoRemoved"}
-        for index in range(MAX_ONTOLOGY_SOURCE_TARGETS)
+        {"source": f"Removed{index}", "target": "AlsoRemoved"} for index in range(MAX_ONTOLOGY_SOURCE_TARGETS)
     ]
-    result = OntologyGenerator(llm_client=object())._validate_and_process({
-        "entity_types": [{"name": "person"}, {"name": "organization"}],
-        "edge_types": [{
-            "name": "works_for",
-            "source_targets": invalid_first + [
-                {"source": "person", "target": "organization"}
+    result = OntologyGenerator(llm_client=object())._validate_and_process(
+        {
+            "entity_types": [{"name": "person"}, {"name": "organization"}],
+            "edge_types": [
+                {
+                    "name": "works_for",
+                    "source_targets": invalid_first + [{"source": "person", "target": "organization"}],
+                }
             ],
-        }],
-    })
+        }
+    )
 
-    assert result["edge_types"][0]["source_targets"] == [
-        {"source": "Person", "target": "Organization"}
-    ]
+    assert result["edge_types"][0]["source_targets"] == [{"source": "Person", "target": "Organization"}]

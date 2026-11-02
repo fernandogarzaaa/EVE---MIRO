@@ -24,7 +24,12 @@ from typing import Any, Iterable
 # silently replace the account selected for this explicit validation process.
 _PROCESS_ZEP_API_KEY = os.environ.get("ZEP_API_KEY", "").strip()
 
-from zep_cloud import BatchAddItem
+# NOTE (zep-cloud 4.0 migration): the imports and batch-item shape above are on
+# the 4.0 SDK, but the runtime validation flow below (graph.search, graph.add,
+# episode.get_by_graph_id, node.get_edges, batch_id kwargs) still targets the
+# 3.x SDK. Do not run this script for a deep validation until the flow is
+# migrated; the follow-up is tracked in the migration PR body.
+from zep_cloud import BatchItemInput
 from zep_cloud.types import SearchFilters
 
 from app.services.graph_builder import BatchSubmission, GraphBuilderService
@@ -67,14 +72,12 @@ BASELINE_EPISODES = [
     ),
     SourceEpisode(
         "2026-02-02T09:30:00Z",
-        "陈屿担任澜舟科技智巡平台的项目负责人，负责东湾风场部署。"
-        "公司经营仍由首席执行官周岚负责。",
+        "陈屿担任澜舟科技智巡平台的项目负责人，负责东湾风场部署。公司经营仍由首席执行官周岚负责。",
         "baseline",
     ),
     SourceEpisode(
         "2026-02-20T18:00:00Z",
-        "东湾风场的智巡平台试点发现了 12 处叶片异常，"
-        "使海岳能源的非计划停机时间降低了 18%。",
+        "东湾风场的智巡平台试点发现了 12 处叶片异常，使海岳能源的非计划停机时间降低了 18%。",
         "baseline",
     ),
     SourceEpisode(
@@ -91,8 +94,7 @@ BASELINE_EPISODES = [
     ),
     SourceEpisode(
         "2026-04-01T08:00:00Z",
-        "智巡平台今天正式商业发布，不再处于试点阶段。"
-        "海岳能源成为智巡平台首个商业客户，陈屿继续负责交付。",
+        "智巡平台今天正式商业发布，不再处于试点阶段。海岳能源成为智巡平台首个商业客户，陈屿继续负责交付。",
         "baseline",
     ),
     SourceEpisode(
@@ -225,9 +227,7 @@ def _status_code(error: Exception) -> int | None:
 
 def _require_process_api_key() -> str:
     if not _PROCESS_ZEP_API_KEY:
-        raise RuntimeError(
-            "ZEP_API_KEY must be supplied through the process environment"
-        )
+        raise RuntimeError("ZEP_API_KEY must be supplied through the process environment")
     return _PROCESS_ZEP_API_KEY
 
 
@@ -371,13 +371,13 @@ def _search_view(results: Any, node_names: dict[str, str]) -> dict[str, Any]:
     }
 
 
-def _episode_to_batch_item(graph_id: str, item: SourceEpisode, index: int) -> BatchAddItem:
-    return BatchAddItem(
+def _episode_to_batch_item(graph_id: str, item: SourceEpisode, index: int) -> BatchItemInput:
+    return BatchItemInput(
         type="graph_episode",
-        graph_id=graph_id,
+        graph_uuid=graph_id,
         data=item.data,
         data_type=item.data_type,
-        created_at=item.created_at,
+        reference_time=item.created_at,
         source_description="MiroFish deep Zep Cloud validation corpus",
         metadata={
             "source": "mirofish_zep_deep_validation",
@@ -519,13 +519,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
         added_details: list[Any] = []
         batch_items = [
-            _episode_to_batch_item(graph_id, item, index)
-            for index, item in enumerate(BASELINE_EPISODES)
+            _episode_to_batch_item(graph_id, item, index) for index, item in enumerate(BASELINE_EPISODES)
         ]
         for start in range(0, len(batch_items), 4):
-            added_details.extend(
-                client.batch.add(batch_id=batch_id, items=batch_items[start : start + 4])
-            )
+            added_details.extend(client.batch.add(batch_id=batch_id, items=batch_items[start : start + 4]))
         client.batch.process(batch_id=batch_id)
         print(f"[zep-deep] batch submitted items={len(batch_items)}", flush=True)
 
@@ -582,8 +579,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         )
 
         update_episode_uuids = [
-            _add_and_wait(client, graph_id, item, args.timeout)
-            for item in TEMPORAL_UPDATES
+            _add_and_wait(client, graph_id, item, args.timeout) for item in TEMPORAL_UPDATES
         ]
         result["temporal_update_episode_uuids"] = update_episode_uuids
         print(f"[zep-deep] temporal updates processed={len(update_episode_uuids)}", flush=True)
@@ -651,16 +647,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         )
 
         selected_node = next(
-            (
-                node
-                for node in final_nodes
-                if node.name == "澜舟科技" and "Company" in (node.labels or [])
-            ),
+            (node for node in final_nodes if node.name == "澜舟科技" and "Company" in (node.labels or [])),
             max(
                 final_nodes,
                 key=lambda node: sum(
-                    edge.source_node_uuid == _uuid(node)
-                    or edge.target_node_uuid == _uuid(node)
+                    edge.source_node_uuid == _uuid(node) or edge.target_node_uuid == _uuid(node)
                     for edge in final_edges
                 ),
             ),
@@ -669,8 +660,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         complete_node_edges = [
             edge
             for edge in final_edges
-            if edge.source_node_uuid == _uuid(selected_node)
-            or edge.target_node_uuid == _uuid(selected_node)
+            if edge.source_node_uuid == _uuid(selected_node) or edge.target_node_uuid == _uuid(selected_node)
         ]
         entity_context = ZepEntityReader(api_key=api_key).get_entity_with_context(
             graph_id,
@@ -683,7 +673,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             {label for node in final_nodes for label in (node.labels or []) if label != "Entity"}
         )
         custom_edge_names = sorted(
-            {edge.name for edge in final_edges if edge.name in {item["name"] for item in ONTOLOGY["edge_types"]}}
+            {
+                edge.name
+                for edge in final_edges
+                if edge.name in {item["name"] for item in ONTOLOGY["edge_types"]}
+            }
         )
         result["final"] = {
             "node_count": len(final_nodes),
@@ -714,9 +708,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         }
 
         if len(entity_context.related_edges) != len(complete_node_edges):
-            raise AssertionError(
-                "MiroFish entity context omitted incoming or outgoing node edges"
-            )
+            raise AssertionError("MiroFish entity context omitted incoming or outgoing node edges")
 
         result["runtime_assertions"] = {
             "edge_search_call_completed": edge_search is not None,
@@ -725,9 +717,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "auto_search_call_completed": auto_search is not None,
             "episode_search_call_completed": episode_search is not None,
             "node_detail_has_all_incoming_and_outgoing_edges": True,
-            "sdk_node_endpoint_omits_incoming_edges": (
-                len(sdk_node_edges) < len(complete_node_edges)
-            ),
+            "sdk_node_endpoint_omits_incoming_edges": (len(sdk_node_edges) < len(complete_node_edges)),
             # The following values are observations only. Zep's extraction and
             # retrieval quality are not runtime acceptance criteria.
             "search_result_counts": {
@@ -809,8 +799,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             else:
                 action = "not-created"
             print(
-                f"[zep-deep] graph {action} graph_id={graph_id} "
-                f"reason={cleanup['reason']}",
+                f"[zep-deep] graph {action} graph_id={graph_id} reason={cleanup['reason']}",
                 flush=True,
             )
 
@@ -828,9 +817,7 @@ def _compact_result(result: dict[str, Any]) -> dict[str, Any]:
         "graph_retained": result.get("graph_retained"),
         "cleanup": result.get("cleanup"),
         "sdk_flow": result.get("sdk_flow"),
-        "empty_attribute_ontology_probe": result.get(
-            "empty_attribute_ontology_probe"
-        ),
+        "empty_attribute_ontology_probe": result.get("empty_attribute_ontology_probe"),
         "batch_id": result.get("batch_id"),
         "batch": result.get("batch"),
         "baseline": {
@@ -843,9 +830,7 @@ def _compact_result(result: dict[str, Any]) -> dict[str, Any]:
                 "invalidated_edge_count",
             )
         },
-        "temporal_update_episode_count": len(
-            result.get("temporal_update_episode_uuids", [])
-        ),
+        "temporal_update_episode_count": len(result.get("temporal_update_episode_uuids", [])),
         "mirofish_updater": result.get("mirofish_updater"),
         "final": {
             key: final.get(key)

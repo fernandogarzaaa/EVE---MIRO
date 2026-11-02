@@ -27,10 +27,7 @@ def _activity(index=1, content="hello"):
 def _client(add):
     return SimpleNamespace(
         graph=SimpleNamespace(
-            add=add,
-            episode=SimpleNamespace(
-                get=lambda **_kwargs: SimpleNamespace(processed=True)
-            ),
+            episode=SimpleNamespace(add=add, get=lambda *_args, **_kwargs: SimpleNamespace(processed=True)),
         )
     )
 
@@ -51,7 +48,9 @@ def test_stop_drains_an_immediately_queued_tail_activity(monkeypatch):
     writes = []
     updater = _updater(
         monkeypatch,
-        lambda **kwargs: writes.append(kwargs) or SimpleNamespace(uuid_="episode-1"),
+        lambda *args, **kwargs: (
+            writes.append((args, kwargs)) or SimpleNamespace(episode=SimpleNamespace(uuid_="episode-1"))
+        ),
     )
 
     updater.start()
@@ -67,12 +66,12 @@ def test_network_write_happens_outside_the_buffer_lock(monkeypatch):
     lock_was_available = []
     updater = None
 
-    def add(**_kwargs):
+    def add(*_args, **_kwargs):
         acquired = updater._buffer_lock.acquire(blocking=False)
         lock_was_available.append(acquired)
         if acquired:
             updater._buffer_lock.release()
-        return SimpleNamespace(uuid_="episode-1")
+        return SimpleNamespace(episode=SimpleNamespace(uuid_="episode-1"))
 
     updater = _updater(monkeypatch, add)
     updater.start()
@@ -87,7 +86,9 @@ def test_activity_episode_has_provenance_time_and_a_safe_size(monkeypatch):
     writes = []
     updater = _updater(
         monkeypatch,
-        lambda **kwargs: writes.append(kwargs) or SimpleNamespace(uuid_="episode-1"),
+        lambda *args, **kwargs: (
+            writes.append((args, kwargs)) or SimpleNamespace(episode=SimpleNamespace(uuid_="episode-1"))
+        ),
         simulation_id="sim-provenance",
     )
 
@@ -97,9 +98,10 @@ def test_activity_episode_has_provenance_time_and_a_safe_size(monkeypatch):
     )
 
     assert len(writes) == 1
-    write = writes[0]
+    args, write = writes[0]
+    assert args == ("graph-1",)
     assert len(write["data"]) <= updater.MAX_EPISODE_CHARS
-    assert write["created_at"] == "2026-07-22T12:00:00+08:00"
+    assert write["reference_time"] == "2026-07-22T12:00:00+08:00"
     assert write["source_description"] == "MiroFish simulation activity batch"
     assert write["metadata"]["simulation_id"] == "sim-provenance"
     assert write["metadata"]["platform"] == "twitter"
@@ -107,7 +109,7 @@ def test_activity_episode_has_provenance_time_and_a_safe_size(monkeypatch):
 
 
 def test_failed_non_idempotent_write_is_reported_by_stop(monkeypatch):
-    def add(**_kwargs):
+    def add(*_args, **_kwargs):
         raise RuntimeError("write failed")
 
     updater = _updater(monkeypatch, add)
@@ -123,7 +125,7 @@ def test_failed_non_idempotent_write_is_reported_by_stop(monkeypatch):
 def test_failed_simulation_action_is_not_ingested(monkeypatch):
     updater = _updater(
         monkeypatch,
-        lambda **_kwargs: SimpleNamespace(uuid_="unused"),
+        lambda *_args, **_kwargs: SimpleNamespace(episode=SimpleNamespace(uuid_="unused")),
     )
 
     updater.add_activity_from_dict(
@@ -145,7 +147,9 @@ def test_stop_cannot_finish_between_acceptance_check_and_enqueue(monkeypatch):
     writes = []
     updater = _updater(
         monkeypatch,
-        lambda **kwargs: writes.append(kwargs) or SimpleNamespace(uuid_="episode-1"),
+        lambda *args, **kwargs: (
+            writes.append((args, kwargs)) or SimpleNamespace(episode=SimpleNamespace(uuid_="episode-1"))
+        ),
     )
 
     put_entered = threading.Event()
@@ -180,12 +184,10 @@ def test_stop_cannot_finish_between_acceptance_check_and_enqueue(monkeypatch):
 def test_pending_episode_wait_has_a_deadline(monkeypatch):
     updater = _updater(
         monkeypatch,
-        lambda **_kwargs: SimpleNamespace(uuid_="episode-1"),
+        lambda *_args, **_kwargs: SimpleNamespace(episode=SimpleNamespace(uuid_="episode-1")),
     )
     updater._pending_episode_uuids = ["episode-1"]
-    updater.client.graph.episode.get = lambda **_kwargs: SimpleNamespace(
-        processed=False
-    )
+    updater.client.graph.episode.get = lambda *_args, **_kwargs: SimpleNamespace(processed=False)
     timestamps = iter([0.0, 2.0])
     monkeypatch.setattr(updater_module, "ZEP_INGESTION_WAIT_TIMEOUT_SECONDS", 1)
     monkeypatch.setattr(updater_module.time, "time", lambda: next(timestamps))
@@ -213,10 +215,10 @@ def test_flush_deadline_keeps_unattempted_platform_for_a_safe_retry(monkeypatch)
     now = [0.0]
     writes = []
 
-    def add(**kwargs):
+    def add(*_args, **kwargs):
         writes.append(kwargs)
         now[0] = 2.0
-        return SimpleNamespace(uuid_=f"episode-{len(writes)}")
+        return SimpleNamespace(episode=SimpleNamespace(uuid_=f"episode-{len(writes)}"))
 
     updater = _updater(monkeypatch, add)
     updater._platform_buffers["twitter"] = [_activity(1)]
