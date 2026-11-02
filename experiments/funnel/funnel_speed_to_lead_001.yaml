@@ -1,0 +1,33 @@
+name: funnel_speed_to_lead_001
+type: funnel
+disclaimer: >-
+  SIMULATED. Agent-based scenario projection under stated assumptions,
+  not a forecast. Month-1 experiment: SMS-first instant response on
+  pre-job leads vs the 8-minute industry baseline. Booking probability
+  depends on response-time bucket (<=5 min vs slower).
+initial_world:
+  source: fixture
+  timestamp: "2026-10-01T00:00:00Z"
+  region: us
+duration:
+  simulated_days: 14
+  simulated_hours: 336
+agents:
+  population: 3
+conditions:
+  mode: speed_to_lead
+  simulated_days: 14
+  leads_per_day: 10
+  contactable_coverage: 0.80
+  response_mean_covered_min: 1.0
+  response_mean_uncovered_min: 8.0
+  book_prob_fast: 0.55
+  book_prob_slow: 0.15
+  pricing:
+    per_booking_bonus: 25.00
+    text_cost: 0.013
+    dlc_setup: 19.50
+    dlc_monthly_fee: 2.00
+interventions: []
+random_seed: 20261019
+information_cutoff: "2026-10-01T00:00:00Z"

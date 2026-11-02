@@ -1,0 +1,36 @@
+name: funnel_base_001
+type: funnel
+disclaimer: >-
+  SIMULATED. Agent-based scenario projection under stated assumptions,
+  not a forecast. Base case: 3 pilot movers, 60 jobs/mo each, 80%
+  contactable coverage, 20% request-to-review conversion (GatherUp SMS
+  figure). See datasets/fixtures/funnel_baseline.json for provenance.
+initial_world:
+  source: fixture
+  timestamp: "2026-10-01T00:00:00Z"
+  region: us
+duration:
+  simulated_days: 90
+  simulated_hours: 2160
+agents:
+  population: 3
+conditions:
+  mode: post_job
+  simulated_days: 90
+  jobs_per_month: 60
+  contactable_coverage: 0.80
+  review_conversion: 0.20
+  opt_out_rate: 0.01
+  problem_rate: 0.20
+  problem_resolve_prob: 0.70
+  office_response_days_mean: 2.0
+  pricing:
+    per_job: 0.80
+    per_review_bonus: 5.00
+    per_problem_bonus: 10.00
+    text_cost: 0.013
+    dlc_setup: 19.50
+    dlc_monthly_fee: 2.00
+interventions: []
+random_seed: 20261016
+information_cutoff: "2026-10-01T00:00:00Z"
