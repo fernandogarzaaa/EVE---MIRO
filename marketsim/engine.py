@@ -101,7 +101,7 @@ class _InstrumentState:
     fair_value: float = 100.0
     volume_history: list[float] = field(default_factory=list)
     trade_count_history: list[int] = field(default_factory=list)
-    last_trade: float | None = None
+    trade_range_history: list[float] = field(default_factory=list)
 
 
 @dataclass
@@ -376,9 +376,12 @@ class MarketSimEngine:
             quote = book.quote()
             if quote.mid is not None:
                 mid = quote.mid
-            elif inst.last_trade is not None:
-                mid = inst.last_trade
             else:
+                # No quote (one side of the book is empty): hold the last
+                # mid. Falling back to the last trade price teleports the
+                # mid to the deepest swept level whenever the book empties,
+                # which at calibrated flow levels is most hours, and the
+                # simulated path then whipsaws by full ladder widths.
                 mid = inst.mid_history[-1] if inst.mid_history else None
             view = MarketView(
                 symbol=agent.symbol,
@@ -426,17 +429,32 @@ class MarketSimEngine:
         for sym, inst in state.instruments.items():
             quote = inst.book.quote()
             hour_trades = [tr for tr in step_trades if tr.symbol == sym]
-            if hour_trades:
-                inst.last_trade = hour_trades[-1].price
             if quote.mid is not None:
                 mid = quote.mid
-            elif inst.last_trade is not None:
-                mid = inst.last_trade
+            elif hour_trades:
+                # No quote but trading happened: the book was swept and the
+                # prints are the only price signal. Use the hour's
+                # volume-weighted average trade price. Holding the last mid
+                # here freezes the path (the market maker re-quotes around
+                # the held mid and the next sweep eats the ladder again, so
+                # the mid never moves while trades print at new levels), and
+                # falling back to the last trade teleports the mid to the
+                # deepest swept level. VWAP sits between the two: it moves
+                # with sustained flow and averages away single deep prints.
+                total_qty = sum(tr.quantity for tr in hour_trades)
+                mid = sum(tr.price * tr.quantity for tr in hour_trades) / total_qty
             else:
+                # No quote and no trades: no price signal this hour. Hold.
                 mid = inst.mid_history[-1]
             inst.mid_history.append(mid)
             inst.volume_history.append(sum(tr.quantity for tr in hour_trades))
             inst.trade_count_history.append(len(hour_trades))
+            # Hourly traded range (high minus low print). The mid series is
+            # VWAP-smoothed, so intraday realized range lives here, not in
+            # the closes: a volatility spike widens the prints even when the
+            # hourly VWAP stays centered.
+            prices = [tr.price for tr in hour_trades]
+            inst.trade_range_history.append(max(prices) - min(prices) if len(prices) > 1 else 0.0)
             mids[sym] = mid
 
         primary_mid = mids[state.primary_symbol]
@@ -504,6 +522,7 @@ class MarketSimEngine:
                 "max_drawdown": round(self._max_drawdown(inst.mid_history), 6),
                 "total_volume": round(sum(inst.volume_history), 2),
                 "total_trades": sum(inst.trade_count_history),
+                "trade_range_series": [round(x, 4) for x in inst.trade_range_history],
                 "final_fair_value": round(inst.fair_value, 4),
             }
         for st in simulation.steps:

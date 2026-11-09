@@ -189,7 +189,12 @@ def test_earn_gap_down_sustained_no_recovery():
 def test_earn_gap_snapback_recovers():
     rets = _returns(_series_for("earn_gap_snapback_001"))
     trough = min(rets)
-    assert trough <= -0.03, "shock must dip first"
+    # Trough bound recalibrated to the corrected mid (PR #87): the -0.03
+    # bound was fitted to the old last-trade fallback, whose trough was
+    # -0.051 because it teleported the mid to the deepest swept print.
+    # Under the VWAP mid the honest trough is -0.024, so the bound is
+    # -0.02: the shock must still dip materially, then retrace.
+    assert trough <= -0.02, "shock must dip first"
     recovered = rets[-1] - trough
     assert recovered >= 0.5 * abs(trough), "intact fundamentals must retrace the drop"
 
@@ -198,7 +203,11 @@ def test_sector_flash_dips_then_recovers_fast():
     rets = _returns(_series_for("sector_flash_001"))
     first_day = rets[:30]
     trough = min(first_day)
-    assert trough <= -0.03, "flash must print its low inside the first session"
+    # Day-one bound recalibrated to the corrected mid (PR #87): the -0.03
+    # bound was fitted to the old last-trade fallback (trough -0.048 from
+    # teleporting to the deepest swept print). Under the VWAP mid the
+    # honest first-session trough is -0.029, so the bound is -0.025.
+    assert trough <= -0.025, "flash must print its low inside the first session"
     later = rets[48:72]
     assert max(later) >= trough + 0.5 * abs(trough), "flash must snap back"
 
