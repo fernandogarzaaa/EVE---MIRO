@@ -322,3 +322,68 @@ def test_build_agents_fundamental_gets_fair_value():
     funds = [a for a in agents if type(a).__name__ == "FundamentalTrader"]
     assert funds
     assert all(a.fair_value == 250.0 and a.tolerance == 0.03 for a in funds)
+
+
+def test_week_seed_stable_within_week_distinct_across_weeks():
+    from eve_miro.cli.market_accumulate import week_seed
+
+    assert week_seed("2026-W46") == week_seed("2026-W46")
+    assert week_seed("2026-W46") != week_seed("2026-W47")
+    assert week_seed("2026-W46") == 202646
+
+
+def test_build_ledger_record_keeps_drawdown_direction_and_seeds():
+    summary = _fake_summary("vol_spike_001")
+    summary["seeds"] = [202646, 202647]
+    for sym in summary["alignment"]["symbols"].values():
+        sym["sim_drawdown"] = -0.042
+        sym["obs_drawdown"] = -0.005
+    rec = build_ledger_record(
+        week="2026-W46",
+        run_at="2026-11-09T01:00:00+00:00",
+        scenario="vol_spike_001",
+        summary=summary,
+        tickers=("SPY", "AAPL", "QQQ", "IWM"),
+        vix=15.0,
+        macro=None,
+        news=None,
+    )
+    assert rec["seeds"] == [202646, 202647]
+    sym = rec["alignment"]["symbols"]["AAPL"]
+    assert sym["sim_drawdown"] == -0.042
+    assert sym["obs_drawdown"] == -0.005
+
+
+def test_trust_summary_has_trend_flip_and_projection():
+    recs = []
+    for i, week in enumerate(
+        ["2026-W41", "2026-W42", "2026-W43", "2026-W44", "2026-W45", "2026-W46"]
+    ):
+        recs.append(
+            {
+                "week": week,
+                "scenario_class": "sell_shock",
+                "alignment": {
+                    "symbols": {
+                        "AAPL": {"drawdown_error": 0.5, "ks_statistic": 0.53}
+                    }
+                },
+            }
+        )
+    summary = recompute_trust_summary(recs, "2026-W46")
+    cls = summary["classes"]["sell_shock"]
+    assert cls["score"] == round(0.6 * 0.0 + 0.4 * (1.0 - 0.53), 4)
+    assert cls["recommendation"] == "DO_NOT_USE"
+    assert [t["week"] for t in cls["trend"]] == [
+        "2026-W41",
+        "2026-W42",
+        "2026-W43",
+        "2026-W44",
+        "2026-W45",
+        "2026-W46",
+    ]
+    assert all(t["n"] == i + 1 for i, t in enumerate(cls["trend"]))
+    # 0/6 within tolerance, mean KS 0.53: 4 straight within-tolerance
+    # weeks reach CAUTION (0.40) holding KS constant.
+    assert cls["to_caution"]["weeks_needed"] == 4
+    assert "0/6" in cls["projection"]

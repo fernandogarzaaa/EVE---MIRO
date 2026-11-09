@@ -101,7 +101,6 @@ class _InstrumentState:
     fair_value: float = 100.0
     volume_history: list[float] = field(default_factory=list)
     trade_count_history: list[int] = field(default_factory=list)
-    last_trade: float | None = None
 
 
 @dataclass
@@ -376,9 +375,12 @@ class MarketSimEngine:
             quote = book.quote()
             if quote.mid is not None:
                 mid = quote.mid
-            elif inst.last_trade is not None:
-                mid = inst.last_trade
             else:
+                # No quote (one side of the book is empty): hold the last
+                # mid. Falling back to the last trade price teleports the
+                # mid to the deepest swept level whenever the book empties,
+                # which at calibrated flow levels is most hours, and the
+                # simulated path then whipsaws by full ladder widths.
                 mid = inst.mid_history[-1] if inst.mid_history else None
             view = MarketView(
                 symbol=agent.symbol,
@@ -426,13 +428,12 @@ class MarketSimEngine:
         for sym, inst in state.instruments.items():
             quote = inst.book.quote()
             hour_trades = [tr for tr in step_trades if tr.symbol == sym]
-            if hour_trades:
-                inst.last_trade = hour_trades[-1].price
             if quote.mid is not None:
                 mid = quote.mid
-            elif inst.last_trade is not None:
-                mid = inst.last_trade
             else:
+                # No quote: hold the last mid (see the per-agent fallback
+                # above). The last trade price is an extreme print when the
+                # book was swept, not a mid.
                 mid = inst.mid_history[-1]
             inst.mid_history.append(mid)
             inst.volume_history.append(sum(tr.quantity for tr in hour_trades))
