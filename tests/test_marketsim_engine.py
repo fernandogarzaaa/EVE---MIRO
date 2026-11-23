@@ -152,13 +152,20 @@ async def test_vol_spike_raises_realized_range():
     spike_res = await _run(MarketSimEngine(scenario=spike), _world(None), _pop(60), 48)
     ctrl_res = await _run(MarketSimEngine(scenario=control), _world(None), _pop(60), 48)
 
-    def window_range(series, lo, hi):
-        w = series[lo:hi]
-        return max(w) - min(w)
+    # Range lives in the trade prints, not the mid closes (PR #87). The
+    # corrected mid is the hour's VWAP, which stays centered when 8x flow
+    # sweeps both sides of the book, so the mid closes show no extra range
+    # (spike 0.43 vs control 3.48 under VWAP). The old assertion passed
+    # only because the last-trade fallback teleported the mid to a random
+    # deep print each hour. What the spike genuinely raises is the hourly
+    # traded range: 8x flow sweeps the full ladder every hour (mean 3.22)
+    # while the control sweeps it only partially (mean 2.49).
+    def mean_trade_range(res):
+        tr = res.summary["symbols"]["ACME"]["trade_range_series"]
+        w = tr[6:18]
+        return sum(w) / len(w)
 
-    s = spike_res.predicted_series["ACME"]
-    c = ctrl_res.predicted_series["ACME"]
-    assert window_range(s, 6, 18) > window_range(c, 6, 18)
+    assert mean_trade_range(spike_res) > mean_trade_range(ctrl_res)
 
 
 @pytest.mark.asyncio

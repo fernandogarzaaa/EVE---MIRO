@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import math
 import os
 import sys
 from datetime import datetime, timezone
@@ -39,7 +40,7 @@ from eve_miro.cli.market_sim import (
     _run_scenario,
     summary_path,
 )
-from eve_miro.core.calibration.params import CalibrationParams
+from eve_miro.core.calibration.params import AGENTS_TOTAL, CalibrationParams
 from eve_miro.core.orchestration.market_alignment import scenario_class_for
 from eve_miro.core.reality.jev_scoring import (
     JEV_NOTE,
@@ -80,6 +81,21 @@ def fail(msg: str) -> int:
 def iso_week(dt: datetime) -> str:
     year, week, _ = dt.isocalendar()
     return f"{year}-W{week:02d}"
+
+
+def week_seed(week: str) -> int:
+    """Deterministic per-week seed base (stable within a week, distinct across weeks).
+
+    The scenario YAMLs carry one fixed seed, so without this every weekly
+    run replays the same seeded path and the ledger accumulates
+    near-duplicate records. Deriving the seed from the ISO week keeps
+    re-runs of one week reproducible while making each week's alignment
+    an independent draw.
+    """
+    try:
+        return int(week[:4]) * 100 + int(week[-2:])
+    except ValueError:
+        return 202411
 
 
 # -- live data fetching -------------------------------------------------
@@ -236,7 +252,11 @@ def load_calibrated_agent_config(
         "noise": params.noise_kwargs(),
         "fundamental": {"tolerance": params["fund_tolerance"]},
     }
-    counts = params.agent_counts(60)
+    # The calibration was fitted at AGENTS_TOTAL agents with no
+    # interventions; the weekly job must run at that same operating point.
+    # Running 60 agents nearly doubles the noise flow against the same
+    # book depth, so the book empties every hour.
+    counts = params.agent_counts(AGENTS_TOTAL)
     total = sum(counts.values()) or 1
     mix = {
         "market_maker": counts["market_maker"] / total,
@@ -320,6 +340,26 @@ def ledger_record_for_trust(rec: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _weeks_to_target(n: int, within: int, mean_ks: float | None, target: float) -> int | None:
+    """Consecutive within-tolerance alignments needed to reach `target`.
+
+    Holds mean KS constant and assumes every new alignment lands within
+    tolerance. Returns None when no hit rate can reach the target (the KS
+    term alone caps the score below it), and 0 when already there.
+    Score is 0.6 * frac + 0.4 * (1 - mean_ks).
+    """
+    ks_term = 0.4 * (1.0 - (mean_ks if mean_ks is not None else 1.0))
+    if 0.6 * (within / n if n else 0.0) + ks_term >= target:
+        return 0
+    need_frac = (target - ks_term) / 0.6
+    if need_frac >= 1.0:
+        return None
+    if need_frac <= 0.0:
+        return 0
+    k = math.ceil((need_frac * n - within) / (1.0 - need_frac))
+    return max(k, 1)
+
+
 def recompute_trust_summary(
     records: list[dict[str, Any]], week: str
 ) -> dict[str, Any]:
@@ -327,10 +367,45 @@ def recompute_trust_summary(
     trust = scenario_trust_from_ledger(
         [ledger_record_for_trust(r) for r in records]
     )
+    # Cumulative trend: score after each recorded week, per class.
+    weeks = sorted({str(r.get("week")) for r in records})
+    trend: dict[str, list[dict[str, Any]]] = {}
+    for w in weeks:
+        upto = [ledger_record_for_trust(r) for r in records if str(r.get("week")) <= w]
+        for sclass, t in scenario_trust_from_ledger(upto).items():
+            trend.setdefault(sclass, []).append(
+                {"week": w, "score": t.score, "n": t.n_alignments}
+            )
     classes: dict[str, Any] = {}
     for sclass, t in trust.items():
         d = t.model_dump()
         d["describe"] = t.describe()
+        d["trend"] = trend.get(sclass, [])
+        within = int(round(t.drawdown_within_tol_frac * t.n_alignments))
+        d["to_caution"] = {
+            "target_score": 0.40,
+            "weeks_needed": _weeks_to_target(
+                t.n_alignments, within, t.mean_ks_statistic, 0.40
+            ),
+            "note": (
+                "consecutive within-tolerance alignments needed, "
+                "holding mean KS constant; one record per week per class"
+            ),
+        }
+        d["to_use"] = {
+            "target_score": 0.70,
+            "weeks_needed": _weeks_to_target(
+                t.n_alignments, within, t.mean_ks_statistic, 0.70
+            ),
+            "note": "same basis as to_caution",
+        }
+        d["projection"] = (
+            f"at the current within-tolerance rate "
+            f"({within}/{t.n_alignments}), the score stays near "
+            f"{t.score:.2f} as the ledger grows"
+            if t.n_alignments
+            else "no alignments yet"
+        )
         classes[sclass] = d
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -382,12 +457,17 @@ def build_ledger_record(
             "ks_statistic": sa.get("ks_statistic"),
             "vol_path_mae": sa.get("vol_path_mae"),
             "drawdown_error": sa.get("drawdown_error"),
+            # Direction matters for diagnosis (overshoot vs undershoot);
+            # drawdown_error alone cannot tell them apart.
+            "sim_drawdown": sa.get("sim_drawdown"),
+            "obs_drawdown": sa.get("obs_drawdown"),
             "n_points": sa.get("n_points"),
         }
     return {
         "week": week,
         "run_at": run_at,
         "scenario": scenario,
+        "seeds": summary.get("seeds"),
         "scenario_class": alignment.get("scenario_class")
         or scenario_class_for(scenario),
         "tickers": list(tickers),
@@ -491,6 +571,7 @@ async def accumulate_week(
     run_at = datetime.now(timezone.utc).isoformat()
     new_records: list[dict[str, Any]] = []
     summaries: dict[str, dict[str, Any]] = {}
+    seed_base = week_seed(week)
     for scenario in pending:
         summary = await run(
             scenario,
@@ -500,6 +581,8 @@ async def accumulate_week(
             agent_kwargs=agent_kwargs,
             agent_mix=agent_mix,
             experiment_id=EXPERIMENT_ID,
+            random_seed=seed_base,
+            population=AGENTS_TOTAL,
         )
         summaries[scenario] = summary
         sclass = summary.get("alignment", {}).get("scenario_class") or scenario_class_for(
@@ -566,6 +649,8 @@ async def accumulate_week(
                 "score": t["score"],
                 "n_alignments": t["n_alignments"],
                 "recommendation": t["recommendation"],
+                "to_caution_weeks": t["to_caution"]["weeks_needed"],
+                "to_use_weeks": t["to_use"]["weeks_needed"],
             }
             for sclass, t in trust_summary["classes"].items()
         },
@@ -609,9 +694,17 @@ def cmd_market_accumulate(argv: list[str] | None = None) -> int:
     print("per-class trust (ledger-wide):")
     for sclass in sorted(result["trust"]):
         t = result["trust"][sclass]
+        flip = t["to_caution_weeks"]
+        flip_txt = (
+            f"needs {flip} more within-tolerance weeks to reach CAUTION"
+            if isinstance(flip, int) and flip > 0
+            else "at CAUTION or above"
+            if flip == 0
+            else "cannot reach CAUTION on hit rate alone"
+        )
         print(
             f"  [{t['recommendation']}] {sclass}  "
-            f"score={t['score']:.4f}  n={t['n_alignments']}"
+            f"score={t['score']:.4f}  n={t['n_alignments']}  {flip_txt}"
         )
     print(f"ledger: {LEDGER_PATH}")
     print(f"trust summary: {TRUST_SUMMARY_PATH}")

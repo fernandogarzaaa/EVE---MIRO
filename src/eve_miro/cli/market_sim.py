@@ -190,6 +190,8 @@ async def _run_scenario(
     agent_kwargs: dict[str, dict[str, Any]] | None = None,
     agent_mix: dict[str, float] | None = None,
     experiment_id: str = "market-sim-cli",
+    random_seed: int | None = None,
+    population: int | None = None,
 ) -> dict[str, Any]:
     """Run one market scenario and return the dashboard summary dict.
 
@@ -197,6 +199,12 @@ async def _run_scenario(
     used by the live accumulation job. agent_kwargs/agent_mix carry the
     Phase 5 calibrated archetype parameters into the engine; absent means
     engine defaults. experiment_id namespaces the ledger records.
+    random_seed overrides the scenario YAML seed: the weekly job passes
+    one derived from the ISO week so each week's run is an independent
+    draw instead of replaying the same seeded path every week.
+    population overrides the scenario YAML population: the weekly job
+    passes the calibrated population so the run stays at the operating
+    point the parameters were fitted at.
     """
     from marketsim.engine import MarketSimEngine
     from marketsim.scenarios import market_scenario
@@ -262,9 +270,9 @@ async def _run_scenario(
         price_scale[new] = live_price / yaml_price if yaml_price > 0 else 1.0
 
     conditions = doc.get("conditions", {}) or {}
-    base_seed = int(doc.get("random_seed", 202411))
+    base_seed = int(random_seed if random_seed is not None else doc.get("random_seed", 202411))
     seeds = [base_seed, base_seed + DEFAULT_SEEDS_OFFSET]
-    population = int((doc.get("agents", {}) or {}).get("population", 60))
+    population = int(population if population is not None else (doc.get("agents", {}) or {}).get("population", 60))
     interventions = _scale_interventions(doc, symbol_map, price_scale)
 
     predicted: dict[str, list[list[float]]] = {s: [] for s in symbols}
